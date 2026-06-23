@@ -50,3 +50,6 @@ demo
 
 radharmony_judy
 third_party_models
+
+# Local, uncommitted dataset configs with real data paths (internal use)
+configs/local/

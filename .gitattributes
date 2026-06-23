@@ -1,0 +1,3 @@
+# Strip notebook outputs on commit so the tree stays clean and matches upstream.
+# Each clone must run once: nbstripout --install   (see CONTRIBUTING).
+*.ipynb filter=nbstripout

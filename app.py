@@ -13,6 +13,7 @@ Adding a new dataset
 That is all — the UI and loader update automatically.
 """
 
+import importlib
 import os
 import random
 from dataclasses import dataclass
@@ -1623,6 +1624,20 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
     ),
 }
 
+# Optional dataset plugins. Each package named in the RADHARMONY_APP_PLUGINS
+# env var (comma-separated) may expose a callable
+# ``register_app_datasets(registry, DatasetConfig, _header, app_dtype)`` that
+# appends entries to DATASET_REGISTRY. Lets third-party / private dataset
+# packages extend the app without editing it.
+for _plugin in os.environ.get("RADHARMONY_APP_PLUGINS", "").split(","):
+    _plugin = _plugin.strip()
+    if not _plugin:
+        continue
+    try:
+        _mod = importlib.import_module(_plugin)
+        _mod.register_app_datasets(DATASET_REGISTRY, DatasetConfig, _header, _APP_DTYPE)
+    except Exception as _e:  # noqa: BLE001 — a bad plugin shouldn't kill the app
+        print(f"[radharmony] app plugin {_plugin!r} not loaded: {_e}")
 
 
 def _group_by_modality(registry: dict) -> dict[str, list[str]]:
