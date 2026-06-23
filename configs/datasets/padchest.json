@@ -1,0 +1,150 @@
+{
+  "_comment": "PadChest (BIMCV) — 160,861 chest X-rays from Hospital San Juan, Alicante, Spain. Labels (193 findings) are NLP-derived from Spanish radiology reports plus manual review. Stored as Python-style string lists in the Labels column; harmonizer parses and one-hot encodes. Spanish reports are included via output_report. Images are PNG, distributed across 52 sibling subdirs (0..50 and 54; 51/52/53 don't exist).",
+
+  "dataset_name": "PadChest",
+  "registry_key": "padchest",
+  "modality": "2D",
+  "image_format": "PNG",
+
+  "base_image_dir": "/path/to/PadChest/images/",
+
+  "primary_csv": {
+    "_comment": "Single CSV with one row per image. ImageID is the PNG filename; ImageDir (integer 0..50, 54) is the parent subdir under base_image_dir.",
+    "path": "/path/to/PadChest/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
+    "filename_variants": [
+      "PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
+      "PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+    ]
+  },
+
+  "patient_id": {
+    "_comment": "Direct column in the CSV — anonymized long hash IDs.",
+    "column": "PatientID",
+    "derivation": null
+  },
+
+  "study_id": {
+    "_comment": "Direct column in the CSV — long hash IDs.",
+    "column": "StudyID",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "Constructed as f'{ImageDir}/{ImageID}'. ImageDir is stored as int in the CSV, must be cast to str. Structural exception: 52 sibling image directories live INSIDE base_image_dir, so image_path carries the subdir name (same pattern as ChestX-ray14). Result resolves like 'images/0/<hash>_<slug>.png'.",
+    "column": null,
+    "derivation": "f'{ImageDir}/{ImageID}'",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "Labels column stores a Python literal string list per row, e.g. \"['cardiomegaly', 'pleural effusion']\". Harmonizer parses with ast.literal_eval, strips whitespace, and one-hot encodes against the 193-label vocabulary below. Some labels in the raw CSV have leading-space variants; stripping merges them. 103 rows have NaN labels — dropped via uncertain_handling.",
+    "columns": [
+      "COPD signs", "Chilaiditi sign", "NSG tube", "abnormal foreign body", "abscess",
+      "adenopathy", "air bronchogram", "air fluid level", "air trapping", "alveolar pattern",
+      "aortic aneurysm", "aortic atheromatosis", "aortic button enlargement", "aortic elongation",
+      "aortic endoprosthesis", "apical pleural thickening", "artificial aortic heart valve",
+      "artificial heart valve", "artificial mitral heart valve", "asbestosis signs",
+      "ascendent aortic elongation", "atelectasis", "atelectasis basal", "atypical pneumonia",
+      "axial hyperostosis", "azygoesophageal recess shift", "azygos lobe", "blastic bone lesion",
+      "bone cement", "bone metastasis", "breast mass", "bronchiectasis", "bronchovascular markings",
+      "bullas", "calcified adenopathy", "calcified densities", "calcified fibroadenoma",
+      "calcified granuloma", "calcified mediastinal adenopathy", "calcified pleural plaques",
+      "calcified pleural thickening", "callus rib fracture", "cardiomegaly", "catheter",
+      "cavitation", "central vascular redistribution", "central venous catheter",
+      "central venous catheter via jugular vein", "central venous catheter via subclavian vein",
+      "central venous catheter via umbilical vein", "cervical rib", "chest drain tube",
+      "chronic changes", "clavicle fracture", "consolidation",
+      "costochondral junction hypertrophy", "costophrenic angle blunting", "cyst", "dai",
+      "descendent aortic elongation", "dextrocardia", "diaphragmatic eventration", "double J stent",
+      "dual chamber device", "electrical device", "emphysema", "empyema", "end on vessel",
+      "endoprosthesis", "endotracheal tube", "esophagic dilatation", "exclude",
+      "external foreign body", "fibrotic band", "fissure thickening", "flattened diaphragm",
+      "fracture", "gastrostomy tube", "goiter", "granuloma", "ground glass pattern",
+      "gynecomastia", "heart insufficiency", "heart valve calcified", "hemidiaphragm elevation",
+      "hiatal hernia", "hilar congestion", "hilar enlargement", "humeral fracture",
+      "humeral prosthesis", "hydropneumothorax", "hyperinflated lung", "hypoexpansion",
+      "hypoexpansion basal", "increased density", "infiltrates", "interstitial pattern",
+      "kerley lines", "kyphosis", "laminar atelectasis", "lepidic adenocarcinoma", "lipomatosis",
+      "lobar atelectasis", "loculated fissural effusion", "loculated pleural effusion",
+      "lung metastasis", "lung vascular paucity", "lymphangitis carcinomatosa", "lytic bone lesion",
+      "major fissure thickening", "mammary prosthesis", "mass", "mastectomy",
+      "mediastinal enlargement", "mediastinal mass", "mediastinal shift", "mediastinic lipomatosis",
+      "metal", "miliary opacities", "minor fissure thickening", "multiple nodules",
+      "nephrostomy tube", "nipple shadow", "nodule", "non axial articular degenerative changes",
+      "normal", "obesity", "osteopenia", "osteoporosis", "osteosynthesis material", "pacemaker",
+      "pectum carinatum", "pectum excavatum", "pericardial effusion", "pleural effusion",
+      "pleural mass", "pleural plaques", "pleural thickening", "pneumomediastinum", "pneumonia",
+      "pneumoperitoneo", "pneumothorax", "post radiotherapy changes", "prosthesis", "pseudonodule",
+      "pulmonary artery enlargement", "pulmonary artery hypertension", "pulmonary edema",
+      "pulmonary fibrosis", "pulmonary hypertension", "pulmonary mass", "pulmonary venous hypertension",
+      "reservoir central venous catheter", "respiratory distress", "reticular interstitial pattern",
+      "reticulonodular interstitial pattern", "rib fracture", "right sided aortic arch",
+      "round atelectasis", "sclerotic bone lesion", "scoliosis", "segmental atelectasis",
+      "single chamber device", "soft tissue mass", "sternoclavicular junction hypertrophy",
+      "sternotomy", "subacromial space narrowing", "subcutaneous emphysema", "suboptimal study",
+      "superior mediastinal enlargement", "supra aortic elongation", "surgery", "surgery breast",
+      "surgery heart", "surgery humeral", "surgery lung", "surgery neck", "suture material",
+      "thoracic cage deformation", "total atelectasis", "tracheal shift", "tracheostomy tube",
+      "tuberculosis", "tuberculosis sequelae", "unchanged", "vascular hilar enlargement",
+      "vascular redistribution", "ventriculoperitoneal drain tube", "vertebral anterior compression",
+      "vertebral compression", "vertebral degenerative changes", "vertebral fracture", "volume loss"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are in the primary CSV.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "NLP-derived multi-label, no per-label uncertainty marker (unlike CheXpert's -1). NaN Labels rows (103 of 160,861) are always dropped. Image-level uncertainty is expressed via two meta-labels — 'exclude' (1,312 rows) and 'suboptimal_study' (1,839 rows, ~3,151 combined). With the harmonizer's default drop_uncertain=True these rows are also dropped, leaving 157,607 rows; pass drop_uncertain=False to keep the full noisy distribution (160,758 rows).",
+      "nan_action": "drop",
+      "negative_one_action": null,
+      "drop_uncertain_rows": true
+    }
+  },
+
+  "view_position": {
+    "_comment": "Use the cleaned Projection column (PA / L / AP / AP_horizontal / COSTAL) rather than ViewPosition_DICOM (POSTEROANTERIOR / LATERAL / ...). Projection is closer to what other CXR harmonizers expose (PA / AP / L) and is fully populated.",
+    "column": "Projection",
+    "source": "csv",
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "No segmentation masks in PadChest.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "Localizations column contains anatomic region strings ('loc basal', 'loc cardiac', ...), NOT pixel-coordinate bounding boxes. Not exposed as bboxes.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "Spanish radiology reports in the Report column, pre-processed (stemmed/lemmatized by the PadChest authors). 116 NaN rows. Exposed via output_report. Note: language is Spanish — not interchangeable with English-report datasets like MIMIC-CXR.",
+    "supported": true,
+    "format": "csv_column",
+    "separate_csv": {
+      "_comment": "Reports are in the primary CSV.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": "Report"
+  },
+
+  "extra_init_params": {
+    "_comment": "None — single CSV covers all metadata, labels, view, and reports."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Labels column stores a string-encoded Python list per row; harmonizer parses with ast.literal_eval, strips per-label whitespace (some labels have leading-space variants in the raw CSV), and one-hot encodes against the 193-label vocabulary. ImageDir is stored as int in the CSV and must be cast to str when building image_path. 103 rows with NaN Labels are dropped."
+}

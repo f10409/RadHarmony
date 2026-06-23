@@ -1,0 +1,113 @@
+{
+  "_comment": "NIH ChestX-ray14 dataset. 112,120 frontal CXR images from 30,805 patients. Labels are NLP-derived from radiology reports (pipe-separated in Finding Labels column). A subset of 984 images has radiologist-drawn bounding boxes.",
+
+  "dataset_name": "ChestX-ray14",
+  "registry_key": "chestxray14",
+  "modality": "2D",
+  "image_format": "PNG",
+
+  "base_image_dir": "/path/to/NIH_CXR/CXR14/",
+
+  "primary_csv": {
+    "_comment": "Main metadata CSV with one row per image. Labels are pipe-separated in Finding Labels column.",
+    "path": "/path/to/NIH_CXR/CXR14/Data_Entry_2017.csv",
+    "filename_variants": ["Data_Entry_2017.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "Direct column in the CSV.",
+    "column": "Patient ID",
+    "derivation": null
+  },
+
+  "study_id": {
+    "_comment": "Combine Patient ID and Follow-up # to make unique study IDs.",
+    "column": null,
+    "derivation": "f'{Patient ID}_{Follow-up #}'"
+  },
+
+  "image_path": {
+    "_comment": "Image Index column has just the filename (e.g. 00000001_000.png). Images are distributed across images_001/images/ through images_012/images/ subdirectories. Must scan directories to resolve full relative paths.",
+    "column": "Image Index",
+    "derivation": "Scan images_*/images/ subdirectories to find which folder contains each file.",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "Labels are pipe-separated in the Finding Labels column (e.g. 'Atelectasis|Effusion'). Must be one-hot encoded. Note: Pleural_Thickening uses underscore in the raw CSV.",
+    "columns": [
+      "Atelectasis",
+      "Cardiomegaly",
+      "Consolidation",
+      "Edema",
+      "Effusion",
+      "Emphysema",
+      "Fibrosis",
+      "Hernia",
+      "Infiltration",
+      "Mass",
+      "No Finding",
+      "Nodule",
+      "Pleural_Thickening",
+      "Pneumonia",
+      "Pneumothorax"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are in the primary CSV (pipe-separated).",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "NLP-derived labels are binary (0 or 1 after one-hot). No uncertain values.",
+      "nan_action": "to_zero",
+      "negative_one_action": null,
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "View Position column in primary CSV: PA (67,310) or AP (44,810).",
+    "column": "View Position",
+    "source": "csv",
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "No segmentation masks available.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "BBox_List_2017.csv has 984 bounding boxes for 8 pathologies. Header is malformed (Bbox [x,y,w,h] splits across columns). Coordinates are pixel-space (x, y, w, h). Image dimensions available in primary CSV (OriginalImage[Width, Height]).",
+    "supported": true,
+    "column": "BBox_List_2017.csv: Image Index, Finding Label, x, y, w, h"
+  },
+
+  "reports": {
+    "_comment": "No radiology reports available.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "_comment": null,
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "bbox_csv_path for BBox_List_2017.csv"
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Labels must be one-hot encoded from pipe-separated Finding Labels. Image paths must be resolved by scanning images_*/images/ subdirectories. BBox CSV has malformed header requiring manual column assignment."
+}

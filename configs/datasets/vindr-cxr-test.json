@@ -1,0 +1,73 @@
+{
+  "_comment": "VinDr-CXR test set. 3,000 chest X-rays verified by 5 radiologists. Labels and bboxes are already aggregated (no rad_id column). Note: 'Other disease' (singular) vs train's 'Other diseases' (plural).",
+
+  "dataset_name": "VinDr-CXR-Test",
+  "registry_key": "vindr_cxr_test",
+  "modality": "2D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "/path/to/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/test/",
+
+  "primary_csv": {
+    "path": "/path/to/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/annotations/image_labels_test.csv",
+    "filename_variants": ["image_labels_test.csv"]
+  },
+
+  "patient_id": {
+    "column": null,
+    "derivation": "Use image_id as patient_id (no patient concept in VinDr-CXR)"
+  },
+
+  "study_id": {
+    "column": null,
+    "derivation": "Use image_id as study_id (one image per study)"
+  },
+
+  "image_path": {
+    "column": null,
+    "derivation": "image_id + '.dicom'",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "columns": [
+      "Aortic enlargement", "Atelectasis", "COPD", "Calcification",
+      "Cardiomegaly", "Clavicle fracture", "Consolidation", "Edema",
+      "Emphysema", "Enlarged PA", "ILD", "Infiltration", "Lung Opacity",
+      "Lung cavity", "Lung cyst", "Lung tumor", "Mediastinal shift",
+      "No finding", "Nodule/Mass", "Other disease", "Other lesion",
+      "Pleural effusion", "Pleural thickening", "Pneumonia", "Pneumothorax",
+      "Pulmonary fibrosis", "Rib fracture", "Tuberculosis"
+    ],
+    "separate_csv": { "path": null },
+    "uncertain_handling": {
+      "nan_action": "to_zero",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "All images are PA view (constant).",
+    "column": null,
+    "source": null
+  },
+
+  "masks": { "supported": false },
+
+  "bboxes": {
+    "_comment": "Already aggregated across 5 radiologists — no rad_id column. One row per finding per image. 949 images with bboxes, 2697 bbox rows total.",
+    "supported": true,
+    "separate_csv": {
+      "path": "/path/to/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/annotations/annotations_test.csv",
+      "filename_variants": ["annotations_test.csv"]
+    }
+  },
+
+  "reports": { "supported": false },
+  "extra_init_params": {
+    "base_image_dir": "Root of DICOM tree for header reads during bbox normalization"
+  },
+  "hu_window": null,
+  "custom_preprocessing": null
+}

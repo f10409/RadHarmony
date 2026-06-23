@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "radharmony"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "monai[itk]",
+    "torch",
+    "pandas",
+    "numpy",
+    "pydicom",
+    "simpleitk>=2.5.3",
+    "pyarrow>=15",
+    "tqdm",
+    "scikit-learn",
+    "matplotlib>=3.10.8",
+]
+
+[project.optional-dependencies]
+model = [
+    "torchvision>=0.26.0",
+    "transformers>=5.6.0",
+    "nvidia-cudnn-cu12>=9.20.0.48",
+    "nvidia-cusparselt-cu12>=0.8.1",
+    "nvidia-nccl-cu12>=2.29.7",
+    "nvidia-nvshmem-cu12>=3.6.5",
+]
+notebook = [
+    "ipykernel>=7.2.0",
+    "ipywidgets>=8.1.8",
+]
+app = [
+    "gradio>=6.10.0",
+]
+raddino = [
+    "rad-dino",
+]
+biomed = [
+    "open-clip-torch",
+    "transformers>=5.6.0",
+]
+chexagent = ["transformers>=5.6.0", "sentencepiece", "protobuf"]
+medsiglip  = ["transformers>=5.6.0", "sentencepiece", "protobuf"]
+medimageinsights = ["mup", "fvcore", "tenacity", "huggingface_hub"]
+chexfound = ["omegaconf"]
+dinov3 = ["transformers>=5.6.0"]
+eva_x = ["timm", "huggingface_hub", "torchvision>=0.26.0"]
+ark_plus = ["torchvision>=0.26.0"]
+medical_mae = ["torchvision>=0.26.0"]
+siglip2 = ["transformers>=5.6.0", "sentencepiece", "protobuf"]
+all = [
+    "radharmony[model,notebook,app]",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["radharmony*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

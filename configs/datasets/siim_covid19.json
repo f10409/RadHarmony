@@ -1,0 +1,101 @@
+{
+  "_comment": "2021 SIIM-FISABIO-RSNA COVID-19 Detection Challenge (Kaggle slug: siim-covid19-detection). 2-D chest X-ray (DICOM). Study-level 4-class appearance (Negative / Typical / Indeterminate / Atypical); image-level bounding boxes for airspace opacities. One row per image (6334 rows across 6054 studies). Labels merged from train_study_level.csv; bboxes parsed from train_image_level.csv and normalized to [0, 1] using DICOM Rows/Columns.",
+
+  "dataset_name": "SIIM-FISABIO-RSNA COVID-19 Detection (2021)",
+  "registry_key": "siim_covid19",
+  "modality": "2D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "<KAGGLEHUB_CACHE>/competitions/siim-covid19-detection/train/",
+
+  "primary_csv": {
+    "_comment": "Study-level appearance classes. 'id' column has a '_study' suffix — stripped to match the StudyInstanceUID folder name.",
+    "path": "<KAGGLEHUB_CACHE>/competitions/siim-covid19-detection/train_study_level.csv",
+    "filename_variants": ["train_study_level.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "No patient column; use StudyInstanceUID so patient-level splits keep all images of a study together.",
+    "column": null,
+    "derivation": "patient_id = StudyInstanceUID (= study folder name)"
+  },
+
+  "study_id": {
+    "_comment": "Directly the StudyInstanceUID (folder name, matches DICOM header).",
+    "column": "StudyInstanceUID",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "Resolved via one-time directory walk of train/ that maps SOPInstanceUID -> <study>/<series>/<sop>.dcm. Series ID is not in the CSVs, only on disk.",
+    "column": null,
+    "derivation": "<study_uid>/<series_uid>/<sop_uid>.dcm (built from walk of base_image_dir)",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "4 one-hot columns. Each study has exactly one positive class. LABEL_COLS listed alphabetically (snake_case).",
+    "columns": [
+      "atypical_appearance",
+      "indeterminate_appearance",
+      "negative_for_pneumonia",
+      "typical_appearance"
+    ],
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "No uncertain/NaN labels in this dataset.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "Not provided in CSVs. Could be derived from DICOM ViewPosition tag in a follow-up.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "No segmentation masks.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "Multi-bbox per image from train_image_level.csv. 'boxes' column is a Python-literal string of a list of {x, y, width, height} dicts in ORIGINAL DICOM pixel space. NaN = no opacity. Normalized to [y_min/H, y_max/H, x_min/W, x_max/W] by reading DICOM Rows/Columns per image.",
+    "supported": true,
+    "column": "boxes",
+    "format": "python_literal_list_of_xywh_dicts"
+  },
+
+  "reports": {
+    "_comment": "No radiology reports.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "image_csv_path: path to train_image_level.csv (bboxes + image-to-study mapping). Required because the primary CSV is study-level and doesn't list image files."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Bboxes need DICOM Rows/Columns normalization (headers read in parallel for ~4k rows with opacities). Labels are already in [0,1] one-hot form — no further label transformation needed."
+}

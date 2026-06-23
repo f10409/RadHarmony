@@ -1,0 +1,113 @@
+{
+  "_comment": "CXR dataset which has multiple bboxes",
+  "dataset_name": "VinDr-CXR-train",
+  "registry_key": "vindr-cxr-train",
+  "modality": "2D",
+  "image_format": "DICOM",
+  "base_image_dir": "/path/to/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/train/",
+  "primary_csv": {
+    "_comment": "The main metadata CSV that lists every image row.",
+    "path": "/path/to/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/annotations/image_labels_train.csv",
+    "filename_variants": []
+  },
+  "patient_id": {
+    "_comment": "How to obtain the patient ID. Provide column if it exists, or describe derivation.",
+    "column": "image_id",
+    "derivation": "use image_id as patient id. 3 radilogists read the images, so the df needs to aggreagted: primary_df = (primary_df.drop(columns=['rad_id']).groupby('image_id').sum()>=2).astype(int).reset_index()"
+  },
+  "study_id": {
+    "_comment": "How to obtain the study ID. Provide column if it exists, or describe derivation.",
+    "column": "image_id",
+    "derivation": "use image_id as study id"
+  },
+  "image_path": {
+    "_comment": "How to obtain the image file path relative to base_image_dir.",
+    "column": "image_id",
+    "derivation": "image_id+'.dicom'",
+    "prefix_to_strip": null
+  },
+  "labels": {
+    "_comment": "Label columns and how to handle uncertain values.",
+    "columns": [
+      "Aortic enlargement",
+      "Atelectasis",
+      "COPD",
+      "Calcification",
+      "Cardiomegaly",
+      "Clavicle fracture",
+      "Consolidation",
+      "Edema",
+      "Emphysema",
+      "Enlarged PA",
+      "ILD",
+      "Infiltration",
+      "Lung Opacity",
+      "Lung cavity",
+      "Lung cyst",
+      "Lung tumor",
+      "Mediastinal shift",
+      "No finding",
+      "Nodule/Mass",
+      "Other diseases",
+      "Other lesion",
+      "Pleural effusion",
+      "Pleural thickening",
+      "Pneumonia",
+      "Pneumothorax",
+      "Pulmonary fibrosis",
+      "Rib fracture",
+      "Tuberculosis"
+    ],
+    "separate_csv": {
+      "_comment": "If labels are in a separate CSV, describe path and how to join.",
+      "path": "/path/to/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/annotations/image_labels_train.csv",
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "How to handle missing or uncertain label values.",
+      "nan_action": "to_zero",
+      "negative_one_action": "to_nan",
+      "drop_uncertain_rows": true
+    }
+  },
+  "view_position": {
+    "_comment": "View position info (e.g. AP/PA/Lateral). Can come from CSV or DICOM headers.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+  "masks": {
+    "_comment": "Segmentation mask support.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+  "bboxes": {
+    "_comment": "Bounding box support.",
+    "supported": true,
+    "column": "x_min, y_min, x_max, y_max"
+  },
+  "reports": {
+    "_comment": "Radiology report support. Describe format and location.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "_comment": "CSV that maps studies to report file paths.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+  "extra_init_params": {
+    "_comment": "Any additional constructor parameters not covered above."
+  },
+  "hu_window": null,
+  "custom_preprocessing": null
+}

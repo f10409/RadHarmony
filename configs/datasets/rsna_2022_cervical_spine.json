@@ -1,0 +1,98 @@
+{
+  "_comment": "RSNA 2022 Cervical Spine Fracture Detection Challenge. ~2,019 cervical-spine CT scans from multiple institutions, stored as per-slice DICOMs under train_images/<StudyInstanceUID>/<slice_number>.dcm (slice_number is the integer instance index, not the SOPInstanceUID — single-series studies, no nested SeriesInstanceUID directory). Integrated as 3D per-volume classification: image_path points at the study directory and MONAI's ITKReader assembles the 3D volume on the fly. Each study has 8 binary labels: patient_overall (any-fracture flag) + C1..C7 (per-vertebra fracture flags). 235 studies have slice-level bounding boxes (train_bounding_boxes.csv) and 87 have NIfTI segmentation masks (segmentations/<StudyInstanceUID>.nii). Test set is Kaggle holdout (no labels) — train-only.",
+
+  "dataset_name": "RSNA 2022 Cervical Spine",
+  "registry_key": "rsna_2022_cervical_spine",
+  "modality": "3D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "/path/to/rsna-2022-cervical-spine-fracture-detection/train_images",
+
+  "primary_csv": {
+    "_comment": "train.csv — one row per study with patient_overall + C1..C7 binary labels. Sits one level above base_image_dir (auto-discovered).",
+    "path": "/path/to/rsna-2022-cervical-spine-fracture-detection/train.csv",
+    "filename_variants": ["train.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "No distinct patient column — one study per patient in this release. StudyInstanceUID is used as the patient key (mirrors the RSNA PE Detection convention).",
+    "column": null,
+    "derivation": "patient_id = StudyInstanceUID"
+  },
+
+  "study_id": {
+    "_comment": "Directly StudyInstanceUID.",
+    "column": "StudyInstanceUID",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "DICOM study DIRECTORY (not a single file). Layout is unusual for a Kaggle CT release — only one level deep (<StudyUID>/<slice>.dcm) rather than the nested <StudyUID>/<SeriesUID>/<SOP>.dcm seen in RSNA PE. MONAI's ITKReader loads all .dcm files in the directory and assembles a 3D volume. Relative to base_image_dir.",
+    "column": null,
+    "derivation": "<StudyInstanceUID>",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "8 binary per-study labels (one-hot 0/1 in train.csv). patient_overall = 1 iff any vertebra fractured; C1..C7 = per-vertebra. Row order in CSV: StudyInstanceUID, patient_overall, C1, C2, C3, C4, C5, C6, C7.",
+    "columns": ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "patient_overall"],
+    "separate_csv": {
+      "_comment": "All labels live in the primary train.csv; no separate label CSV.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "All labels are clean 0/1 — no NaN, no -1 in the source CSV.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "N/A — 3D CT volumes have no AP/PA/Lateral concept.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "87 of the 2,019 studies have whole-volume segmentation masks as NIfTI (uint16, ~512×512×~430, voxel ~0.29×0.29×0.5 mm). The harmonizer populates mask_path for those studies and leaves it null for the rest. When output_mask=True, the framework's existing dropna on *_path columns naturally restricts the dataset to the 87 mask-having studies; when output_mask=False all 2,019 studies are visible. Gradio will show the mask overlay when present.",
+    "supported": true,
+    "column": "mask_path",
+    "format": "file_path"
+  },
+
+  "bboxes": {
+    "_comment": "235 of the 2,019 studies have slice-level bounding boxes (train_bounding_boxes.csv: StudyInstanceUID, x, y, width, height, slice_number). Decision: ship a SECOND dataset class RSNA2022CervicalSpineBboxDataset that is 2-D per-slice (one row per (study, slice) with a bbox), mirroring the ChestXray14 / ChestXray14Bbox precedent. The primary 3-D class does not expose bboxes.",
+    "supported": true,
+    "column": "bbox"
+  },
+
+  "reports": {
+    "_comment": "No radiology reports in this release.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "No extra constructor params expected beyond the standard 3D pipeline ones (cache_dir, hu_window).",
+    "bbox_csv_path": "Optional path to train_bounding_boxes.csv when output_bbox=True (auto-discovered near base_image_dir).",
+    "segmentation_dir": "Optional override for the segmentations/ directory (auto-discovered near base_image_dir)."
+  },
+
+  "hu_window": [-200, 1800],
+  "custom_preprocessing": "Standard 3D CT pipeline. HU window default [-200, 1800] is bone-centric (cervical spine is the target tissue); override with hu_window=(-1000, 1000) for soft-tissue work."
+}

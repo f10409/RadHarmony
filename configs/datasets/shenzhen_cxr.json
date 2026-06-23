@@ -1,0 +1,97 @@
+{
+  "_comment": "Shenzhen Hospital CXR Set — NLM/Shenzhen No.3 People's Hospital TB screening dataset. 662 frontal chest X-rays (336 TB, 326 normal) captured at out-patient clinics using a Philips DR Digital Diagnose system. Binary TB label is encoded directly in the filename suffix (_0 = normal, _1 = TB), so there is no separate label CSV. Clinical metadata (patient age, sex, findings description) is distributed as individual text files in ClinicalReadings/. The dataset has no primary CSV; the harmonizer scans CXR_png/ to build the DataFrame. Download from: https://data.lhncbc.nlm.nih.gov/public/Tuberculosis-Chest-X-ray-Datasets/Shenzhen-Hospital-CXR-Set/index.html",
+
+  "dataset_name": "Shenzhen Hospital CXR Set",
+  "registry_key": "shenzhen_cxr",
+  "modality": "2D",
+  "image_format": "PNG",
+
+  "base_image_dir": "<path_to_Shenzhen-Hospital-CXR-Set>/CXR_png/",
+
+  "primary_csv": {
+    "_comment": "No primary CSV — the dataset has no metadata spreadsheet. The harmonizer scans base_image_dir for PNG files matching CHNCXR_*_*.png and builds the DataFrame from filenames.",
+    "path": null,
+    "filename_variants": []
+  },
+
+  "patient_id": {
+    "_comment": "Derived from the numeric portion of the filename. CHNCXR_00001_1.png → patient_id = '00001'. One patient per study in this dataset.",
+    "column": null,
+    "derivation": "5-digit zero-padded numeric portion of the PNG filename, e.g. '00001' from CHNCXR_00001_1.png"
+  },
+
+  "study_id": {
+    "_comment": "Same as patient_id — each patient has exactly one study in this dataset.",
+    "column": null,
+    "derivation": "Same as patient_id"
+  },
+
+  "image_path": {
+    "_comment": "Filename only (e.g. CHNCXR_00001_1.png). base_image_dir is CXR_png/, so image_path is just the filename — no prefix needed.",
+    "column": null,
+    "derivation": "Filename of the PNG file, e.g. CHNCXR_00001_1.png",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "Single binary TB label derived from the filename suffix: _0 = 0 (normal), _1 = 1 (tuberculosis).",
+    "columns": ["tuberculosis"],
+    "separate_csv": {
+      "_comment": "Label is embedded in the filename — no separate label file.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Binary 0/1 label with no uncertainty; NaN not applicable.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "All images are frontal CXRs; no view-position column in the dataset.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "Polygon annotations and binary mask PNGs are available in Annotations/ for TB-positive images, but RadHarmony does not expose them in the initial integration.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "Not provided in a structured format compatible with the RadHarmony bbox pipeline.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "Clinical readings (age, sex, findings text) are in ClinicalReadings/CHNCXR_#####_0/1.txt. They are loaded as the 'report' column when clinical_readings_dir is set on the harmonizer.",
+    "supported": true,
+    "format": "text_files",
+    "separate_csv": {
+      "_comment": "No CSV — one text file per image in ClinicalReadings/.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": "<path_to_Shenzhen-Hospital-CXR-Set>/ClinicalReadings/",
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "clinical_readings_dir": "Optional path to the ClinicalReadings/ directory. When set, the harmonizer reads each CHNCXR_#####_0/1.txt file and populates patient_age, patient_sex, and report columns."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "No primary CSV — harmonizer scans base_image_dir for PNG files. TB label is parsed from the filename suffix (_0=normal, _1=TB). Clinical metadata is loaded from ClinicalReadings/ text files when clinical_readings_dir is provided."
+}

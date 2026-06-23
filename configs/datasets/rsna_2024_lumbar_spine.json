@@ -1,0 +1,171 @@
+{
+  "_comment": "RSNA 2024 Lumbar Spine Degenerative Classification (Kaggle). 3D MRI DICOM stacks organized as train_images/<study_id>/<series_id>/<instance>.dcm. 1975 studies, ~6294 series (3 per study: Sagittal T1, Sagittal T2/STIR, Axial T2). Labels are study-level severity (Normal/Mild, Moderate, Severe) across 25 targets (5 conditions x 5 lumbar levels). We harmonize one row per (study, series); labels are duplicated across a study's series. Labels are expanded into 75 binary columns (25 targets x 3 severities) so they play natively with output_cls.",
+
+  "dataset_name": "RSNA 2024 Lumbar Spine Degenerative Classification",
+  "registry_key": "rsna_2024_lumbar_spine",
+  "modality": "3D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "<KAGGLEHUB_CACHE>/competitions/rsna-2024-lumbar-spine-degenerative-classification/train_images/",
+
+  "primary_csv": {
+    "_comment": "Study-level labels: 25 string cols (Normal/Mild, Moderate, Severe, NaN).",
+    "path": "<KAGGLEHUB_CACHE>/competitions/rsna-2024-lumbar-spine-degenerative-classification/train.csv",
+    "filename_variants": ["train.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "Dataset has no distinct patient id column; treat each study as its own patient so patient-level splits keep all series of a study together.",
+    "column": null,
+    "derivation": "patient_id = study_id"
+  },
+
+  "study_id": {
+    "_comment": "Direct column in train.csv.",
+    "column": "study_id",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "Relative to base_image_dir. Points to the series directory, which ITKReader loads as a 3D DICOM volume.",
+    "column": null,
+    "derivation": "<study_id>/<series_id>",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "Expanded from the 25 string-valued severity columns into 75 binary columns: {condition}_{level}_normal_mild, {condition}_{level}_moderate, {condition}_{level}_severe.",
+    "columns": [
+      "left_neural_foraminal_narrowing_l1_l2_moderate",
+      "left_neural_foraminal_narrowing_l1_l2_normal_mild",
+      "left_neural_foraminal_narrowing_l1_l2_severe",
+      "left_neural_foraminal_narrowing_l2_l3_moderate",
+      "left_neural_foraminal_narrowing_l2_l3_normal_mild",
+      "left_neural_foraminal_narrowing_l2_l3_severe",
+      "left_neural_foraminal_narrowing_l3_l4_moderate",
+      "left_neural_foraminal_narrowing_l3_l4_normal_mild",
+      "left_neural_foraminal_narrowing_l3_l4_severe",
+      "left_neural_foraminal_narrowing_l4_l5_moderate",
+      "left_neural_foraminal_narrowing_l4_l5_normal_mild",
+      "left_neural_foraminal_narrowing_l4_l5_severe",
+      "left_neural_foraminal_narrowing_l5_s1_moderate",
+      "left_neural_foraminal_narrowing_l5_s1_normal_mild",
+      "left_neural_foraminal_narrowing_l5_s1_severe",
+      "left_subarticular_stenosis_l1_l2_moderate",
+      "left_subarticular_stenosis_l1_l2_normal_mild",
+      "left_subarticular_stenosis_l1_l2_severe",
+      "left_subarticular_stenosis_l2_l3_moderate",
+      "left_subarticular_stenosis_l2_l3_normal_mild",
+      "left_subarticular_stenosis_l2_l3_severe",
+      "left_subarticular_stenosis_l3_l4_moderate",
+      "left_subarticular_stenosis_l3_l4_normal_mild",
+      "left_subarticular_stenosis_l3_l4_severe",
+      "left_subarticular_stenosis_l4_l5_moderate",
+      "left_subarticular_stenosis_l4_l5_normal_mild",
+      "left_subarticular_stenosis_l4_l5_severe",
+      "left_subarticular_stenosis_l5_s1_moderate",
+      "left_subarticular_stenosis_l5_s1_normal_mild",
+      "left_subarticular_stenosis_l5_s1_severe",
+      "right_neural_foraminal_narrowing_l1_l2_moderate",
+      "right_neural_foraminal_narrowing_l1_l2_normal_mild",
+      "right_neural_foraminal_narrowing_l1_l2_severe",
+      "right_neural_foraminal_narrowing_l2_l3_moderate",
+      "right_neural_foraminal_narrowing_l2_l3_normal_mild",
+      "right_neural_foraminal_narrowing_l2_l3_severe",
+      "right_neural_foraminal_narrowing_l3_l4_moderate",
+      "right_neural_foraminal_narrowing_l3_l4_normal_mild",
+      "right_neural_foraminal_narrowing_l3_l4_severe",
+      "right_neural_foraminal_narrowing_l4_l5_moderate",
+      "right_neural_foraminal_narrowing_l4_l5_normal_mild",
+      "right_neural_foraminal_narrowing_l4_l5_severe",
+      "right_neural_foraminal_narrowing_l5_s1_moderate",
+      "right_neural_foraminal_narrowing_l5_s1_normal_mild",
+      "right_neural_foraminal_narrowing_l5_s1_severe",
+      "right_subarticular_stenosis_l1_l2_moderate",
+      "right_subarticular_stenosis_l1_l2_normal_mild",
+      "right_subarticular_stenosis_l1_l2_severe",
+      "right_subarticular_stenosis_l2_l3_moderate",
+      "right_subarticular_stenosis_l2_l3_normal_mild",
+      "right_subarticular_stenosis_l2_l3_severe",
+      "right_subarticular_stenosis_l3_l4_moderate",
+      "right_subarticular_stenosis_l3_l4_normal_mild",
+      "right_subarticular_stenosis_l3_l4_severe",
+      "right_subarticular_stenosis_l4_l5_moderate",
+      "right_subarticular_stenosis_l4_l5_normal_mild",
+      "right_subarticular_stenosis_l4_l5_severe",
+      "right_subarticular_stenosis_l5_s1_moderate",
+      "right_subarticular_stenosis_l5_s1_normal_mild",
+      "right_subarticular_stenosis_l5_s1_severe",
+      "spinal_canal_stenosis_l1_l2_moderate",
+      "spinal_canal_stenosis_l1_l2_normal_mild",
+      "spinal_canal_stenosis_l1_l2_severe",
+      "spinal_canal_stenosis_l2_l3_moderate",
+      "spinal_canal_stenosis_l2_l3_normal_mild",
+      "spinal_canal_stenosis_l2_l3_severe",
+      "spinal_canal_stenosis_l3_l4_moderate",
+      "spinal_canal_stenosis_l3_l4_normal_mild",
+      "spinal_canal_stenosis_l3_l4_severe",
+      "spinal_canal_stenosis_l4_l5_moderate",
+      "spinal_canal_stenosis_l4_l5_normal_mild",
+      "spinal_canal_stenosis_l4_l5_severe",
+      "spinal_canal_stenosis_l5_s1_moderate",
+      "spinal_canal_stenosis_l5_s1_normal_mild",
+      "spinal_canal_stenosis_l5_s1_severe"
+    ],
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "~1.2% of label cells are NaN. Set the 3-way one-hot to all zeros; keep the row (another level may still carry signal).",
+      "nan_action": "to_zero",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "Series description (Sagittal T1 / Sagittal T2/STIR / Axial T2) is a natural view_position and disambiguates the 3 series of each study.",
+    "column": "series_description",
+    "source": "csv",
+    "separate_csv": {
+      "path": "<KAGGLEHUB_CACHE>/competitions/rsna-2024-lumbar-spine-degenerative-classification/train_series_descriptions.csv",
+      "filename_variants": ["train_series_descriptions.csv"],
+      "join_columns": ["study_id", "series_id"]
+    }
+  },
+
+  "masks": {
+    "_comment": "No segmentation masks in this competition.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "train_label_coordinates.csv provides per-slice (x,y) point annotations for each (condition, level). Skipped on first pass; can be added later as a bbox/point channel.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "No radiology reports.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "None — base_image_dir + csv_path + series_description_csv_path are sufficient."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "MRI intensities vary per scanner/series; HU windowing does not apply. Fall through to the percentile-based intensity scaling already in _base_load_3d."
+}

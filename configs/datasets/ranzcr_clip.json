@@ -1,0 +1,111 @@
+{
+  "_comment": "RANZCR CLiP - Catheter and Line Position Challenge (2021). Royal Australian and New Zealand College of Radiologists Kaggle competition. ~30,000 frontal chest X-rays in JPEG with 11 binary multi-label targets describing the position correctness of endotracheal tubes (ETT), nasogastric tubes (NGT), central venous catheters (CVC), and Swan-Ganz catheters. A subset of training images carry polyline annotations tracing the catheter path; these can be optionally rasterized into segmentation masks via output_mask=True (mirrors the SIIM-ACR Pneumothorax pattern). Test split is the official competition holdout — images only, no labels. Source is exclusively the Kaggle competition release; use kagglehub to fetch.",
+
+  "dataset_name": "RANZCR CLiP",
+  "registry_key": "ranzcr_clip",
+  "modality": "2D",
+  "image_format": "JPEG",
+
+  "base_image_dir": "~/.cache/kagglehub/competitions/ranzcr-clip-catheter-line-classification/",
+
+  "primary_csv": {
+    "_comment": "Train CSV with one row per StudyInstanceUID. Columns: StudyInstanceUID, PatientID, plus 11 binary label columns. Test CSV (sample_submission.csv) is just SOP UIDs with no labels.",
+    "path": null,
+    "filename_variants": ["train.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "PatientID column is provided directly in train.csv. Test rows have no PatientID — derived as study_id for those.",
+    "column": "PatientID",
+    "derivation": null
+  },
+
+  "study_id": {
+    "_comment": "StudyInstanceUID is one-to-one with image filename for both train and test.",
+    "column": "StudyInstanceUID",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "Images live at <base>/train/<StudyInstanceUID>.jpg or <base>/test/<StudyInstanceUID>.jpg, indexed by split.",
+    "column": null,
+    "derivation": "<split>/<StudyInstanceUID>.jpg",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "11 binary multi-label targets renamed to clean snake_case in _build_labels: 'CVC - Abnormal' -> 'cvc_abnormal', 'NGT - Incompletely Imaged' -> 'ngt_incompletely_imaged', 'Swan Ganz Catheter Present' -> 'swan_ganz_catheter_present', etc. The default base-class snake-casing would produce 'cvc_-_abnormal' (preserves dashes) which is ugly; we rename explicitly so LABEL_COLS in both harmonizer and dataset class are the clean form. Test-split rows have NaN for every label.",
+    "columns": [
+      "CVC - Abnormal",
+      "CVC - Borderline",
+      "CVC - Normal",
+      "ETT - Abnormal",
+      "ETT - Borderline",
+      "ETT - Normal",
+      "NGT - Abnormal",
+      "NGT - Borderline",
+      "NGT - Incompletely Imaged",
+      "NGT - Normal",
+      "Swan Ganz Catheter Present"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are in the primary CSV.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Train labels are clean binary (0/1). Test rows are NaN by construction (no public labels).",
+      "nan_action": "keep",
+      "negative_one_action": null,
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "All studies are frontal CXR; not provided per-row.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "Optional. train_annotations.csv contains polyline annotations (label, list of [x, y] pixel-space points) for ~10% of training images. Each StudyInstanceUID can have multiple polylines across multiple labels. The harmonizer aggregates all polylines per image into one JSON-encoded string stored in mask_path; _decode_mask rasterizes them onto an (H, W) binary mask using cv2.polylines with a configurable line thickness. Set mask_output_dir to pre-decode masks to PNG files (required when output_mask=True, mirrors SIIM-ACR-PTX). Polyline coordinates are in original image pixel space; preprocess_masks reads each JPEG to get H, W.",
+    "supported": true,
+    "column": null,
+    "format": "polyline_json"
+  },
+
+  "bboxes": {
+    "_comment": "Not provided. Polyline annotations are line traces, not regions; converting to enclosing bbox would be semantically lossy.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "Not provided.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "_comment": null,
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "annotations_csv_path": "Path to train_annotations.csv (polyline annotations). Required only when output_mask=True. Auto-discovered via infer_path when None.",
+    "mask_line_thickness": "Pixel width used by cv2.polylines when rasterizing polylines into masks. Defaults to 15 — matches the kernel value used by the original RANZCR challenge starter notebook.",
+    "include_test_split": "When True (default), append test/<StudyInstanceUID>.jpg rows with NaN labels and split='test'. When False, only train rows are emitted."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Polyline rasterization: each annotation row's 'data' column is a stringified list of [x, y] pairs. Aggregate per StudyInstanceUID into a JSON list-of-lists, store in mask_path. _decode_mask uses cv2.polylines(img, [pts], isClosed=False, color=1, thickness=mask_line_thickness) to draw each polyline onto a zero (H, W) mask. Train rows from train.csv have split='train'; test rows are listed by directory walk over <base>/test/ with split='test' and NaN labels. EXTRA_OUTPUT_COLS=['split'] preserves the split column on the harmonized output."
+}

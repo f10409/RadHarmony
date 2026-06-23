@@ -1,0 +1,98 @@
+{
+  "_comment": "ReXGradient-160K — 273,004 chest X-rays from 160,000 studies / 109,487 patients across 79 U.S. medical sites, distributed via HuggingFace by rajpurkarlab. Three splits: train (140K studies / 238,968 images / 95,716 patients), validation (10K / 17,007 / 6,964), public test (10K / 17,029 / 6,807). Images are PNG (downsampled to 25%). Reports come pre-segmented into Indication / Comparison / Findings / Impression. No structured pathology labels. Bounding boxes exist for ~398 interstitial-pattern examples (skipped in this integration). Per-study CSVs ship alongside per-image JSONs; the JSONs are the source of truth because they expand to one entry per image (the CSV is one row per study).",
+
+  "dataset_name": "ReXGradient-160K",
+  "registry_key": "rexgradient",
+  "modality": "2D",
+  "image_format": "PNG",
+
+  "base_image_dir": "/path/to/ReXGradient-160K/deid_png/",
+
+  "primary_csv": {
+    "_comment": "Per-image JSON keyed by study id (e.g. 'pPATIENTID_aACCESSION_sSTUDYUID'); each value contains an ImagePath LIST of all images in that study plus parallel lists for ImageViewPosition/ImageShape/ImageModality/ImageBodyPart. Harmonizer explodes by ImagePath to one row per image. We use JSON not CSV because the CSV is one row per study with no image path information. Per-split files live in metadata/ alongside the CSVs.",
+    "path": "/path/to/ReXGradient-160K/download/metadata/train_metadata_view_position.json",
+    "filename_variants": [
+      "train_metadata_view_position.json",
+      "valid_metadata_view_position.json",
+      "test_metadata_view_position.json"
+    ]
+  },
+
+  "patient_id": {
+    "_comment": "Direct field in each JSON entry (and the first directory component under deid_png/).",
+    "column": "PatientID",
+    "derivation": null
+  },
+
+  "study_id": {
+    "_comment": "Direct field in each JSON entry.",
+    "column": "StudyInstanceUid",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "Per-image relative path constructed by stripping the JSON entry's '../deid_png/' prefix. JSON ImagePath entries look like '../deid_png/<PatientID>/<AccessionNumber>/studies/<StudyUID>/series/<SeriesUID>/instances/<SopUID>.png'; after stripping, the path is rooted at base_image_dir.",
+    "column": "ImagePath",
+    "derivation": "From JSON ImagePath list (one entry per image); strip leading '../deid_png/' so the relative path joins cleanly to base_image_dir.",
+    "prefix_to_strip": "../deid_png/"
+  },
+
+  "labels": {
+    "_comment": "ReXGradient ships NO structured pathology labels — only free-text reports (Indication / Comparison / Findings / Impression). Set LABEL_COLS = [] and gate output_cls=True with a clear error. Future work: derive CheXbert/CheXpert-style labels offline from reports.",
+    "columns": [],
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "Per-image ImageViewPosition list inside each JSON entry — same length as ImagePath. Values: 'PA', 'AP', 'LATERAL', 'UNKNOWN', or null. Harmonizer reads it inline; no separate CSV.",
+    "column": "ImageViewPosition",
+    "source": "json_inline_list",
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "Not supported by this dataset.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "metadata/interstitial_pattern_bbox.json contains ~398 Label-Studio-format boxes (x/y/width/height in original pixel coords, label = 'Reticulonodular' or similar interstitial-pattern subtypes). Out of scope for the v1 integration — adding it later requires normalising by the original ImageShape (post-downsample dims live in the per-image JSON's ImageShape list) and joining on the synthetic '<study_id>_<sop_uid>.png' key used by the bbox file.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "Reports are inline in the JSON (and the CSV) as four columns: Indication, Comparison, Findings, Impression. Harmonizer concatenates them with section headers into a single 'report' string per row (one report shared across all images of the same study) and overrides _build_report to skip the base file-reading path.",
+    "supported": true,
+    "format": "csv_column",
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "No extra params required — the harmonizer takes csv_path (the JSON path) and base_image_dir like other 2D harmonizers."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Use JSON not CSV (CSV is per-study; JSON has the per-image ImagePath list needed to explode rows). Concatenate Indication+Comparison+Findings+Impression with section headers into the 'report' column. Three split-specific subclasses (ReXGradientTrain/Valid/Test) wrap the base class so saved harmonizers round-trip to the right class — mirrors the CheXpert train/valid pattern."
+}

@@ -1,0 +1,113 @@
+{
+  "_comment": "BRAX (Brazilian Chest X-Ray) v1.1.0 — PhysioNet credentialed-access release. ~24,959 studies / ~40,967 images / 19,351 patients from a Brazilian hospital network. 14 CheXpert findings (NLP-derived from Portuguese radiology reports using the original CheXpert labeller). Per the BRAX paper: '1' = positive, '0' = negation, '-1' = uncertainty; blank cells mean the labeller did not extract a mention. Both DICOM and PNG variants ship in the same release under <root>/Anonymized_DICOMs/ and <root>/images/. Reports are NOT distributed in 1.1.0 — only the labels are, so output_report is unsupported. Two registered dataset classes share one harmonizer parameterised by image_format ('dicom' or 'png'). Default uncertain_strategy='raw' preserves the source 1/0/-1/NaN encoding cell-for-cell; opt into the four CheXpert-paper coercions (u_zeros / u_ones / u_ignore / drop) at construction time when training-ready 0/1 tensors are needed.",
+
+  "dataset_name": "BRAX",
+  "registry_key": "brax",
+  "modality": "2D",
+  "image_format": "DICOM (also PNG variant via brax_png)",
+
+  "base_image_dir": "/path/to/physionet.org/files/brax/1.1.0/",
+
+  "primary_csv": {
+    "_comment": "Single master CSV at the BRAX root; contains every row for both DICOM and PNG variants.",
+    "path": null,
+    "filename_variants": ["master_spreadsheet.csv", "master_spreadsheet_update.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "Direct column. Randomly generated identifier per the de-identification protocol.",
+    "column": "PatientID",
+    "derivation": null
+  },
+
+  "study_id": {
+    "_comment": "AccessionNumber is the DICOM Study identifier; randomised but stable per study.",
+    "column": "AccessionNumber",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "DicomPath / PngPath in master_spreadsheet.csv are relative to the BRAX root (e.g. 'Anonymized_DICOMs/id_xxx/Study_yyy/Series_zzz/image-aaa.dcm'). base_image_dir is the BRAX root itself; no prefix stripping needed. Selected by the harmonizer's image_format parameter.",
+    "column": "DicomPath OR PngPath (selected by image_format)",
+    "derivation": null,
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "14 CheXpert-aligned findings, same names and same {-1, 0, 1, NaN} semantics. -1 means 'uncertain' (CheXpert labeller flagged a mention but couldn't disambiguate). NaN cells indicate the mention was not extracted by the labeller and are conventionally treated as negative.",
+    "columns": [
+      "Atelectasis",
+      "Cardiomegaly",
+      "Consolidation",
+      "Edema",
+      "Enlarged Cardiomediastinum",
+      "Fracture",
+      "Lung Lesion",
+      "Lung Opacity",
+      "No Finding",
+      "Pleural Effusion",
+      "Pleural Other",
+      "Pneumonia",
+      "Pneumothorax",
+      "Support Devices"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are in master_spreadsheet.csv alongside the path columns.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Default 'raw' preserves every cell exactly as it appears in master_spreadsheet.csv (1 / 0 / -1 / NaN). The other four strategies match the CheXpert-paper ablations and apply NaN→0 first, then map -1 per the strategy: u_zeros (-1→0), u_ones (-1→1), u_ignore (-1→NaN), drop (drop rows with any -1). Override via the uncertain_strategy parameter on the harmonizer / dataset constructor.",
+      "nan_action": "preserve (raw) | to_zero (all other strategies)",
+      "negative_one_action": "preserve (raw) | u_zeros | u_ones | u_ignore | drop",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "ViewPosition column carries DICOM-defined codes: AP, PA, LL, RL, RLD, LLD, RLO, LLO. Both frontal and lateral views are kept; downstream consumers can filter via dataframe slice if frontal-only is desired.",
+    "column": "ViewPosition",
+    "source": "csv",
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "Not provided.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "Not provided.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "BRAX 1.1.0 does NOT distribute the source radiology reports — only the NLP-derived labels are released. output_report is unsupported and silently ignored with a warning.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "_comment": null,
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "image_format": "'dicom' (default) selects the DicomPath column; 'png' selects PngPath. Two thin dataset subclasses (BRAXDataset, BRAXPNGDataset) hard-set this so callers don't have to.",
+    "uncertain_strategy": "'raw' (default) preserves source cell values exactly. Other options ('u_zeros', 'u_ones', 'u_ignore', 'drop') apply NaN→0 then map -1 per the CheXpert-paper ablations."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Series ID is extracted from the image path's 'Series_<UID>' segment via regex so multi-series studies stay groupable. Demographic / scanner metadata (PatientSex, PatientAge, Manufacturer, StudyDate) flow through EXTRA_OUTPUT_COLS and are renamed to snake_case. Both views (AP/PA/LL/...) are retained by default. Note: PatientAge is binned into 5-year groups in the de-identified release with an '85 or more' cap — treat as ordinal categorical, not continuous."
+}

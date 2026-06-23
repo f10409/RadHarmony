@@ -1,0 +1,173 @@
+<mxfile host="app.diagrams.net" agent="Claude Code">
+  <diagram name="Evaluator Architecture" id="evaluator">
+    <mxGraphModel dx="1925" dy="689" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1420" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="frame" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;strokeWidth=3;arcSize=3;verticalAlign=top;fontStyle=1;fontSize=20;spacingTop=8;container=0;" value="radharmony.evaluator" vertex="1">
+          <mxGeometry height="1300" width="1040" x="80" y="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="inputs_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;strokeWidth=2;arcSize=6;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;" value="External Inputs" vertex="1">
+          <mxGeometry height="110" width="960" x="120" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="in_dataset" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#475569;fontSize=12;" value="🧱 RadHarmony Dataset(s)&#xa;• dataset=...           → k-fold mode&#xa;• train_dataset + test_dataset&#xa;                            → fixed-split mode" vertex="1">
+          <mxGeometry height="70" width="280" x="150" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="in_image_enc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#475569;fontSize=12;" value="🖼 Image Encoder&#xa;nn.Module: (B,1,H,W) → (B,D)" vertex="1">
+          <mxGeometry height="70" width="280" x="460" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="in_text_enc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#475569;dashed=1;fontSize=12;" value="📝 Text Encoder (zero-shot only)&#xa;list[str] → (T,D)  + tokenizer" vertex="1">
+          <mxGeometry height="70" width="300" x="770" y="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="base_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#166534;strokeWidth=2;arcSize=6;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=4;" value="BaseEvaluator → BaseClsEvaluator / BaseSegEvaluator / BaseLangEvaluator (flat per-task)" vertex="1">
+          <mxGeometry height="280" width="720" x="120" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="base_extract" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#166534;fontSize=12;align=left;spacingLeft=8;" value="⚙ feature extraction (task-specific)&#xa;Cls: extract_embeddings → (N×D, N×L)&#xa;Seg: extract_dense_features → (N×D×H'×W', N×C×H×W)&#xa;called once (k-fold) or per-split (fixed)" vertex="1">
+          <mxGeometry height="70" width="320" x="150" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="base_cache" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#166534;dashed=1;fontSize=12;" value="💾 embedding_cache&#xa;pickle (feats, labels)&#xa;skip re-extraction next run" vertex="1">
+          <mxGeometry height="70" width="300" x="510" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="base_eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#166534;fontSize=12;" value="🧪 evaluate()  [abstract]&#xa;subclass-specific algorithm" vertex="1">
+          <mxGeometry height="50" width="320" x="150" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="base_save" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#166534;fontSize=12;" value="💽 save_results()&#xa;CSVs + plots to output_dir" vertex="1">
+          <mxGeometry height="50" width="300" x="510" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="base_boot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#166534;fontSize=12;align=left;spacingLeft=8;" value="🎲 _bootstrap_metric()  (fixed-split only)&#xa;resample test rows ×n_bootstrap → mean + 95% CI&#xa;per label; k-fold mode uses fold variance instead" vertex="1">
+          <mxGeometry height="70" width="660" x="150" y="445" as="geometry" />
+        </mxCell>
+
+        <mxCell id="reg_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fae8ff;strokeColor=#7e22ce;strokeWidth=2;arcSize=6;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;" value="🗝 Registry (sidecar)" vertex="1">
+          <mxGeometry height="280" width="220" x="860" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="reg_items" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7e22ce;fontSize=11;align=left;spacingLeft=8;" value="• @register_evaluator(name)&#xa;• resolve_evaluator(name)&#xa;• list_evaluators()&#xa;&#xa;keys:&#xa;  linear_probe, knn_probe,&#xa;  zero_shot, finetune,&#xa;  linear_probe_seg" vertex="1">
+          <mxGeometry height="150" width="190" x="875" y="295" as="geometry" />
+        </mxCell>
+
+        <mxCell id="subs_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1e40af;strokeWidth=2;arcSize=6;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=4;" value="🖼 Classification (v1) — radharmony.evaluator.classification" vertex="1">
+          <mxGeometry height="310" width="960" x="120" y="560" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontSize=12;fontStyle=1;" value="🔎 LinearProbeEvaluator" vertex="1">
+          <mxGeometry height="35" width="220" x="140" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="lp_body" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontSize=11;align=left;spacingLeft=8;" value="• sklearn LogisticRegression&#xa;• KFold (n_folds=5) OR fixed split&#xa;• n_train sweep (1.5k…14k)&#xa;• optional stratified subsample&#xa;• full cls metric panel / label&#xa;• plot: metric vs n_train" vertex="1">
+          <mxGeometry height="220" width="220" x="140" y="640" as="geometry" />
+        </mxCell>
+
+        <mxCell id="knn" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontSize=12;fontStyle=1;" value="🤝 KNNProbeEvaluator" vertex="1">
+          <mxGeometry height="35" width="220" x="380" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="knn_body" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontSize=11;align=left;spacingLeft=8;" value="• L2-normalize feats&#xa;• KFold (n_folds=5) OR fixed split&#xa;• NearestNeighbors(k=20)&#xa;• cosine metric&#xa;• mean-vote per label&#xa;• full cls metric panel / label" vertex="1">
+          <mxGeometry height="220" width="220" x="380" y="640" as="geometry" />
+        </mxCell>
+
+        <mxCell id="zs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontSize=12;fontStyle=1;" value="🔤 ZeroShotEvaluator" vertex="1">
+          <mxGeometry height="35" width="220" x="620" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="zs_body" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontSize=11;align=left;spacingLeft=8;" value="• per-label prompt ensembles&#xa;• encode_text → mean, L2-norm&#xa;• cosine(img, test_imgs) → score&#xa;• optional negative prompts&#xa;• full cls metric panel / label&#xa;• test set only, no folds" vertex="1">
+          <mxGeometry height="220" width="220" x="620" y="640" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ft" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontSize=12;fontStyle=1;" value="🔥 FinetuneEvaluator" vertex="1">
+          <mxGeometry height="35" width="220" x="860" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="ft_body" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontSize=11;align=left;spacingLeft=8;" value="• head: nn.Linear(D, L)&#xa;• KFold (n_folds=5) OR fixed split&#xa;• AdamW + CosineLR&#xa;• BCEWithLogits (multi-label)&#xa;• optional freeze_backbone&#xa;• full cls metric panel / label" vertex="1">
+          <mxGeometry height="220" width="220" x="860" y="640" as="geometry" />
+        </mxCell>
+
+        <mxCell id="seg_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ccfbf1;strokeColor=#0f766e;strokeWidth=2;arcSize=6;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=4;dashed=1;" value="🎯 Segmentation (phase 2, deferred) — radharmony.evaluator.segmentation" vertex="1">
+          <mxGeometry height="190" width="960" x="120" y="890" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lps" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0f766e;fontSize=12;fontStyle=1;" value="🧩 LinearProbeSegEvaluator" vertex="1">
+          <mxGeometry height="35" width="260" x="140" y="930" as="geometry" />
+        </mxCell>
+        <mxCell id="lps_body" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0f766e;fontSize=11;align=left;spacingLeft=8;" value="• dense encoder: (B,1,H,W) → (B,D,H',W')&#xa;• 1×1 Conv2d probe head (frozen backbone)&#xa;• KFold (n_folds=5) OR fixed split&#xa;• upsample logits back to (H, W)&#xa;• BCE / CE per-pixel, AdamW short budget" vertex="1">
+          <mxGeometry height="100" width="260" x="140" y="970" as="geometry" />
+        </mxCell>
+
+        <mxCell id="seg_feats" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0f766e;dashed=1;fontSize=11;align=left;spacingLeft=8;" value="📦 dataset requirement&#xa;output_mask=True&#xa;sample[&quot;seg&quot;]: (C, H, W)" vertex="1">
+          <mxGeometry height="60" width="260" x="420" y="930" as="geometry" />
+        </mxCell>
+        <mxCell id="seg_metrics" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0f766e;fontSize=11;align=left;spacingLeft=8;" value="📐 seg metric panel / class&#xa;• dice, iou, pixel_accuracy&#xa;• sensitivity, specificity&#xa;• (optional) hd95" vertex="1">
+          <mxGeometry height="80" width="260" x="420" y="995" as="geometry" />
+        </mxCell>
+
+        <mxCell id="seg_scope" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0f766e;dashed=1;fontSize=11;align=left;spacingLeft=8;" value="🔮 deferred&#xa;FinetuneSegEvaluator,&#xa;UNetProbeSegEvaluator, …" vertex="1">
+          <mxGeometry height="60" width="260" x="700" y="930" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lang_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#4338ca;strokeWidth=2;arcSize=6;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=4;dashed=1;" value="📝 Language Model Evaluators (future) — radharmony.evaluator.language" vertex="1">
+          <mxGeometry height="70" width="960" x="120" y="1100" as="geometry" />
+        </mxCell>
+        <mxCell id="lang_stub" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4338ca;fontSize=11;align=left;spacingLeft=8;dashed=1;" value="placeholder — reserved namespace (e.g. report-QA, summarization faithfulness, LLM probes)" vertex="1">
+          <mxGeometry height="30" width="920" x="140" y="1130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="outputs_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#b45309;strokeWidth=2;arcSize=6;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;" value="Outputs" vertex="1">
+          <mxGeometry height="160" width="960" x="120" y="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="out_df" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b45309;fontSize=11;align=left;spacingLeft=8;" value="📄 per-fold / per-bootstrap df&#xa;cls: auroc, auprc, f1, tpr, tnr,&#xa;  ppv, npv, acc, bal_acc, mcc, thr&#xa;seg: dice, iou, pix_acc, sens, spec" vertex="1">
+          <mxGeometry height="90" width="280" x="150" y="1240" as="geometry" />
+        </mxCell>
+        <mxCell id="out_summary" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b45309;fontSize=12;align=left;spacingLeft=8;" value="📊 per-label summary CSV&#xa;k-fold: mean ± std&#xa;fixed-split: point + 95% CI&#xa;(bootstrap over test rows)" vertex="1">
+          <mxGeometry height="90" width="280" x="460" y="1240" as="geometry" />
+        </mxCell>
+        <mxCell id="out_plot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b45309;fontSize=12;align=left;spacingLeft=8;" value="📈 plots&#xa;cls: AUROC / AUPRC vs n_train&#xa;seg: dice / iou vs n_train&#xa;(.png in output_dir)" vertex="1">
+          <mxGeometry height="90" width="280" x="770" y="1240" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_ds_base" edge="1" parent="1" source="in_dataset" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#475569;strokeWidth=2;" target="base_extract">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_img_base" edge="1" parent="1" source="in_image_enc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#475569;strokeWidth=2;" target="base_extract">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_text_zs" edge="1" parent="1" source="in_text_enc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#475569;strokeWidth=2;dashed=1;" target="zs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_extract_cache" edge="1" parent="1" source="base_extract" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#166534;strokeWidth=2;dashed=1;" target="base_cache">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_extract_eval" edge="1" parent="1" source="base_extract" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#166534;strokeWidth=2;" target="base_eval">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_eval_save" edge="1" parent="1" source="base_eval" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#166534;strokeWidth=2;" target="base_save">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_reg_sub" edge="1" parent="1" source="reg_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7e22ce;strokeWidth=2;dashed=1;endArrow=classic;" target="subs_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_base_lp" edge="1" parent="1" source="base_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1e40af;strokeWidth=2;endArrow=classicThin;" target="lp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_base_knn" edge="1" parent="1" source="base_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1e40af;strokeWidth=2;endArrow=classicThin;" target="knn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_base_zs" edge="1" parent="1" source="base_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1e40af;strokeWidth=2;endArrow=classicThin;" target="zs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_base_ft" edge="1" parent="1" source="base_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1e40af;strokeWidth=2;endArrow=classicThin;" target="ft">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_base_seg" edge="1" parent="1" source="base_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0f766e;strokeWidth=2;endArrow=classicThin;" target="seg_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_subs_out" edge="1" parent="1" source="subs_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b45309;strokeWidth=2;" target="outputs_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_seg_out" edge="1" parent="1" source="seg_box" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b45309;strokeWidth=2;" target="outputs_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

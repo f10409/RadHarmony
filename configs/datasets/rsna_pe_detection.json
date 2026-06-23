@@ -1,0 +1,110 @@
+{
+  "_comment": "RSNA/STR Pulmonary Embolism Detection Challenge (2020). CT Pulmonary Angiography (CTPA) dataset from 5 international institutions, 7279 studies × one series each, stored as per-slice DICOMs under train/<StudyInstanceUID>/<SeriesInstanceUID>/<SOPInstanceUID>.dcm. Integrated as 3D per-volume classification: image_path points at the series directory and MONAI's ITKReader assembles the 3D volume on the fly. train.csv is per-slice in the release but 13 of 14 labels are identical across all slices of a study; we collapse to one row per study and drop the lone slice-level label (pe_present_on_image).",
+
+  "dataset_name": "RSNA PE Detection",
+  "registry_key": "rsna_pe_detection",
+  "modality": "3D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "~/datasets/external/rsna_pe_dataset/train/",
+
+  "primary_csv": {
+    "_comment": "train.csv — one row per SOPInstanceUID. Sits one level above base_image_dir (auto-discovered).",
+    "path": "~/datasets/external/rsna_pe_dataset/train.csv",
+    "filename_variants": ["train.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "No distinct patient column. StudyInstanceUID is used as the patient key (one study per patient in this release — additional studies per patient were excluded during curation).",
+    "column": null,
+    "derivation": "patient_id = StudyInstanceUID"
+  },
+
+  "study_id": {
+    "_comment": "Directly StudyInstanceUID.",
+    "column": "StudyInstanceUID",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "DICOM series DIRECTORY (not a single file). MONAI's ITKReader loads all .dcm files in the directory and assembles a 3D volume. Relative to base_image_dir (which points at train/).",
+    "column": null,
+    "derivation": "<StudyInstanceUID>/<SeriesInstanceUID>",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "13 study-level labels (already snake_case and 0/1 one-hot in train.csv). The 14th CSV column, pe_present_on_image, is slice-level and is dropped when collapsing per-slice rows to per-study rows; study-level PE presence is already covered by the location flags (leftsided_pe / rightsided_pe / central_pe).",
+    "columns": [
+      "acute_and_chronic_pe",
+      "central_pe",
+      "chronic_pe",
+      "flow_artifact",
+      "indeterminate",
+      "leftsided_pe",
+      "negative_exam_for_pe",
+      "qa_contrast",
+      "qa_motion",
+      "rightsided_pe",
+      "rv_lv_ratio_gte_1",
+      "rv_lv_ratio_lt_1",
+      "true_filling_defect_not_pe"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are in the primary CSV.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Labels are final consensus 0/1 — no NaN or -1 values in the release.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "Not applicable — all studies are axial CTPA.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "No segmentation masks. pe_present_on_image is a slice-level classification flag — not a pixel mask — and is discarded at volume granularity.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "No bounding boxes (annotators used only study/image-level labels per the paper).",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "No radiology reports released.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "hu_window tuple (default (-1000, 1000)) is accepted by the dataset constructor; no dataset-specific params beyond that and the standard csv_path / base_image_dir."
+  },
+
+  "hu_window": [-1000, 1000],
+  "custom_preprocessing": "Custom harmonize() collapses per-slice CSV rows to one row per StudyInstanceUID (drop_duplicates) and drops pe_present_on_image. image_path is a DICOM series directory rather than a single file, so the harmonizer and dataset both override verify_images to use os.path.isdir. Image loading uses the standard RadiologyTransform3D pipeline: ITKReader series load → HU window (-1000, 1000) → 0.5/99.5 percentile scaling to [-1, 1] → resize/pad to 112³."
+}

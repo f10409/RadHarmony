@@ -1,0 +1,100 @@
+{
+  "_comment": "RSNA Pneumonia Detection Challenge (2018). 30,000 frontal chest X-rays in DICOM format, a subset of NIH ChestX-ray14. Task: detect and localize lung opacities. Annotations were collected from multiple annotator teams + adjudication; the 'Calculated' label group contains the final consensus labels. Source: adjudicated JSON annotation export.",
+
+  "dataset_name": "RSNA Pneumonia",
+  "registry_key": "rsna_pneumonia",
+  "modality": "2D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "~/Downloads/rsna",
+
+  "primary_csv": {
+    "_comment": "No CSV — annotations come from the adjudicated JSON export. The harmonizer parses the JSON file directly and flattens the 'Calculated' label group into a DataFrame.",
+    "path": null,
+    "filename_variants": [
+      "pneumonia-challenge-annotations-adjudicated-kaggle_2018.json"
+    ]
+  },
+
+  "patient_id": {
+    "_comment": "StudyInstanceUID from the JSON annotations identifies each study/patient.",
+    "column": null,
+    "derivation": "Extract StudyInstanceUID from each annotation"
+  },
+
+  "study_id": {
+    "_comment": "One study per patient in this dataset, use StudyInstanceUID.",
+    "column": null,
+    "derivation": "Same as StudyInstanceUID"
+  },
+
+  "image_path": {
+    "_comment": "Image export uses three-level UID nested directories: <StudyInstanceUID>/<SeriesInstanceUID>/<SOPInstanceUID>.dcm",
+    "column": null,
+    "derivation": "Construct as StudyInstanceUID/SeriesInstanceUID/SOPInstanceUID.dcm",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "Three classes from the 'Calculated' label group: Normal (L_o8w, global), No Lung Opacity / Not Normal (L_yd0, global), Lung Opacity (L_v8n, local/bbox). One-hot encoded. 29,684 unique images: Normal=9,790, No Lung Opacity / Not Normal=12,788, Lung Opacity=11,390.",
+    "columns": ["Lung Opacity", "No Lung Opacity / Not Normal", "Normal"],
+    "separate_csv": {
+      "_comment": "Labels are embedded in the JSON file, not a separate CSV.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Calculated labels are final consensus — no uncertain values.",
+      "nan_action": "to_zero",
+      "negative_one_action": null,
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "All images are frontal chest X-rays. View position not available in the JSON; would need DICOM headers.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "No segmentation masks available.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "Bounding boxes for Lung Opacity annotations in the Calculated group (L_v8n). Pixel coordinates: data.x, data.y, data.width, data.height on 1024x1024 images. 11,390 bbox annotations across 7,314+ images (some images have multiple boxes, 4,076 images with 2+).",
+    "supported": true,
+    "column": "annotation.data: {x, y, width, height} in JSON"
+  },
+
+  "reports": {
+    "_comment": "No radiology reports available.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "_comment": null,
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "json_path": "Path to the adjudicated JSON export file (pneumonia-challenge-annotations-adjudicated-kaggle_2018.json)",
+    "label_group": "Which label group to use. Default 'Calculated' for final consensus. Options: 'Default group', 'QA', 'Team 1', 'Team 2', 'Team 2a', 'Calculated', 'Adjudication'."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Parse adjudicated JSON format instead of CSV. Extract annotations from the 'Calculated' label group. Build per-image rows: one-hot encode the 3 class labels, aggregate bounding boxes per SOPInstanceUID. DICOM images need pixel_array extraction. Calculated label IDs: L_o8w=Normal, L_yd0=No Lung Opacity / Not Normal, L_v8n=Lung Opacity (bbox)."
+}

@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Virtual environment
+.venv
+
+# Cache / data
+cache
+*.pt
+weights
+*.out
+*.log
+.gradio/
+eval_out
+
+# Jupyter
+.ipynb_checkpoints
+
+# Build
+dist/
+build/
+site/
+.public_build/
+
+# Dev / scratch
+dev/
+test_csv_output/
+docs/local/
+
+# Claude
+.claude
+.vscode
+CLAUDE.md
+progress.md
+
+Custom_LeJEPA/
+
+
+wandb
+
+eval_results
+
+weights
+
+
+demo
+
+radharmony_judy
+third_party_models

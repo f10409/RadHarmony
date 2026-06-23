@@ -1,0 +1,115 @@
+{
+  "_comment": "RSNA 2023 Abdominal Trauma Detection Challenge. Multi-institution abdominal CT release, 3,147 patients with 4,711 series total (~1.5 per patient, often one non-contrast and one portal-venous-phase). Per-slice DICOMs under train_images/<patient_id>/<series_id>/<instance_number>.dcm. Integrated as 3D per-series classification: image_path points at the series directory and MONAI's ITKReader assembles the 3D volume. Patient-level labels (14 columns covering 5 organs) are joined onto each of that patient's series in the harmonizer.",
+
+  "dataset_name": "RSNA Abdominal Trauma (2023)",
+  "registry_key": "rsna_abdominal_trauma_2023",
+  "modality": "3D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "~/datasets/external/rsna-2023-abdominal-trauma-detection/train_images/",
+
+  "primary_csv": {
+    "_comment": "train_2024.csv — one row per patient_id with the 14 patient-level binary label columns. Sits one level above base_image_dir (auto-discovered).",
+    "path": "~/datasets/external/rsna-2023-abdominal-trauma-detection/train_2024.csv",
+    "filename_variants": ["train_2024.csv"]
+  },
+
+  "secondary_csv": {
+    "_comment": "train_series_meta.csv — one row per series_id with patient_id, aortic_hu, incomplete_organ. Required for the per-series enumeration in the harmonized output. Auto-discovered.",
+    "path": "~/datasets/external/rsna-2023-abdominal-trauma-detection/train_series_meta.csv",
+    "filename_variants": ["train_series_meta.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "patient_id column from train_2024.csv (cast to string).",
+    "column": "patient_id",
+    "derivation": null
+  },
+
+  "study_id": {
+    "_comment": "No separate study UID in this release. Patient is the study unit; we copy patient_id into study_id so patient-level splits stay correct.",
+    "column": null,
+    "derivation": "study_id = patient_id"
+  },
+
+  "series_id": {
+    "_comment": "series_id column from train_series_meta.csv (cast to string).",
+    "column": "series_id",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "DICOM series DIRECTORY (not a single file). MONAI's ITKReader loads all .dcm files in the directory. Relative to base_image_dir (which points at train_images/).",
+    "column": null,
+    "derivation": "<patient_id>/<series_id>",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "14 binary patient-level labels covering 5 organs. bowel and extravasation are binary (healthy vs injury); kidney/liver/spleen are 3-class one-hot (healthy / low-grade / high-grade); plus an any_injury summary flag. Replicated across each of the patient's series during harmonization.",
+    "columns": [
+      "any_injury",
+      "bowel_healthy",
+      "bowel_injury",
+      "extravasation_healthy",
+      "extravasation_injury",
+      "kidney_healthy",
+      "kidney_high",
+      "kidney_low",
+      "liver_healthy",
+      "liver_high",
+      "liver_low",
+      "spleen_healthy",
+      "spleen_high",
+      "spleen_low"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are in the primary CSV.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Labels are final consensus 0/1 — no NaN or -1 values in the release.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "Not applicable — all studies are axial abdominal CT.",
+    "column": null,
+    "source": null,
+    "separate_csv": {"path": null, "filename_variants": [], "join_columns": []}
+  },
+
+  "masks": {
+    "_comment": "Organ segmentation masks ship in the dataset's segmentations/ directory for a subset of series, but are not wired into this initial harmonizer. Add to a future MASK_SOURCE_COL if needed.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "image_level_labels_2024.csv ships 15,632 (patient_id, series_id, instance_number, injury_name=Active_Extravasation) point annotations. Could be wired as 3-D bbox dots like the lumbar-spine integration (commit d1d0535) in a follow-up.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "No radiology reports released.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {"path": null, "filename_variants": [], "join_columns": []},
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "hu_window tuple (default (-150, 250)) is accepted by the dataset constructor; covers soft-tissue / contrast-enhanced abdomen which is the relevant range here (different from CTPA's -1000 to 1000 lung window)."
+  },
+
+  "hu_window": [-150, 250],
+  "custom_preprocessing": "Custom harmonize() reads both train_2024.csv (per-patient labels) and train_series_meta.csv (per-series), inner-joins on patient_id to emit one row per series with patient labels replicated. Aortic_hu and incomplete_organ ride through as EXTRA_OUTPUT_COLS. image_path is a DICOM series directory, so the harmonizer and dataset both override verify_images to use os.path.isdir."
+}

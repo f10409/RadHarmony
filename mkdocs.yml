@@ -1,0 +1,111 @@
+site_name: RadHarmony
+site_description: Unified API for public radiological datasets (CXR, CT, MRI)
+site_url: https://f10409.github.io/RadHarmony
+use_directory_urls: false
+repo_url: https://github.com/f10409/RadHarmony
+repo_name: f10409/RadHarmony
+
+docs_dir: docs/wiki
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quickstart: quickstart.md
+    - Architecture: architecture.md
+  - Datasets:
+    - Overview: datasets.md
+    - Acquiring Datasets: acquiring-datasets.md
+    - CheXpert: datasets/chexpert.md
+    - CheXpert-Plus: datasets/chexpert_plus.md
+    - MIMIC-CXR (DICOM): datasets/mimic_cxr.md
+    - MIMIC-CXR-JPG: datasets/mimic_cxr_jpg.md
+    - ChestX-ray14: datasets/chestxray14.md
+    - PadChest: datasets/padchest.md
+    - ReXGradient-160K: datasets/rexgradient.md
+    - VinDr-CXR: datasets/vindr_cxr.md
+    - BRAX: datasets/brax.md
+    - RANZCR CLiP: datasets/ranzcr_clip.md
+    - SIIM-ACR Pneumothorax: datasets/siim_acr_ptx.md
+    - SIIM COVID-19: datasets/siim_covid19.md
+    - RSNA Pneumonia (Adjudicated JSON): datasets/rsna_pneumonia.md
+    - RSNA Pneumonia (Kaggle): datasets/rsna_pneumonia_kaggle.md
+    - RSNA PE Detection <sup class="beta">beta</sup>: datasets/rsna_pe_detection.md
+    - RSNA Pediatric Bone Age <sup class="beta">beta</sup>: datasets/rsna_bone_age.md
+    - RSNA 2024 Lumbar Spine <sup class="beta">beta</sup>: datasets/rsna_2024_lumbar_spine.md
+    - CT-RATE <sup class="beta">beta</sup>: datasets/ct_rate.md
+    - RAD-ChestCT <sup class="beta">beta</sup>: datasets/radchestct.md
+    - TAIX-Ray: datasets/taix_ray.md
+    - RSNA 2022 Cervical Spine <sup class="beta">beta</sup>: datasets/rsna_2022_cervical_spine.md
+    - RSNA 2023 Abdominal Trauma <sup class="beta">beta</sup>: datasets/rsna_abdominal_trauma_2023.md
+    - Montgomery County CXR: datasets/montgomery_cxr.md
+    - Shenzhen Hospital CXR: datasets/shenzhen_cxr.md
+    - OpenI IU CXR: datasets/openi_cxr.md
+  - Dataset API:
+    - Dataset API: api.md
+    - Transforms: transforms.md
+  - Evaluator API:
+    - Overview: evaluator/index.md
+    - Linear Probe: evaluator/linear_probe.md
+    - k-NN Probe: evaluator/knn_probe.md
+    - SVM Probe: evaluator/svm_probe.md
+    - Prototype Probe: evaluator/prototype_probe.md
+    - Zero-Shot: evaluator/zero_shot.md
+    - Fine-tune: evaluator/finetune.md
+    - Linear Probe (Segmentation): evaluator/linear_probe_seg.md
+    - Conv Probe (Segmentation): evaluator/conv_probe_seg.md
+    - UPerNet (Segmentation): evaluator/upernet_seg.md
+  - Backbones:
+    - Overview: backbones/index.md
+    - RAD-DINO: backbones/raddino.md
+    - BiomedCLIP: backbones/biomed_clip.md
+    - CheXagent: backbones/chexagent.md
+    - MedSigLIP: backbones/medsiglip.md
+    - MedImageInsights: backbones/medimageinsights.md
+    - CheXFound: backbones/chexfound.md
+    - DINOv3: backbones/dinov3.md
+    - EVA-X: backbones/eva_x.md
+    - Ark+: backbones/ark_plus.md
+    - Medical MAE: backbones/medical_mae.md
+    - SigLIP2: backbones/siglip2.md
+    - Custom Backbones: backbones/custom_backbones.md
+  - App Guide: app.md
+
+plugins:
+  - search
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - tables
+  - toc:
+      permalink: true
