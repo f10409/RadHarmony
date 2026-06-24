@@ -1,7 +1,7 @@
 {
   "_comment": "CXR dataset which has multiple bboxes",
   "dataset_name": "VinDr-CXR-train",
-  "registry_key": "vindr-cxr-train",
+  "registry_key": "vindr_cxr_train",
   "modality": "2D",
   "image_format": "DICOM",
   "base_image_dir": "/path/to/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/train/",
