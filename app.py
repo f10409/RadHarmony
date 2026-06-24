@@ -2243,8 +2243,8 @@ def load_dataset(
     if not base_dir:
         return None, "Please provide a base image directory.", _no_native
 
-    # Pre-flight: catch typos like "/NAS4/..." (missing ~/ or /mnt/
-    # prefix) before they fall through into the per-build-function "<file> is
+    # Pre-flight: catch typos like a missing leading "~/" or "/mnt/"
+    # prefix before they fall through into the per-build-function "<file> is
     # required" messages, which can't distinguish "directory missing" from
     # "expected file missing inside an otherwise-fine directory".
     if not os.path.isdir(os.path.expanduser(base_dir)):

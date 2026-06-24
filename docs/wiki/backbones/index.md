@@ -20,7 +20,7 @@ Install the corresponding extra first: `uv pip install -e ".[<extra>]"`.
 | Factory | Embed dim | Input size | Returns | Extra |
 |---------|-----------|------------|---------|-------|
 | [`make_raddino`](raddino.md) | 768 | 518×518 | `(transform, encoder)` | `raddino` |
-| [`make_biomed_clip`](biomed_clip.md) | 512 | 448×448 | `(transform, encoder, text_encoder, tokenizer)` | `biomed` |
+| [`make_biomed_clip`](biomed_clip.md) | 512 | 224×224 | `(transform, encoder, text_encoder, tokenizer)` | `biomed` |
 | [`make_chexagent`](chexagent.md) | 1024 | 512×512 | `(transform, encoder, text_encoder, processor)` | `chexagent` |
 | [`make_medsiglip`](medsiglip.md) | 1152 | 448×448 | `(transform, encoder, text_encoder, processor)` | `medsiglip` |
 | [`make_medimageinsights`](medimageinsights.md) | 1024 | 480×480 | `(transform, encoder, text_encoder, None)` | `medimageinsights` |

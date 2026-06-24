@@ -150,7 +150,7 @@ ds = MIMICCXRJPGDataset(
 )
 
 sample = ds.get_datasets()[0]
-print(sample["img"].shape)   # torch.Size([3, 224, 224])
+print(sample["img"].shape)   # torch.Size([1, 224, 224])
 # Access severity labels directly from the harmonized DataFrame:
 print(merged[["study_id", "atelectasis", "atelectasis_left", "atelectasis_right",
               "pleural_effusion", "heart_size"]].head())

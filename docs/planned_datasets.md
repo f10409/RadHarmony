@@ -11,14 +11,9 @@ was the first to land — see `docs/dataset_guide.md`.
 
 ## CXR shortlist — not yet integrated
 
-### PadChest
+### PadChest (already integrated)
 
-- **Source:** BIMCV — <http://bimcv.cipf.es/bimcv-projects/padchest/> (registration required).
-- **Reference:** Bustos et al., *PadChest: A large chest X-ray image dataset with multi-label annotated reports.* Medical Image Analysis 2020.
-- **Modality:** CXR (PNG, 16-bit grayscale).
-- **Samples:** ~160k images, ~67k patients, 174 radiographic findings + 19 differential diagnoses.
-- **License:** non-commercial research.
-- **Notes:** Hierarchical label vocabulary (UMLS-mapped); a pragmatic v1 should select the ~18-label subset that overlaps with CheXpert / NIH-14. Spanish reports are available — wire `output_report=True` if a translation pipeline is in scope.
+Shipped as `PadChestDataset` (registry key `padchest`, 193 findings, `cls` + Spanish `report`). See `docs/dataset_guide.md` and `docs/wiki/datasets/padchest.md`.
 
 ### BIMCV-COVID-19+
 
@@ -29,14 +24,9 @@ was the first to land — see `docs/dataset_guide.md`.
 - **License:** CC BY 4.0 (data) but DUA-gated.
 - **Notes:** Distinct from the existing `siim_covid19` integration (which is the Kaggle-released SIIM-FISABIO-RSNA *derivative* of BIMCV). The original BIMCV release ships the full DICOM tree, full reports, and a much larger imaging set.
 
-### BRAX (Brazilian Chest X-Ray)
+### BRAX (Brazilian Chest X-Ray) — already integrated
 
-- **Source:** PhysioNet — <https://brax.ai/> redirects to <https://physionet.org/content/brax/1.1.0/>.
-- **Reference:** Reis et al., *BRAX: a publicly available Brazilian chest X-ray dataset.* Scientific Data 2022.
-- **Modality:** CXR (DICOM, 16-bit). Includes lateral views.
-- **Samples:** ~24,959 studies / ~40,967 images / 19,351 patients.
-- **License:** PhysioNet Credentialed Health Data License 1.5.0.
-- **Notes:** Labels are derived from CheXpert NLP labeller against Portuguese reports — schema matches CheXpert's 14-class one-hot. Make sure to honour the CheXpert uncertain-handling policy (`-1` → NaN by default).
+Shipped as `BRAXDataset` / `BRAXPNGDataset` (registry keys `brax` / `brax_png`, 14 CheXpert-schema pathologies, CheXpert uncertain-handling policy honoured). See `docs/dataset_guide.md` and `docs/wiki/datasets/brax.md`.
 
 ### RANZCR (already integrated)
 

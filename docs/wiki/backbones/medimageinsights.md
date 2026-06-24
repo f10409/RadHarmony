@@ -46,7 +46,7 @@ transform, image_encoder, *_ = make_medimageinsights(device="cuda:0", output_key
 # image_encoder(x) -> Tensor[B, 2048, 15, 15]   (480-px input -> 15x15 grid at the final stage)
 ```
 
-Note the **dense-feature dim is 2048**, not 512 — 512 is the projected
+Note the **dense-feature dim is 2048**, not 1024 — 1024 is the projected
 image-embed dim used for contrastive matching with text. The 2048-dim dense
-features come from the SwinV2 trunk's final stage and are captured via a
+features come from the DaViT trunk's final stage and are captured via a
 per-call forward hook.

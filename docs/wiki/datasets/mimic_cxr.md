@@ -116,4 +116,4 @@ ds = MIMICCXRDataset(
 | `label_csv_path` (`mimic-cxr-2.0.0-chexpert.csv`) | `/path/to/MIMIC_CXR/physionet.org/files/mimic-cxr-jpg/2.0.0/mimic-cxr-2.0.0-chexpert.csv` |
 | `report_csv_path` (`cxr-study-list.csv.gz`) | `/path/to/MIMIC-CXR-V2-AWS/cxr-study-list.csv.gz` |
 
-Metadata and chexpert CSVs live in the JPG tree on NAS3, not in the DICOM tree. Pass them explicitly — auto-discovery may not find them across NAS mounts.
+Metadata and chexpert CSVs live in the JPG release tree, not in the DICOM tree. Pass them explicitly — auto-discovery may not find them when the two releases are stored under different mounts.

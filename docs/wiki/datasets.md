@@ -1,6 +1,6 @@
 # Datasets
 
-RadHarmony supports 38 dataset configurations across 29 underlying datasets. Click a dataset name for the full page (constructor args, harmonizer notes, label columns).
+RadHarmony supports 34 dataset configurations across 25 underlying datasets. Click a dataset name for the full page (constructor args, harmonizer notes, label columns).
 
 ## Inventory
 

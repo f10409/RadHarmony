@@ -63,12 +63,24 @@ class DatasetConfig:
                           # False → 2-D pipeline
     extra_field_label: str          # Label for the first extra textbox; "" hides it
     build: Callable                 # The _build_* function above
+    modality: str                   # REQUIRED. One of SUPPORTED_MODALITIES — used for UI grouping
+                                     # ("CXR", "Radiograph", "CT", "MRI", "VQA", "Other"). Validated
+                                     # in __post_init__: an unknown value raises ValueError.
     extra_field2_label: str = ""    # Label for the second extra textbox; "" hides it
+    csv_label: str = "CSV path (optional)"  # Label for the CSV textbox
     base_dir_placeholder: str = ""  # Grey hint text in the base dir textbox
     csv_placeholder: str = ""       # Grey hint text in the CSV textbox
     extra_placeholder: str = ""     # Grey hint text in the first extra textbox
     extra_placeholder2: str = ""    # Grey hint text in the second extra textbox
+    extra_dropdown_label: str = ""  # Optional dataset-specific dropdown; "" hides it
+    extra_dropdown_choices: tuple = ()   # Dropdown choices (include an "(all)" sentinel if needed)
+    extra_dropdown_kwarg: str = ""  # kwarg name forwarded from the dropdown to the build function
+    is_group_header: bool = False   # Visual separator in the dataset dropdown; selecting it is a no-op
 ```
+
+`modality` is mandatory for every real dataset entry (only `is_group_header=True`
+separator rows skip the check). It is independent of `is_3d`: `is_3d` drives the
+transform pipeline, `modality` only drives UI grouping.
 
 ---
 
@@ -81,6 +93,7 @@ DATASET_REGISTRY["My Dataset"] = DatasetConfig(
     is_3d=False,
     extra_field_label="Label CSV (optional)",
     build=_build_my_dataset,
+    modality="CXR",
     base_dir_placeholder="e.g. /data/my_dataset/images/",
     csv_placeholder="auto: metadata.csv",
     extra_placeholder="auto: labels.csv",
@@ -95,6 +108,7 @@ DATASET_REGISTRY["My CT Dataset"] = DatasetConfig(
     extra_field_label="Label CSV (optional)",
     extra_field2_label="BBox CSV (optional)",
     build=_build_my_ct_dataset,
+    modality="CT",
     base_dir_placeholder="e.g. /data/my_ct_dataset/volumes/",
     csv_placeholder="auto: metadata.csv",
     extra_placeholder="auto: labels.csv",
@@ -123,6 +137,7 @@ DATASET_REGISTRY["My Seg Dataset"] = DatasetConfig(
     is_3d=False,
     extra_field_label="Mask output dir",
     build=_build_my_seg_dataset,
+    modality="CXR",
     base_dir_placeholder="e.g. /data/my_dataset/dicoms/",
     csv_placeholder="auto: annotations.csv",
     extra_placeholder="/data/my_dataset/masks/",
@@ -138,6 +153,7 @@ DATASET_REGISTRY["My Simple Dataset"] = DatasetConfig(
     is_3d=False,
     extra_field_label="",
     build=_build_my_simple_dataset,
+    modality="CXR",
     base_dir_placeholder="e.g. /data/my_dataset/images/",
     csv_placeholder="auto: train.csv",
 )

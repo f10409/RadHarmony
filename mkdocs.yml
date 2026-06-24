@@ -38,6 +38,7 @@ nav:
   - Datasets:
     - Overview: datasets.md
     - Acquiring Datasets: acquiring-datasets.md
+    - Phase Grounding (Label Extraction): phase-grounding.md
     - CheXpert: datasets/chexpert.md
     - CheXpert-Plus: datasets/chexpert_plus.md
     - MIMIC-CXR (DICOM): datasets/mimic_cxr.md

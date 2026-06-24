@@ -4,9 +4,10 @@ The `radharmony.evaluator` package takes any RadHarmony dataset and any
 `nn.Module` image encoder and produces standardized downstream-task
 results. It ships six classification evaluators — linear probe, k-NN
 probe, SVM probe, prototype probe, zero-shot, and minimal fine-tune — plus
-one segmentation evaluator (`LinearProbeSegEvaluator`, a 1×1 Conv2d head
-over frozen dense features). The `language/` namespace remains reserved
-for phase 2+.
+three segmentation evaluators over frozen dense features:
+`LinearProbeSegEvaluator` (1×1 Conv2d head), `ConvProbeSegEvaluator`
+(conv-block head), and `UPerNetSegEvaluator` (feature-pyramid + UperNet
+head). The `language/` namespace remains reserved for phase 2+.
 
 ## Table of contents
 
@@ -21,7 +22,7 @@ for phase 2+.
 9. [PrototypeProbeEvaluator](#prototypeprobeevaluator)
 10. [ZeroShotEvaluator](#zeroshotevaluator)
 11. [FinetuneEvaluator](#finetuneevaluator)
-12. [LinearProbeSegEvaluator](#linearprobesegevaluator)
+12. [Segmentation evaluators](#segmentation-evaluators)
 13. [Registry](#registry)
 
 ## The encoder contract
@@ -236,7 +237,7 @@ encoder = ImageEncoderWrapper.from_custom(
 The evaluator requires **exactly one** of two modes:
 
 ```python
-# k-fold mode: one dataset, KFold over pooled embeddings, variance from folds
+# k-fold mode: one dataset, GroupKFold (patient-grouped) over pooled embeddings, variance from folds
 ev = LinearProbeEvaluator(image_encoder, dataset=ds, n_folds=5)
 
 # fixed-split mode: separate train + test sets, variance from seeds × bootstrap
@@ -268,7 +269,7 @@ with these columns:
 | `auroc, auprc` | Threshold-free. |
 | `f1, accuracy, balanced_accuracy, tpr, tnr, ppv, npv, mcc, threshold` | Threshold-based; threshold picked via `threshold_strategy`. |
 
-`save_results(output_dir)` writes `results.csv` (per-row) and
+`save_results(df, output_dir)` writes `results.csv` (per-row) and
 `results_summary.csv` (per-label mean / std / 95% CI).
 
 Threshold strategies: `"youden"` (default, argmax TPR−FPR),
@@ -429,13 +430,25 @@ ev2.load_model("runs/ft.pt")
 preds = ev2.predict(test_ds)   # [{image_id, y_true, prob}, ...]
 ```
 
-## LinearProbeSegEvaluator
+## Segmentation evaluators
 
-Frozen-feature semantic segmentation probe — a 1×1 `nn.Conv2d` head with
-bilinear upsample, trained on dense patch features produced by a
-segmentation-mode backbone. Requires the dataset to emit `output_mask=True`
-and the backbone to be built with `output_keys={"img", "mask"}` (so
-`forward(x)` returns `Tensor[B, D, H, W]` instead of `Tensor[B, D]`).
+Three frozen-feature semantic-segmentation evaluators share one API; they
+differ only in the decode head:
+
+| Evaluator | Registry key | Head | Extra constructor args |
+|---|---|---|---|
+| `LinearProbeSegEvaluator` | `linear_probe_seg` | 1×1 `nn.Conv2d` + bilinear upsample | — |
+| `ConvProbeSegEvaluator` | `conv_probe_seg` | conv-block head | `conv_hidden_size=256` |
+| `UPerNetSegEvaluator` | `upernet_seg` | simple feature pyramid + `UperNetHead` | `upernet_hidden_size=256`, `upernet_pool_scales=(1, 2, 3, 6)` |
+
+All three require the dataset to emit `output_mask=True` and the backbone to
+be built with `output_keys={"img", "mask"}` (so `forward(x)` returns
+`Tensor[B, D, H, W]` instead of `Tensor[B, D]`). They share the common
+segmentation constructor args (`num_classes=2`, `batch_size=8`, `epochs=20`,
+`lr=1e-3`, `weight_decay=0.05`, `early_stop_metric="dice"`,
+`early_stop_patience=5`, `val_fraction=0.1`). `LinearProbeSegEvaluator` is
+shown below; swap the class name and pass the head-specific args for the
+other two.
 
 ```python
 from radharmony.evaluator import LinearProbeSegEvaluator

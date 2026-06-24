@@ -6,9 +6,9 @@ tower is a ViT-B/16 trained on biomedical image-caption pairs.
 
 | Embed dim | Input size | Returns | Extra |
 |-----------|------------|---------|-------|
-| 512 | 448×448 | `(transform, image_encoder, text_encoder, tokenizer)` | `biomed` |
+| 512 | 224×224 | `(transform, image_encoder, text_encoder, tokenizer)` | `biomed` |
 
-ViT-B/16 (16-px patches). Resize to 448×448 with the OpenCLIP preprocess
+ViT-B/16 (16-px patches). Resize to 224×224 with the OpenCLIP preprocess
 pipeline (BiomedCLIP's own image mean/std).
 
 ## Install
@@ -42,7 +42,7 @@ all four.
 
 ```python
 transform, image_encoder, *_ = make_biomed_clip(device="cuda:0", output_keys={"img", "mask"})
-# image_encoder(x) -> Tensor[B, 768, 28, 28]   (448 / 16 = 28)
+# image_encoder(x) -> Tensor[B, 768, 14, 14]   (224 / 16 = 14)
 ```
 
 Segmentation mode strips the prefix tokens from the OpenCLIP trunk's

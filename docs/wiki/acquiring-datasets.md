@@ -8,6 +8,7 @@ This page gives concrete download instructions for every dataset in RadHarmony, 
 |---------|--------|------|--------------|
 | Montgomery County CXR | NLM (public) | None | ~130 MB |
 | Shenzhen Hospital CXR | NLM (public) | None | ~3.8 GB |
+| OpenI IU CXR | NLM Open-i (public) | None | ~1.5 GB (PNG) |
 | RAD-ChestCT | Zenodo (public) | None | ~500 GB |
 | RSNA Pneumonia | RSNA website | None | ~7 GB |
 | RSNA Pediatric Bone Age | RSNA website | None | ~12 GB |
@@ -26,6 +27,8 @@ This page gives concrete download instructions for every dataset in RadHarmony, 
 | VinDr-CXR | PhysioNet | Account + CITI + DUA | ~75 GB |
 | CT-RATE | HuggingFace | Account | ~2 TB |
 | TAIX-Ray | HuggingFace | Account | ~10 GB |
+| ReXGradient-160K | HuggingFace | Account + agreement | ~150 GB |
+| PadChest | BIMCV (b2drop) | Registration | ~1.02 TB |
 | CheXpert | Stanford AIMI | Registration | ~440 GB |
 | CheXpert-Plus | Stanford AIMI | Registration | ~60 GB |
 
@@ -137,6 +140,19 @@ Download from the [RSNA AI Image Challenge](https://www.rsna.org/education/ai-re
 ### RSNA Pediatric Bone Age
 
 Download from the [RSNA AI Image Challenge](https://www.rsna.org/artificial-intelligence/ai-image-challenge/rsna-pediatric-bone-age-challenge-2017) page.
+
+### OpenI IU CXR
+
+```bash
+BASE="https://openi.nlm.nih.gov/imgs/collections"
+DEST="./OpenI-IU-CXR"
+
+wget -P "$DEST" "${BASE}/NLMCXR_png.tgz"        # PNG images
+tar -xzf "$DEST/NLMCXR_png.tgz" -C "$DEST"
+wget -P "$DEST" "${BASE}/NLMCXR_reports.tgz"     # XML reports
+tar -xzf "$DEST/NLMCXR_reports.tgz" -C "$DEST"
+# DICOM variant: NLMCXR_dcm.tgz (for OpenICXRDataset DICOM mode)
+```
 
 ---
 
@@ -289,6 +305,26 @@ huggingface-cli download ibrahimhamamci/CT-RATE --repo-type dataset --local-dir 
 ```bash
 huggingface-cli download TLAIM/TAIX-Ray --repo-type dataset --local-dir ./TAIX-Ray
 ```
+
+### ReXGradient-160K
+
+Access is gated under the **ReXGradient-160K Non-Commercial Data Access and Use Agreement** (Harvard Medical School / Gradient Health) — non-commercial research only. Accept the agreement on the dataset page first, then:
+
+```bash
+hf download rajpurkarlab/ReXGradient-160K --repo-type dataset --local-dir ./ReXGradient-160K/download
+# PNGs ship as 10 concatenated zstd tar parts:
+cd ./ReXGradient-160K
+cat download/deid_png.part* | tar --zstd -xvf - -C .
+# → deid_png/<PatientID>/<AccessionNumber>/studies/<StudyUID>/...
+```
+
+---
+
+## BIMCV datasets
+
+### PadChest
+
+PadChest is hosted on the [BIMCV b2drop share](https://b2drop.bsc.es/index.php/s/BIMCV-PadChest-FULL) (registration required; non-commercial research license). The full set ships as ~50 numbered zip parts of 16-bit PNGs plus a label/report CSV. Download the parts and the CSV, then unzip the parts into a shared `images/` tree (images are distributed across `0/`…`54/` sibling subdirectories). See [docs/wiki/datasets/padchest.md](datasets/padchest.md) for the exact expected layout.
 
 ---
 
