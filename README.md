@@ -4,7 +4,13 @@
 
 **RadHarmony** is a Python library for loading and harmonizing radiological datasets with a unified API. It wraps [MONAI](https://monai.io/) to deliver ready-to-use **PyTorch `Dataset`** objects from chest X-ray, CT, and MRI datasets — drop them straight into a `DataLoader` for training and evaluation with minimal configuration.
 
-![Demo](docs/figs/demo.gif)
+**Harmonize datasets** — load and unify multiple sources into one format:
+
+![Dataset demo](docs/figs/demo_dataset.gif)
+
+**Probe backbones** — evaluate any foundation model on any dataset:
+
+![Evaluator demo](docs/figs/demo_evaluator.gif)
 
 ## Documentation
 
