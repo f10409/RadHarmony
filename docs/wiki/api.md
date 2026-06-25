@@ -39,7 +39,7 @@ Pass a custom MONAI `Compose` pipeline to `transform` to control resizing, norma
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame — skips CSV parsing |
 | `harmonizer` | harmonizer instance | No | `None` | Pre-instantiated harmonizer — skips CSV parsing |
-| `harmonizer_path` | `str` | No | `None` | Path to a saved harmonized CSV — skips CSV parsing |
+| `harmonizer_path` | `str` | No | `None` | Path to a pickle saved via `harmonizer.save()` — skips CSV parsing |
 
 Dataset-specific arguments (e.g. `drop_uncertain`, `bbox_csv_path`, `series_filter`) are documented on each [per-dataset page](datasets.md).
 
@@ -68,19 +68,78 @@ The harmonized DataFrame always contains at minimum: `patient_id`, `study_id`, `
 
 ---
 
-## Load from a saved harmonized CSV
+## Skip re-harmonization: save and reuse
 
-Passing a pre-built DataFrame skips CSV parsing and harmonization on every run. You can also filter or modify the DataFrame before passing it in — this is the easiest way to create a custom subset without subclassing anything:
+Harmonization (CSV parsing, merging, path construction) can be slow for large
+datasets. A dataset accepts three constructor arguments that bypass it, resolved
+in this order:
+
+| Argument | Loads | Use when |
+|----------|-------|----------|
+| `harmonized_df` | a DataFrame you pass directly (from a pickle, `pd.read_csv`, or built in memory) | you want to filter / inspect the table first |
+| `harmonizer_path` | a **pickle** saved via `harmonizer.save()` | save once, reload every run |
+| `harmonizer` | an already-harmonized harmonizer instance | you harmonized in memory and want to reuse it |
+
+If none are given, the dataset runs its own harmonization.
+
+### Save a harmonizer to a pickle
+
+`harmonizer.save()` pickles the harmonized DataFrame, its `LABEL_COLS`, and an
+init snapshot (constructor arguments) so the harmonizer can be reconstructed:
+
+```python
+from radharmony.harmonizer import CheXpertTrainHarmonizer
+
+h = CheXpertTrainHarmonizer(csv_path="/data/CheXpert-v1.0/train/train.csv")
+h.harmonize()
+h.save("chexpert_harmonized.pkl")
+```
+
+Reload it without re-running any CSV work with the `load_from_saved()` class
+method — pass init overrides if the data has moved:
+
+```python
+h = CheXpertTrainHarmonizer.load_from_saved("chexpert_harmonized.pkl")
+print(h.harmonized_df.head())
+
+# Override init params at load time (e.g. data moved to a new path)
+h = CheXpertTrainHarmonizer.load_from_saved(
+    "chexpert_harmonized.pkl", csv_path="/new/path/train.csv",
+)
+```
+
+### `harmonizer_path` — load the pickle straight into a dataset
+
+The most common pattern: save once, reload on every subsequent run. Each dataset
+class sets `_HARMONIZER_CLS`, so it knows which harmonizer's `load_from_saved()`
+to call.
+
+```python
+from radharmony.dataset import CheXpertTrainDataset
+
+ds = CheXpertTrainDataset(
+    base_image_dir="/data/CheXpert-v1.0/train/",
+    harmonizer_path="chexpert_harmonized.pkl",   # pickle from harmonizer.save()
+    output_cls=True,
+)
+train_ds, val_ds = ds.get_datasets(n_splits=5)
+```
+
+### `harmonized_df` — pass (or filter) a DataFrame directly
+
+The easiest way to build a custom subset without subclassing. The DataFrame can
+come from a saved pickle's `.harmonized_df`, or from a CSV you exported earlier
+with `h.harmonize().to_csv(...)` and reload with `pd.read_csv`:
 
 ```python
 import pandas as pd
-from radharmony.dataset import CheXpertTrainDataset
 
+# From a CSV export …
 df = pd.read_csv("chexpert_harmonized.csv")
+# … or from a pickle: df = CheXpertTrainHarmonizer.load_from_saved("...pkl").harmonized_df
 
-# Example: keep only frontal views with a confirmed pleural effusion
-df = df[df["view_position"] == "PA"]
-df = df[df["pleural_effusion"] == 1.0]
+# Keep only frontal views with a confirmed pleural effusion
+df = df[(df["view_position"] == "PA") & (df["pleural_effusion"] == 1.0)]
 
 ds = CheXpertTrainDataset(
     base_image_dir="/data/CheXpert-v1.0/train/",
@@ -89,13 +148,26 @@ ds = CheXpertTrainDataset(
 )
 ```
 
-Three equivalent ways to skip re-harmonization:
+A CSV carries only the table, so `LABEL_COLS` is re-inferred from the column
+names; a pickle preserves the stored `LABEL_COLS` and init snapshot exactly.
 
-| Method | When to use |
-|--------|-------------|
-| `harmonized_df=pd.read_csv(...)` | DataFrame already in memory |
-| `harmonizer_path="path/to/harmonized.csv"` | CSV on disk — loaded automatically |
-| `harmonizer=MyHarmonizer(...)` | Pass a pre-instantiated harmonizer object |
+### `harmonizer` — pass an in-memory instance
+
+```python
+h = CheXpertTrainHarmonizer(csv_path="/data/CheXpert-v1.0/train/train.csv")
+h.harmonize()
+ds = CheXpertTrainDataset(base_image_dir="/data/CheXpert-v1.0/train/", harmonizer=h, output_cls=True)
+```
+
+### Swap the DataFrame after construction
+
+`set_harmonized_df()` pins a new DataFrame on an existing dataset; all later
+`get_datasets()` / `get_folds()` calls use it:
+
+```python
+ds.set_harmonized_df(df)
+train_ds, val_ds = ds.get_datasets(n_splits=5)
+```
 
 ---
 

@@ -92,7 +92,9 @@ nav:
     - Medical MAE: backbones/medical_mae.md
     - SigLIP2: backbones/siglip2.md
     - Custom Backbones: backbones/custom_backbones.md
-  - App Guide: app.md
+  - App Guide:
+    - Using the App: app.md
+    - Extending the App: app-extend.md
 
 plugins:
   - search

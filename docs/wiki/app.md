@@ -61,6 +61,13 @@ After loading, use **Previous** / **Next** to step through samples. Each sample 
 - Classification label list with values
 - Report text (if reports are loaded)
 
+The **Labels** box shows every label whose `cls` value is positive (`> 0.5`).
+For datasets with ordinal severity grades (e.g. TAIX-Ray with
+`label_mode="ordinal"`), values `≥ 2` are surfaced inline as `name (N)` — e.g.
+`pleural_effusion_left (3)`. Plain `name` (no parens) means severity 1, identical
+to a binary label being on. Standard binary datasets (CheXpert, MIMIC, etc.) are
+unaffected since their `cls` values never exceed 1.
+
 ### 6. Transform builder
 
 The sidebar transform builder lets you toggle augmentations interactively:
@@ -71,42 +78,107 @@ The sidebar transform builder lets you toggle augmentations interactively:
 
 ---
 
-## Remote access
+## Remote access (SSH tunnel)
 
-If the app runs on a remote server and you want to access it from your laptop:
+When the app runs on a remote machine and a network between you and the host
+blocks high ports — typical for VPN-behind-corporate-firewall setups where SSH
+(22) is allowed but `7860` is not — forward the port over SSH.
 
-**On the server:**
+If your laptop and the host are on the same flat network and you can already
+open `http://<remote-host>:7860` in a browser, you do not need any of this —
+just run `python app.py` and visit that URL.
+
+### TL;DR
+
+On the remote machine:
 
 ```bash
-python app.py   # already listening on 0.0.0.0:7860
+cd ~/path/to/RadHarmony
+uv sync                          # only when pyproject.toml changed (no-op otherwise)
+uv run python app.py             # binds 0.0.0.0:7860
 ```
 
-**On your local machine:**
+On your laptop (separate terminal):
 
 ```bash
-ssh -N -L 17860:localhost:7860 user@server-hostname
+ssh -v -N -L 17860:localhost:7860 <user>@<remote-host>
 ```
 
-Then open **http://localhost:17860** in your browser.
+Open **`http://localhost:17860`** in your browser. Stop the tunnel with `Ctrl+C`.
 
-The `-N` flag keeps the tunnel open without starting a shell. To run it in the background, add `-f`:
+### Check for stale gradio servers first
+
+Gradio binds port 7860 by default. If a previous session is still running, the
+new launch will fail (or quietly land on 7861). List anything currently bound:
 
 ```bash
-ssh -f -N -L 17860:localhost:7860 user@server-hostname
+ss -lntp | grep -E ':(7860|7861|7862)'
+```
+
+Each line shows `pid=NNNN` for the owner. `kill <pid>` to stop one you own — if
+you do not own the process, pick a different port instead by passing a different
+`server_port` to `demo.launch(...)` in `app.py`.
+
+### The SSH tunnel, explained
+
+```bash
+ssh -v -N -L 17860:localhost:7860 <user>@<remote-host>
+```
+
+| Flag | Why |
+|---|---|
+| `-N` | Hold the tunnel without opening an interactive shell. |
+| `-v` | Print the bind result so you can confirm the tunnel is real (see below). |
+| `-L 17860:localhost:7860` | Forward laptop port 17860 → server-side `localhost:7860`. |
+
+**Why port 17860 and not 7860?** If your laptop already has a local Gradio on
+7860 (common during dev), `ssh -L 7860:...` fails to bind the local side and
+prints `bind: Address already in use` — but the SSH session stays up regardless.
+Without `-v` you cannot tell a working tunnel from a silently-collided one, and
+your browser then hits your *local* Gradio while you think you're on the server.
+A distinct local port (17860, 18000, anything free) removes the ambiguity.
+
+**Why "no acceptance message" is normal.** `-N` means "do not run a remote
+command, just hold the tunnel" — no shell prompt, no banner. The hang **is** the
+success state. With `-v` you get positive confirmation: a line like
+`Local connections to LOCALHOST:17860 forwarded to remote address localhost:7860`.
+If it instead says `bind [127.0.0.1]:17860: Address already in use`, the tunnel
+did not bind — pick a different local port.
+
+To run the tunnel in the background, add `-f`:
+
+```bash
+ssh -f -N -L 17860:localhost:7860 <user>@<remote-host>
 ```
 
 ### VPN / jump host
 
-If the server is behind a VPN or jump host:
+If the server is reachable only through a jump host:
 
 ```bash
-ssh -N -L 17860:localhost:7860 -J jumphost user@server-hostname
+ssh -N -L 17860:localhost:7860 -J jumphost <user>@<remote-host>
 ```
 
 ### Persistent tunnel with autossh
 
 ```bash
-autossh -M 0 -f -N -L 17860:localhost:7860 user@server-hostname
+autossh -M 0 -f -N -L 17860:localhost:7860 <user>@<remote-host>
 ```
 
 `autossh` automatically restarts the tunnel if the connection drops.
+
+### Alternative: `share=True` (gradio.live tunnel)
+
+`demo.launch(server_name="0.0.0.0", share=True)` opens a public `*.gradio.live`
+HTTPS tunnel that bypasses the firewall entirely. Use it only when SSH
+forwarding is not an option, because the URL is public (anyone with the link
+reaches your app and the filesystem paths shown in the UI), it expires after
+~72 h, and it is printed only once at startup. Revert before committing.
+
+### Stopping everything
+
+| What | How |
+|---|---|
+| Tunnel | `Ctrl+C` in the `ssh -N` terminal. |
+| App | `Ctrl+C` in the `uv run python app.py` terminal. If backgrounded, find the PID with `ss -lntp \| grep 7860` and `kill <pid>`. |
+| Stray gradio processes | `pkill -f 'python app.py'` (review with `pgrep -af 'python app.py'` first — it kills every match). |

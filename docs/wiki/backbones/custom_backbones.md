@@ -32,7 +32,15 @@ reader and statistics for each backbone — no silent double-normalization.
 `ImageEncoderWrapper` is a thin `nn.Module` that registers a backbone as a
 submodule and routes its forward through optional `model_call` / `pool`
 hooks. This makes `.cuda()`, `state_dict()`, and `parameters()` propagate
-correctly — a plain `lambda` over an `nn.Module` silently breaks all three.
+correctly — a plain `lambda` over an `nn.Module` silently breaks all three:
+
+- `encoder.to("cuda")` moves the backbone weights with it.
+- `encoder.state_dict()` / `.parameters()` see the backbone — required for
+  `FinetuneEvaluator` when `freeze_backbone=False`, and for saving a fine-tuned
+  checkpoint.
+- `copy.deepcopy(encoder)` correctly duplicates the backbone.
+
+A closure over a loose `nn.Module` silently fails all three.
 
 ### HuggingFace (the common case)
 
@@ -78,7 +86,14 @@ bottom for more.
 
 `EncoderPreprocessTransform` is a MONAI `MapTransform` that calls your
 preprocessing function on each configured key. Plug it into any dataset's
-`transform=` argument.
+`transform=` argument. The base class does **no** conversion or reading — the
+callable owns the full `sample value → Tensor[C, H, W]` contract.
+
+Why hand the whole contract to the callable: each encoder was pretrained with a
+specific reader (`PIL.Image.open` for HF ViTs; a DICOM reader for some CXR
+models) and a specific preprocessor. Forcing a generic tensor↔PIL round-trip or
+a shared MONAI reader silently perturbs pixel statistics — letting the encoder's
+own machinery run end-to-end avoids that.
 
 ### HuggingFace processor
 
@@ -88,9 +103,20 @@ from radharmony.evaluator import EncoderPreprocessTransform
 pp = EncoderPreprocessTransform.from_huggingface(
     keys=["img"],
     processor="microsoft/rad-dino",
-    reader="pil",   # "pil" (default, PNG/JPEG) | "monai" (DICOM/NIfTI) | None (upstream LoadImaged ran) | callable
+    reader="pil",   # see the reader table below
 )
 ```
+
+`reader` options for `from_huggingface`:
+
+| Value | What it does |
+|---|---|
+| `"pil"` (default) | `PIL.Image.open(path).convert("RGB")` — matches HF pretraining |
+| `"monai"` | `mt.LoadImage(ensure_channel_first=True)` + `mt.Transpose([0, 2, 1])` — DICOM / NIfTI via MONAI, fixing the `(C, W, H)` axis order MONAI writes for 2D |
+| `callable` | Your own `(path) -> image-like` |
+| `None` | Upstream (`LoadImaged`) already loaded the image; pass through |
+
+`reader="monai"` is 2D-only; 3D volumes need a different transpose.
 
 ### Custom preprocessor
 

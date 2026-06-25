@@ -778,8 +778,7 @@ After generating all files, verify:
     - For Train/Test split datasets, also add a row to the train/test
       split table in `docs/wiki/datasets.md` showing the split-specific
       `base_image_dir` for each variant.
-    - Optionally also update `docs/dataset_guide.md` and the `README.md`
-      inventory table.
+    - Optionally also update the `README.md` inventory table.
 13. **Retrospective** -- Summarize what you learned from this implementation:
     - What worked well, what was tricky, what required unexpected fixes.
     - Any patterns, edge cases, or CSV quirks that future datasets might share.

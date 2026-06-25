@@ -2,24 +2,19 @@
 
 [![Tests](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml/badge.svg)](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml)
 
-**RadHarmony** is a Python library for loading and harmonizing radiological datasets with a unified API. It wraps [MONAI](https://monai.io/) to deliver ready-to-use **PyTorch `Dataset`** objects from chest X-ray, CT, and MRI datasets — drop them straight into a `DataLoader` for training and evaluation with minimal configuration.
+**RadHarmony** is a Python library for loading and harmonizing radiological datasets with a unified API. It wraps [MONAI](https://monai.io/) to deliver ready-to-use **PyTorch `Dataset`** objects — drop them straight into a `DataLoader` for training and evaluation with minimal configuration. Chest X-ray is the primary, fully-supported modality; CT, MRI, and non-chest radiographs are available as <sup>beta</sup> and still under testing.
 
 **Harmonize datasets** — load and unify multiple sources into one format:
 
 ![Dataset demo](docs/figs/demo_dataset.gif)
 
-**Probe backbones** — evaluate any foundation model on any dataset:
+**Evaluate models** — probe foundation-model backbones across the supported datasets:
 
 ![Evaluator demo](docs/figs/demo_evaluator.gif)
 
 ## Documentation
 
-Full docs: **[f10409.github.io/RadHarmony](https://f10409.github.io/RadHarmony)** — quickstart, per-dataset pages, transforms, app guide, architecture.
-
-Additional guides:
-
-- [docs/evaluator_guide.md](docs/evaluator_guide.md) — Evaluator API: linear probe, k-NN probe, SVM probe, prototype probe, zero-shot, fine-tune, three segmentation heads (linear / conv / UPerNet), backbone recipes, and transforms.
-- [docs/remote_access.md](docs/remote_access.md) — Reaching the Gradio app from a VPN-connected laptop via SSH port forward.
+Full docs: **[f10409.github.io/RadHarmony](https://f10409.github.io/RadHarmony)** — quickstart, per-dataset pages, transforms, architecture, the [Evaluator API](https://f10409.github.io/RadHarmony/evaluator/index.html) (linear / k-NN / SVM / prototype probes, zero-shot, fine-tune, three segmentation heads, backbone recipes), and the [App Guide](https://f10409.github.io/RadHarmony/app.html) (including remote access over an SSH tunnel).
 
 ## Installation
 
@@ -80,7 +75,7 @@ For augmentations, k-fold splits, dataset registry, harmonizer save/reuse, and t
 
 ## Evaluators
 
-`radharmony.evaluator` pairs any dataset with any image encoder and produces
+`radharmony.evaluator` pairs a supported dataset with an image encoder and produces
 a standardized results DataFrame (AUROC, AUPRC, F1, and eight other per-label
 metrics). Six classification evaluators are available — linear probe, k-NN
 probe, SVM probe, prototype probe, zero-shot, and fine-tune — plus three
@@ -141,7 +136,7 @@ ev = ZeroShotEvaluator(
 )
 ```
 
-See [docs/evaluator_guide.md](docs/evaluator_guide.md) for the full API and the [evaluator wiki](https://f10409.github.io/RadHarmony/evaluator/index.html) for all constructor arguments.
+See the [evaluator wiki](https://f10409.github.io/RadHarmony/evaluator/index.html) for the full API and all constructor arguments.
 
 ## Supported Datasets
 
@@ -155,9 +150,8 @@ Worked examples in [`notebooks/`](notebooks/):
 
 | Notebook | Contents |
 |---|---|
-| [`tutorials/examples.ipynb`](notebooks/tutorials/examples.ipynb) | Full API tour: harmonizers, preprocessors, datasets, transforms, registry |
+| [`tutorials/dataset_api_tour.ipynb`](notebooks/tutorials/dataset_api_tour.ipynb) | Full dataset-API tour: harmonizers, preprocessors, datasets, transforms, registry |
 | [`tutorials/custom_dataset_tutorial.ipynb`](notebooks/tutorials/custom_dataset_tutorial.ipynb) | Template for integrating a new dataset |
 | [`tutorials/evaluator_tutorial.ipynb`](notebooks/tutorials/evaluator_tutorial.ipynb) | End-to-end evaluator walkthrough: linear probe on VinDr-CXR with RAD-DINO |
-| [`datasets/montgomery_shenzhen_mask_verify.ipynb`](notebooks/datasets/montgomery_shenzhen_mask_verify.ipynb) | Verifies Montgomery + Shenzhen mask emission against reference images |
 | [`evaluator/fm_comparison.ipynb`](notebooks/evaluator/fm_comparison.ipynb) | FM benchmark — 11 foundation-model image encoders × 6 probing strategies on VinDr-CXR / TAIX-Ray |
 | [`evaluator/fm_comparison_seg.ipynb`](notebooks/evaluator/fm_comparison_seg.ipynb) | FM benchmark — 11 encoders × three segmentation heads (linear / conv / UPerNet) on SIIM-ACR PTX and Montgomery-CXR |

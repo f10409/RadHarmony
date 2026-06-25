@@ -19,8 +19,7 @@ Six classification evaluators plus three segmentation evaluators are available:
 | [UPerNetSegEvaluator](upernet_seg.md) | `"upernet_seg"` | k-fold / fixed-split | Simple Feature Pyramid + HF `UperNetHead` (PSP + FPN fuse) over frozen dense features |
 
 For a hands-on walkthrough see
-[`notebooks/tutorials/evaluator_tutorial.ipynb`](https://github.com/f10409/RadHarmony/blob/main/notebooks/tutorials/evaluator_tutorial.ipynb)
-and the detailed [evaluator guide](../../evaluator_guide.md).
+[`notebooks/tutorials/evaluator_tutorial.ipynb`](https://github.com/f10409/RadHarmony/blob/main/notebooks/tutorials/evaluator_tutorial.ipynb).
 
 ---
 
@@ -140,7 +139,9 @@ ev = LinearProbeEvaluator(
 
 Splits are **patient-level** — `GroupKFold` on `patient_id` ensures no patient
 appears in both train and val folds. In fixed-split mode, variance is composed
-from `n_seeds` train-subsample replicates × `n_bootstrap` test-row resamples.
+from `n_seeds` train-subsample replicates × `n_bootstrap` test-row resamples, so
+the result table has `labels × seeds × (1 + n_bootstrap) × n_train_points` rows
+(the `+1` is the point estimate alongside each set of bootstrap resamples).
 
 ---
 

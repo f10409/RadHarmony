@@ -24,7 +24,7 @@ train_ds, val_ds = ds.get_datasets(n_splits=5)
 sample = train_ds[0]   # {"img": Tensor(1,224,224), "cls": Tensor(14,)}
 ```
 
-Plug any backbone into any evaluator on any dataset:
+Plug a backbone into any evaluator across the supported datasets:
 
 ```python
 from radharmony.evaluator import LinearProbeEvaluator

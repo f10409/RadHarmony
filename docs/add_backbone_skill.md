@@ -80,7 +80,6 @@ illustrate them.
 | **Modified** `radharmony/evaluator/backbones/__init__.py` | `from .<name> import make_<name>`, add to `__all__`, add docstring entry. |
 | **Modified** `pyproject.toml` | One row under `[project.optional-dependencies]`. |
 | **Modified** `docs/wiki/backbones/index.md` | One row in the recipes table (linking to `<name>.md`); for manual-setup backbones also add a row in the override-paths table. |
-| **Modified** `docs/evaluator_guide.md` | One row in the backbone recipes table. |
 | **Modified** `mkdocs.yml` | One `nav:` entry under `Backbones:` pointing at the new page. |
 | **Modified** `README.md` | One row in the extras table. |
 
@@ -202,13 +201,12 @@ Required sections:
 - Segmentation mode block: `output_keys={"img", "mask"}` + explicit
   `forward(x) -> Tensor[B, D, H, W]` shape (compute `H = W = input/patch`).
 
-Then update the same row in three tables — keep the columns consistent:
+Then update the same row in two tables — keep the columns consistent:
 
 - [docs/wiki/backbones/index.md](docs/wiki/backbones/index.md) — recipes
   table (Factory / Embed dim / Input size / Returns / Extra). Link the
   Factory cell to the new `<name>.md`. For manual-setup recipes also add a
   row to the "Override default paths" table.
-- [docs/evaluator_guide.md](docs/evaluator_guide.md) — same columns.
 - [README.md](README.md) — extras table (Extra / Adds / Install).
 
 Append the new row under [mkdocs.yml](mkdocs.yml) `nav:` → `Backbones:`.

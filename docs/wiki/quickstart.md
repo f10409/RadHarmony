@@ -31,7 +31,8 @@ The base install gives you the dataset API. Install extras for models, notebooks
 | `all` | Everything above | `uv pip install -e "/path/to/RadHarmony[all]"` |
 
 Backbone extras for the evaluator (install only the ones you need):
-`raddino`, `biomed`, `chexagent`, `medsiglip`, `medimageinsights`, `chexfound`.
+`raddino`, `biomed`, `chexagent`, `medsiglip`, `medimageinsights`, `chexfound`,
+`dinov3`, `eva_x`, `ark_plus`, `medical_mae`, `siglip2`.
 E.g. `uv pip install -e "/path/to/RadHarmony[raddino]"`. See the
 [Evaluator API](evaluator/index.md) for the backbone recipes table.
 
@@ -59,7 +60,7 @@ uv run python app.py
 
 Open http://localhost:7860 in your browser. The app lists all supported datasets grouped by modality (CXR, CT, MRI, Radiograph). Point it at your local data directory and click **Load**.
 
-For remote access (server + local laptop), see [App Guide → Remote access](app.md#remote-access).
+For remote access (server + local laptop), see [App Guide → Remote access](app.md#remote-access-ssh-tunnel).
 
 ## Load your first dataset in code
 

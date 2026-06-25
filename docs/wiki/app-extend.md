@@ -1,26 +1,13 @@
-# RadHarmony — Gradio App Guide
+# Extending the App — Adding a Dataset
 
-## Launching the app
+To make a registered dataset selectable in the Gradio app, two things are
+needed: a **build function** and a **`DATASET_REGISTRY` entry**. Both go in
+`app.py`. The UI and loader update automatically — no other changes needed.
 
-```bash
-python app.py
-# or
-gradio app.py
-```
+## The build function
 
-The app lets you load any registered dataset, configure output flags (cls, mask, report, bbox), and browse random samples with live transform previews. For 3-D datasets it also exposes HU window controls and a slice axis selector.
-
-The **Labels** textbox shows the names of every label whose `cls` value is positive (`> 0.5`). For datasets with ordinal severity grades (e.g. TAIX-Ray with `label_mode="ordinal"`), values `≥ 2` are surfaced inline as `name (N)` — e.g. `pleural_effusion_left (3)`. Plain `name` (no parens) means severity 1, which is identical to a binary label being on. Standard binary datasets (CheXpert, MIMIC, etc.) are unaffected since their cls values never exceed 1.
-
----
-
-## Adding a dataset to the app
-
-Two things are needed: a **build function** and a **`DATASET_REGISTRY` entry**. Both go in `app.py`. The UI and loader update automatically — no other changes needed.
-
-### The build function
-
-The build function has a fixed signature and must return `(dataset_obj, error_str | None)`:
+The build function has a fixed signature and must return
+`(dataset_obj, error_str | None)`:
 
 ```python
 def _build_my_dataset(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
@@ -54,7 +41,7 @@ def _build_my_dataset(base_dir, csv_path, extra_field, extra_field2, cache_dir, 
 | `cache_dir` | "Cache dir" textbox | Always present |
 | `**flags` | Output flag checkboxes | Keys: `output_cls`, `output_mask`, `output_report`, `output_bbox` |
 
-### DatasetConfig fields
+## DatasetConfig fields
 
 ```python
 @dataclass
