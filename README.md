@@ -1,4 +1,6 @@
-# RadHarmony
+<p align="center">
+  <img src="docs/figs/icon.jpg" alt="RadHarmony" width="600"/>
+</p>
 
 [![Tests](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml/badge.svg)](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml)
 
