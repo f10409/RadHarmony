@@ -2,7 +2,7 @@
   <img src="docs/figs/icon.jpg" alt="RadHarmony" width="400"/>
 </p>
 
-[![Tests](https://github.com/ANON/RadHarmony/actions/workflows/tests.yml/badge.svg)](https://github.com/ANON/RadHarmony/actions/workflows/tests.yml)
+[![Tests](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml/badge.svg)](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml)
 
 **RadHarmony** is a Python library for loading and harmonizing radiological datasets with a unified API. It wraps [MONAI](https://monai.io/) to deliver ready-to-use **PyTorch `Dataset`** objects — drop them straight into a `DataLoader` for training and evaluation with minimal configuration. Chest X-ray is the primary, fully-supported modality; CT, MRI, and non-chest radiographs are available as <sup>beta</sup> and still under testing.
 
@@ -16,7 +16,7 @@
 
 ## Documentation
 
-Full docs: **[ANON.github.io/RadHarmony](https://ANON.github.io/RadHarmony)** — quickstart, per-dataset pages, transforms, architecture, the [Evaluator API](https://ANON.github.io/RadHarmony/evaluator/index.html) (linear / k-NN / SVM / prototype probes, zero-shot, fine-tune, three segmentation heads, backbone recipes), and the [App Guide](https://ANON.github.io/RadHarmony/app.html) (including remote access over an SSH tunnel).
+Full docs: **[f10409.github.io/RadHarmony](https://f10409.github.io/RadHarmony)** — quickstart, per-dataset pages, transforms, architecture, the [Evaluator API](https://f10409.github.io/RadHarmony/evaluator/index.html) (linear / k-NN / SVM / prototype probes, zero-shot, fine-tune, three segmentation heads, backbone recipes), and the [App Guide](https://f10409.github.io/RadHarmony/app.html) (including remote access over an SSH tunnel).
 
 ## Installation
 
@@ -73,7 +73,7 @@ sample = train_ds[0]
 # sample["cls"]  → torch.Tensor, shape (14,), binary labels
 ```
 
-For augmentations, k-fold splits, dataset registry, harmonizer save/reuse, and the Gradio visualizer — see the [wiki Quickstart](https://ANON.github.io/RadHarmony/quickstart.html) and per-dataset pages.
+For augmentations, k-fold splits, dataset registry, harmonizer save/reuse, and the Gradio visualizer — see the [wiki Quickstart](https://f10409.github.io/RadHarmony/quickstart.html) and per-dataset pages.
 
 ## Evaluators
 
@@ -138,13 +138,13 @@ ev = ZeroShotEvaluator(
 )
 ```
 
-See the [evaluator wiki](https://ANON.github.io/RadHarmony/evaluator/index.html) for the full API and all constructor arguments.
+See the [evaluator wiki](https://f10409.github.io/RadHarmony/evaluator/index.html) for the full API and all constructor arguments.
 
 ## Supported Datasets
 
 A broad collection of public radiological datasets covering 2D CXR, 3D CT, and 3D MRI — including CheXpert, CheXpert-Plus, MIMIC-CXR (DICOM/JPG), ChestX-ray14, PadChest, ReXGradient-160K, VinDr-CXR, SIIM-ACR PTX, SIIM COVID-19, RSNA Pneumonia, RSNA PE Detection <sup>beta</sup>, RSNA Bone Age <sup>beta</sup>, RSNA 2022 Cervical Spine <sup>beta</sup>, RSNA 2023 Abdominal Trauma <sup>beta</sup>, RSNA 2024 Lumbar Spine <sup>beta</sup>, CT-RATE <sup>beta</sup>, RAD-ChestCT <sup>beta</sup>, TAIX-Ray, BRAX, RANZCR CLiP, OpenI IU CXR, Montgomery County CXR, and Shenzhen Hospital CXR.
 
-See the [Datasets inventory](https://ANON.github.io/RadHarmony/datasets.html) for the full table with registry keys, modalities, and label counts.
+See the [Datasets inventory](https://f10409.github.io/RadHarmony/datasets.html) for the full table with registry keys, modalities, and label counts.
 
 ## Notebooks
 
