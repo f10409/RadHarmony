@@ -1,6 +1,6 @@
 # CheXpert-Plus
 
-**Modality:** CXR | **Format:** JPEG | **Dim:** 2D | **Labels:** 14 pathologies + reports
+**Modality:** CXR | **Format:** DICOM | **Dim:** 2D | **Labels:** 14 pathologies + reports
 
 ## Overview
 

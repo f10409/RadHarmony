@@ -1,6 +1,6 @@
 # TAIX-Ray
 
-**Modality:** CXR | **Format:** JPEG/PNG | **Dim:** 2D | **Labels:** 8 findings (binary or ordinal)
+**Modality:** CXR | **Format:** PNG | **Dim:** 2D | **Labels:** 8 findings (binary or ordinal)
 
 ## Overview
 
@@ -17,11 +17,11 @@ TAIX-Ray/
   data_512/
     images/
       annotation.csv
-      <image_id>.jpg
+      <image_id>.png
   data_original/
     images/
       annotation.csv
-      <image_id>.jpg
+      <image_id>.png
 ```
 
 ## Label columns
