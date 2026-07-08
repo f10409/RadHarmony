@@ -1,13 +1,15 @@
 # PadChest
 
-**Modality:** CXR | **Format:** PNG | **Dim:** 2D | **Labels:** 193 findings | **Reports:** Spanish
+**Modality:** CXR | **Format:** PNG | **Dim:** 2D | **Labels:** 193 (174 findings + 19 diagnoses) | **Reports:** Spanish
 
 ## Overview
 
-PadChest (BIMCV) contains 160,861 chest X-rays from ~67,000 patients at
+PadChest (BIMCV) comprises 160,868 chest X-rays (the distributed label CSV
+has 160,861 rows) from ~67,000 patients at
 Hospital San Juan de Alicante, Spain (2009–2017). Labels are NLP-derived
 from Spanish radiology reports plus manual review; the published label
-vocabulary contains 193 distinct findings (much richer than the 14-class
+vocabulary contains 193 distinct labels — 174 radiographic findings plus
+19 differential diagnoses (much richer than the 14-class
 CheXpert/ChestX-ray14 taxonomy). Each row also carries a pre-processed
 (stemmed/lemmatized) Spanish radiology report.
 
@@ -50,7 +52,8 @@ relative `image_path` carries the subdir name (`<ImageDir>/<ImageID>`).
 
 ## Label columns
 
-193 findings, NLP-derived from Spanish reports. All exposed as binary
+193 labels (174 radiographic findings + 19 differential diagnoses),
+NLP-derived from Spanish reports. All exposed as binary
 one-hot columns. A representative subset:
 
 | Column | Description |

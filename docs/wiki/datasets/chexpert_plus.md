@@ -4,7 +4,7 @@
 
 ## Overview
 
-CheXpert-Plus is an extension of the original CheXpert dataset that adds de-identified radiology reports, segmentation masks, and bounding box annotations to the 224,316 chest X-rays. It uses the same patient population and image files as CheXpert but ships additional annotation files.
+CheXpert-Plus is an extension of the original CheXpert dataset that pairs de-identified radiology reports (and patient demographics) with 223,228 chest X-rays across 187,711 studies from 64,725 patients. The images are pixel-identical to CheXpert v1.0 — 186 studies from the original release are absent because their reports could not be recovered — and the release additionally ships DICOM and PNG image formats.
 
 ## Download
 

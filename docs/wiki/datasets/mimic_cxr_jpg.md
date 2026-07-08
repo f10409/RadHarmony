@@ -1,10 +1,10 @@
 # MIMIC-CXR-JPG
 
-**Modality:** CXR | **Format:** JPEG | **Dim:** 2D | **Labels:** 14 pathologies + reports
+**Modality:** CXR | **Format:** JPEG | **Dim:** 2D | **Labels:** 14 pathologies
 
 ## Overview
 
-MIMIC-CXR-JPG is the JPEG version of MIMIC-CXR. It contains the same 227,827 studies as the DICOM version but stores images as compressed JPEG files, making it faster to load and more suitable for large-scale training. Labels and reports are the same as MIMIC-CXR.
+MIMIC-CXR-JPG is the JPEG version of MIMIC-CXR. It contains 227,827 studies (a handful fewer than the DICOM release could not be converted) but stores images as compressed JPEG files, making it faster to load and more suitable for large-scale training. The CheXpert-extracted labels match MIMIC-CXR; the JPG release itself ships no free-text reports.
 
 RadHarmony provides two dataset classes for this dataset:
 - `MIMICCXRJPGDataset` — all studies, labelled by the standard CheXpert NLP labeller (`mimic-cxr-2.0.0-chexpert.csv`).

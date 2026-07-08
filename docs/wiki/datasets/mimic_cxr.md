@@ -4,7 +4,7 @@
 
 ## Overview
 
-MIMIC-CXR is a large publicly available dataset of chest radiographs in DICOM format from the Beth Israel Deaconess Medical Center, containing 227,827 imaging studies for 64,588 patients. It includes free-text radiology reports and CheXpert-extracted labels. Access requires credentialing on PhysioNet.
+MIMIC-CXR is a large publicly available dataset of chest radiographs in DICOM format from the Beth Israel Deaconess Medical Center, containing 227,835 imaging studies for 65,379 patients (377,110 images total). It includes free-text radiology reports and CheXpert-extracted labels. Access requires credentialing on PhysioNet.
 
 ## Download
 

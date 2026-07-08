@@ -4,7 +4,7 @@
 
 ## Overview
 
-TAIX-Ray is a Thai chest X-ray dataset with annotations for 8 clinically relevant findings. It supports two label modes: **binary** (finding present/absent) and **ordinal** (severity grade). The dataset is distributed in two resolutions: 512×512 pixels and original resolution. RadHarmony provides a separate dataset class for each resolution variant.
+TAIX-Ray is a Thai chest X-ray dataset with annotations for 8 clinically relevant findings. It supports two label modes: **binary** (finding present/absent) and **ordinal** (severity grade). The dataset is distributed in two variants: a 512-px version and original resolution. RadHarmony provides a separate dataset class for each resolution variant.
 
 ## Download
 
@@ -130,6 +130,6 @@ ds = TAIXRay512Dataset(
 | Role | Path |
 |---|---|
 | `base_image_dir` (512 px) | `/path/to/TAIX-Ray/data_512/images/` |
-| `base_image_dir` (original) | `/path/to/TAIX-Ray/data_original/` |
-| `csv_path` (512 px, `annotation.csv`) | `/path/to/TAIX-Ray/data_512/annotation.csv` |
-| `csv_path` (original, `annotation.csv`) | `/path/to/TAIX-Ray/data_original/annotation.csv` |
+| `base_image_dir` (original) | `/path/to/TAIX-Ray/data_original/images/` |
+| `csv_path` (512 px, `annotation.csv`) | `/path/to/TAIX-Ray/data_512/images/annotation.csv` |
+| `csv_path` (original, `annotation.csv`) | `/path/to/TAIX-Ray/data_original/images/annotation.csv` |

@@ -4,7 +4,7 @@
 
 ## Overview
 
-The Montgomery County Tuberculosis Chest X-ray dataset was collected in collaboration with the National Library of Medicine (LHNCBC), Montgomery County Department of Health and Human Services (Maryland, USA), and Shenzhen No.3 People's Hospital. It contains 138 posterior-anterior (PA) chest radiographs — 80 normal and 58 TB-positive — with binary TB labels, patient demographics, and manually drawn left/right lung segmentation masks.
+The Montgomery County Tuberculosis Chest X-ray dataset was collected in collaboration with the National Library of Medicine (LHNCBC) and the Montgomery County Department of Health and Human Services (Maryland, USA). It contains 138 posterior-anterior (PA) chest radiographs — 80 normal and 58 TB-positive — with binary TB labels, patient demographics, and manually drawn left/right lung segmentation masks.
 
 Despite its small size, the dataset is widely used for TB classification and lung segmentation benchmarking.
 

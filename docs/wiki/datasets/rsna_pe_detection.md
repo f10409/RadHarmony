@@ -4,7 +4,7 @@
 
 ## Overview
 
-The RSNA-STR Pulmonary Embolism Detection Challenge (2020) dataset contains CT pulmonary angiography (CTPA) studies labelled for the presence and characteristics of pulmonary embolism. Each study has series-level and exam-level labels. The dataset contains approximately 7,279 training exams.
+The RSNA-STR Pulmonary Embolism Detection Challenge (2020) dataset contains CT pulmonary angiography (CTPA) studies labelled for the presence and characteristics of pulmonary embolism. Each study has image-level (per-slice) and exam-level labels. The dataset contains approximately 7,279 training exams.
 
 ## Download
 

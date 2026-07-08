@@ -1,6 +1,6 @@
 # ChestX-ray14
 
-**Modality:** CXR | **Format:** PNG | **Dim:** 2D | **Labels:** 15 pathologies
+**Modality:** CXR | **Format:** PNG | **Dim:** 2D | **Labels:** 14 pathologies + No Finding
 
 ## Overview
 

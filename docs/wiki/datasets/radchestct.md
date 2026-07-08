@@ -8,7 +8,10 @@ RAD-ChestCT is a large chest CT dataset containing 35,747 CT scans with radiolog
 
 ## Download
 
-Available from [Zenodo: RAD-ChestCT](https://zenodo.org/records/6406114).
+Available from [Zenodo: RAD-ChestCT](https://zenodo.org/records/6406114). Note: the
+Zenodo record hosts an initial release of ~3,630 volumes (~10% of the dataset) alongside
+the full `CT_Scan_Metadata_Complete_35747.csv` metadata; obtaining all 35,747 scans
+requires the separate data-use agreement described on the record page.
 
 Expected layout:
 

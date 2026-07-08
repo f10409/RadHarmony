@@ -4,7 +4,7 @@
 
 ## Overview
 
-The SIIM-ACR Pneumothorax Segmentation dataset contains 12,954 chest X-rays from the 2019 Kaggle challenge. Each image is labelled for the presence of pneumothorax, and positive cases include one or more pixel-level segmentation masks encoded as run-length encoded (RLE) strings in the CSV.
+The SIIM-ACR Pneumothorax Segmentation dataset (2019 Kaggle challenge) contains ~12,047 training chest X-rays; the `train-rle.csv` has 12,954 RLE rows because some images carry multiple pneumothorax annotations. Each image is labelled for the presence of pneumothorax, and positive cases include one or more pixel-level segmentation masks encoded as run-length encoded (RLE) strings in the CSV.
 
 ## Download
 
