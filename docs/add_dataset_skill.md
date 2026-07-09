@@ -672,7 +672,7 @@ After generating all files, verify:
 - [ ] `SUPPORTED_OUTPUTS` frozenset set on the class listing exactly the output keys the dataset provides; base class will emit `UserWarning` automatically for any unsupported flag
 - [ ] `dtype=torch.bfloat16` param added to `__init__` and threaded to the default transform builder
 - [ ] JSON config file saved and up-to-date in `configs/datasets/`
-- [ ] Integrity check cell added to `notebooks/dataset_integrity_check.ipynb` and passes
+- [ ] Integrity check registered in **both** `notebooks/datasets/dataset_integrity_check.ipynb` (human) and `scripts/check_datasets.py` (agent/CI), and passes — verify with `uv run python scripts/check_datasets.py --datasets <registry_key>` (exit 0)
 - [ ] **When `image_path` is a directory** (DICOM series), override `verify_images`
       in **both** `BaseHarmonizer` and `BaseRadiologicalDataset` subclasses — the
       base uses `os.path.isfile` in both places and will drop every row otherwise.
@@ -748,15 +748,34 @@ After generating all files, verify:
 8. **Update exports** -- Edit both `__init__.py` files.
 9. **Update app.py** -- Add import, build function, and registry entry.
 10. **Run checklist** -- Verify all items above.
-11. **Integration test** -- Add the new dataset to `notebooks/dataset_integrity_check.ipynb`:
-    - Add the import to the imports cell (cell-2).
-    - Add a path variable in the paths cell (cell-7).
-    - Add a new cell that instantiates the dataset with `output_cls=True` (and
-      `output_report=True`, `output_mask=True`, `output_bbox=True` if supported),
-      calls `ds.verify_images()`, runs `check_dataset(ds)`, and appends the report.
-      Follow the same pattern as the existing dataset cells.
-    - Run the new cell. If it fails, read the error, fix the generated code, and re-run
-      until the integrity check passes.
+11. **Integration test** -- The integrity harness (`IntegrityReport`, `check_dataset`,
+    `print_report`, `subsample_dataset`) lives in `radharmony/integrity.py` and is driven
+    two ways that share that one module: the **notebook** (for a human — it also renders the
+    images) and **`scripts/check_datasets.py`** (for an agent / CI — deterministic JSON plus
+    a non-zero exit on failure). Register the new dataset in **both** surfaces:
+
+    - **Notebook** `notebooks/datasets/dataset_integrity_check.ipynb`:
+      - Add the class to the imports cell.
+      - Add the path constant(s) to the paths cell.
+      - Add a `build(<Name>Dataset, base_image_dir=..., csv_path=..., output_cls=True, ...)`
+        cell mirroring the existing dataset cells (enable `output_report` / `output_mask` /
+        `output_bbox` as supported). `build()` sub-samples, runs `check_dataset`, prints the
+        report, and previews a few samples with images.
+    - **Script** `scripts/check_datasets.py`:
+      - Add the matching path constant(s) near the top.
+      - Add a `DatasetSpec("<registry_key>", <Name>Dataset, dict(base_image_dir=...,
+        csv_path=..., output_cls=True, ...))` to `get_specs()`. For 3-D volumes pass
+        `workers=2` to bound memory, matching the other 3-D specs.
+
+    - **Self-verify (agent):** run
+      ```bash
+      uv run python scripts/check_datasets.py --datasets <registry_key> --max-samples 30
+      ```
+      Read the report and confirm: status `OK`, image dtype/shape as expected, `img range`
+      within `[-1, 1]`, and — when `output_cls` — sane per-label positive counts. If the
+      status is `ERROR` (or the stats look wrong), read the traceback, fix the generated
+      harmonizer / dataset code, and re-run until it passes (exit 0). Add `--json -` for a
+      machine-parseable report.
 12. **Update the wiki** -- Required, not optional. The wiki is the
     user-facing reference for dataset usage; a new dataset without a wiki
     page is invisible to most users.
