@@ -157,3 +157,13 @@ Worked examples in [`notebooks/`](notebooks/):
 | [`tutorials/evaluator_tutorial.ipynb`](notebooks/tutorials/evaluator_tutorial.ipynb) | End-to-end evaluator walkthrough: linear probe on VinDr-CXR with RAD-DINO |
 | [`evaluator/fm_comparison.ipynb`](notebooks/evaluator/fm_comparison.ipynb) | FM benchmark — 11 foundation-model image encoders × 6 probing strategies on VinDr-CXR / TAIX-Ray |
 | [`evaluator/fm_comparison_seg.ipynb`](notebooks/evaluator/fm_comparison_seg.ipynb) | FM benchmark — 11 encoders × three segmentation heads (linear / conv / UPerNet) on SIIM-ACR PTX and Montgomery-CXR |
+
+## Contributors
+
+RadHarmony is developed and maintained by the [HITI Lab](https://www.hitilab.com/) at Emory University, with contributions from:
+
+- **Frank Li** ([@f10409](https://github.com/f10409))
+- **Bardia Khosravi** ([@BardiaKh](https://github.com/BardiaKh))
+- **Judy Gichoya** ([@judywawira](https://github.com/judywawira))
+- **Reza Chavoshi**
+- and other members of the HITI Lab, Emory University.
