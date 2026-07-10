@@ -157,6 +157,7 @@ Worked examples in [`notebooks/`](notebooks/):
 | [`tutorials/evaluator_tutorial.ipynb`](notebooks/tutorials/evaluator_tutorial.ipynb) | End-to-end evaluator walkthrough: linear probe on VinDr-CXR with RAD-DINO |
 | [`evaluator/fm_comparison.ipynb`](notebooks/evaluator/fm_comparison.ipynb) | FM benchmark — 11 foundation-model image encoders × 6 probing strategies on VinDr-CXR / TAIX-Ray |
 | [`evaluator/fm_comparison_seg.ipynb`](notebooks/evaluator/fm_comparison_seg.ipynb) | FM benchmark — 11 encoders × three segmentation heads (linear / conv / UPerNet) on SIIM-ACR PTX and Montgomery-CXR |
+| [`datasets/dataset_integrity_check.ipynb`](notebooks/datasets/dataset_integrity_check.ipynb) | Integrity pass over every supported dataset — instantiate, iterate, validate outputs, visualize samples; headless counterpart: [`scripts/check_datasets.py`](scripts/check_datasets.py) |
 
 ## Contributors
 
