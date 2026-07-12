@@ -197,6 +197,28 @@ This downloads into `~/.cache/kagglehub/` (or `$KAGGLEHUB_CACHE`). Do **not** em
 kagglehub calls inside harmonizer or dataset code — keep downloading as a user-side
 step and let the constructor take the resolved path.
 
+### Adding a new Python dependency
+
+If the harmonizer needs a package not already in `pyproject.toml` (e.g.
+`pycocotools` for COCO-RLE mask decoding), add it to the base `dependencies`
+list there, then install with:
+
+```bash
+uv pip install -e ".[all]"    # or the narrower extra you actually need
+```
+
+**Do not run plain `uv sync`** in this repo. Unlike `uv pip install -e`, `uv
+sync` performs an *exact* sync against the lockfile's default (non-extra)
+group and will **uninstall** `gradio`, `transformers`, `torchvision`, and
+other extras that were previously installed manually — silently breaking
+`app.py` and any model-backbone code in the same environment. If this
+happens, `uv pip install -e ".[all]"` restores everything. After either
+command, sanity-check with:
+
+```bash
+python -c "import gradio, transformers, torchvision"
+```
+
 ### Workflow After JSON Creation
 
 1. **Create the JSON** at `configs/datasets/<registry_key>.json` with as much pre-filled
@@ -418,6 +440,41 @@ class <Name>Harmonizer(BaseHarmonizer):
    like RadChestCT do **not** belong in this set — their single
    organ-scale bbox already spans the volume's mid-slices, so default
    mid-slice rendering is correct.
+
+9. **Per-label mask sources (one mask PER PATHOLOGY, not per image)**: some
+   datasets (e.g. CheXlocalize) store segmentation ground truth as a JSON
+   keyed by image, mapping to a dict of `{pathology_name: {rle-or-similar}}`
+   — up to N masks per image, one per finding. `BaseHarmonizer`'s mask
+   pipeline (`_build_mask_path` / `preprocess_masks` / `_decode_mask`)
+   supports exactly **one** mask cell per row, decoded to one (H, W) array.
+   Do not try to duplicate rows per pathology — that corrupts the
+   one-row-per-image contract the rest of `harmonize()` relies on (labels
+   get duplicated too). Instead:
+   - Override `_build_mask_path()` to store, per row, a single lookup key
+     (e.g. `f"{study_id}_{image_basename}"`) into the loaded JSON — or
+     `None` if the image has no entry — rather than the mask data itself.
+   - Override `_decode_mask(key, width, height)` to look up **all**
+     pathologies for that key and union (bitwise OR) their decoded masks
+     into one binary array, mirroring how SIIM-ACR unions multiple
+     annotator rows for the same image. Pathology names in the mask source
+     don't need to match `LABEL_COLS` — the union doesn't care about names,
+     only presence. Skip loading the (often several-MB) JSON at all in
+     `__init__` unless mask support is actually requested (check the
+     dataset class's `output_mask` flag before constructing the harmonizer
+     with a `mask_json_path`).
+   - If the source uses COCO RLE (`{"size": [H, W], "counts": ...}`), decode
+     with `pycocotools.mask.decode` — this is a new dependency, not yet in
+     `pyproject.toml`; add `"pycocotools"` to `dependencies` there. Reuse
+     `radharmony/utils/mask_utils.py` conventions if the encoding matches an
+     existing helper (SIIM-ACR's `rle_to_mask` is a different, non-COCO RLE
+     variant — column-major run-length, not COCO's — don't conflate them).
+   - This keeps everything inside the existing single-mask-per-image
+     contract — **no base-class change needed**. Only consider extending
+     `BaseHarmonizer`/`BaseRadiologicalDataset` for genuine multi-channel
+     per-label mask output if a downstream use case actually needs the
+     per-pathology masks kept separate (and then stop for explicit
+     approval per the Base Class Policy below — this is a bigger, shared
+     change).
 
 ## File 2: Dataset (`radharmony/dataset/<name>/`)
 

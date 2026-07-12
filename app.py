@@ -35,6 +35,7 @@ from radharmony.dataset import (
     CheXpertTrainDataset,
     CheXpertValidDataset,
     CheXpertPlusDataset,
+    CheXlocalizeDataset,
     MIMICCXRDataset,
     MIMICCXRJPGDataset,
     MIMICCXRJPGTestDataset,
@@ -78,6 +79,10 @@ from radharmony.dataset import (
     ShenzhenCXRDataset,
     VinDrCXRTestDataset,
     VinDrCXRTrainDataset,
+    VinDrPCXRDataset,
+    EmoryCXRDataset,
+    MSCXRDataset,
+    MSCXRTDataset,
 )
 from radharmony.dataset.transforms import RadiologyTransform2D, RadiologyTransform3D
 from radharmony.utils.data_utils import get_data_dict
@@ -248,6 +253,34 @@ def _build_chexpert_plus(
             cache_dir=cache_dir or None,
             output_cls=flags.get("output_cls", False),
             output_report=flags.get("output_report", False),
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_chexlocalize(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    csv = _infer(base_dir, "test_labels.csv", user_path=csv_path)
+    if not csv:
+        return None, "test_labels.csv is required."
+    mask_json = _infer(
+        base_dir, "gt_segmentations_test.json", user_path=extra_field
+    ) or None
+    mask_dir = extra_field2 or None
+    if flags.get("output_mask") and mask_dir is None:
+        return (
+            None,
+            "Mask output dir is required when Mask is enabled for CheXlocalize.",
+        )
+    return (
+        CheXlocalizeDataset(
+            base_image_dir=base_dir,
+            csv_path=csv,
+            mask_json_path=mask_json,
+            mask_output_dir=mask_dir,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            output_mask=flags.get("output_mask", False),
             dtype=_APP_DTYPE,
         ),
         None,
@@ -644,6 +677,24 @@ def _build_vindr_cxr_test(
             output_mask=False,
             output_report=False,
             output_bbox=flags.get("output_bbox", False),
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_vindr_pcxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
+    if not base_dir:
+        return None, "Dataset root directory (containing train/ and test/) is required."
+    return (
+        VinDrPCXRDataset(
+            base_image_dir=base_dir,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            output_bbox=flags.get("output_bbox", False),
+            output_mask=False,
+            output_report=False,
             dtype=_APP_DTYPE,
         ),
         None,
@@ -1169,6 +1220,86 @@ def _build_shenzhen_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir
     )
 
 
+def _build_emory_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.harmonizer.emory_cxr import EmoryCXRHarmonizer
+
+    base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
+    meta_csv = (csv_path or "").strip() or None
+    # Metadata CSV is required and cannot be auto-discovered — the CSVs live in
+    # a separate TABLES/ folder, not in the (potentially millions-of-files) image tree.
+    if not meta_csv:
+        return None, (
+            "CSV path is required for EmoryCXR v2. "
+            "Enter the full path to the EmoryCXR v2 metadata CSV."
+        )
+    label = (extra_field or "").strip() or None
+    report = (extra_field2 or "").strip() or None
+    h = EmoryCXRHarmonizer(
+        csv_path=meta_csv,
+        base_image_dir=base_dir,
+        label_csv_path=label,
+        report_csv_path=report,
+    )
+    harmonized_df = h.harmonize()
+    return (
+        EmoryCXRDataset(
+            base_image_dir=base_dir,
+            harmonized_df=harmonized_df,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False) and label is not None,
+            output_mask=False,
+            output_report=flags.get("output_report", False) and report is not None,
+            output_bbox=False,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_ms_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
+    csv_path = os.path.expanduser(csv_path) if csv_path else csv_path
+    if not base_dir:
+        return None, "MIMIC-CXR-JPG root (containing files/) is required."
+    if not csv_path:
+        return None, "CSV path (MS-CXR local alignment CSV) is required."
+    return (
+        MSCXRDataset(
+            base_image_dir=base_dir,
+            csv_path=csv_path,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            output_bbox=flags.get("output_bbox", False),
+            output_mask=False,
+            output_report=False,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_ms_cxr_t(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
+    csv_path = os.path.expanduser(csv_path) if csv_path else csv_path
+    if not base_dir:
+        return None, "MIMIC-CXR-JPG root (containing files/) is required."
+    if not csv_path:
+        return None, "CSV path (MS-CXR-T temporal classification CSV) is required."
+    return (
+        MSCXRTDataset(
+            base_image_dir=base_dir,
+            csv_path=csv_path,
+            cache_dir=cache_dir or None,
+            output_cls=False,
+            output_mask=False,
+            output_report=False,
+            output_bbox=False,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
 def _header(modality: str) -> DatasetConfig:
     """Create a non-selectable group-header separator for the dropdown."""
     return DatasetConfig(
@@ -1205,6 +1336,191 @@ def _build_ranzcr_clip(base_dir, csv_path, extra_field, extra_field2, cache_dir,
         ),
         None,
     )
+
+
+def _build_roco(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    """ROCO: multimodal radiology captioning dataset from PubMed Central.
+
+    base_dir   → roco-dataset root directory (contains data/)
+    extra_field → comma-separated splits to include (default: train,validation,test)
+    """
+    from radharmony.harmonizer.roco import ROCOHarmonizer
+    from tqdm import tqdm
+
+    base_dir_exp = os.path.expanduser(base_dir) if base_dir else None
+    if not base_dir_exp or not os.path.isdir(base_dir_exp):
+        return None, "ROCO base_dir (roco-dataset root with data/) not found."
+
+    data_dir = os.path.join(base_dir_exp, "data")
+    if not os.path.isdir(data_dir):
+        return None, f"Expected data/ subdirectory not found in {base_dir_exp}."
+
+    # Parse optional split filter from extra_field
+    splits = None
+    if extra_field and extra_field.strip():
+        splits = [s.strip() for s in extra_field.strip().split(",") if s.strip()]
+
+    try:
+        h = ROCOHarmonizer(
+            base_dir=base_dir_exp,
+            splits=splits,
+            radiology_only=True,
+        )
+        df = h.harmonize()
+    except Exception as exc:
+        return None, f"Harmonization error: {exc}"
+
+    class _ROCOAdapter:
+        LABEL_COLS = []
+        REG_COLS   = []
+        _cols = {
+            "caption": "answer",
+            "keywords": "keywords",
+        }
+
+        def __init__(self, dataframe):
+            self._df = dataframe
+
+        def get_harmonized_df(self):
+            return self._df
+
+        def verify_images(self, drop_missing=True):
+            def _exists(p):
+                fp = os.path.join(base_dir_exp, p) if base_dir_exp else p
+                return os.path.isfile(fp)
+            tqdm.pandas(desc="Verifying ROCO images")
+            mask = self._df["image_path"].progress_apply(_exists)
+            missing = self._df[~mask].copy()
+            if not missing.empty and drop_missing:
+                self._df = self._df[mask].reset_index(drop=True)
+            return missing
+
+    return _ROCOAdapter(df), None
+
+
+def _build_gemex_vqa(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    """GEMeX-VQA: chest X-ray VQA over MIMIC-CXR images.
+
+    base_dir    → MIMIC-CXR-JPG files/ root (images live here)
+    extra_field → directory with the 4 GEMeX-VQA JSONL files
+    """
+    import json as _json
+    from radharmony.harmonizer import GEMeXVQAHarmonizer
+    from tqdm import tqdm
+
+    data_dir = os.path.expanduser(extra_field) if extra_field else None
+    base_dir_exp = os.path.expanduser(base_dir) if base_dir else None
+
+    if not data_dir:
+        return None, "GEMeX-VQA data dir (JSONL files) is required in the Extra field."
+    if not os.path.isdir(data_dir):
+        return None, f"GEMeX-VQA data dir not found: {data_dir}"
+
+    try:
+        h = GEMeXVQAHarmonizer(data_dir=data_dir, base_image_dir=base_dir_exp)
+        df = h.harmonize()
+    except Exception as exc:
+        return None, f"Harmonization error: {exc}"
+
+    # --- Build per-image Q&A summary grouped by question subtype ---
+    _SUBTYPE_LABELS = {
+        "closed_ended":  "Closed Ended (Yes / No)",
+        "open_ended":    "Open Ended",
+        "single_choice": "Single Choice",
+        "multi_choice":  "Multi Choice",
+    }
+
+    # Pre-build a mapping: image_path → {subtype → [question dicts]}
+    _image_qa: dict = {}
+    for _, row in df.iterrows():
+        ip = row["image_path"]
+        st = row["question_subtype"]
+        _image_qa.setdefault(ip, {s: [] for s in _SUBTYPE_LABELS})
+        _image_qa[ip][st].append({
+            "question": row["question"],
+            "choices":  row.get("choices"),
+            "answer":   row["answer"],
+            "type":     row["question_type"],
+        })
+
+    def _format_qa(image_path):
+        sections = []
+        for subtype, label in _SUBTYPE_LABELS.items():
+            qs = _image_qa.get(image_path, {}).get(subtype, [])
+            if not qs:
+                continue
+            sections.append(f"── {label} ──")
+            for qi in qs:
+                sections.append(f"Q ({qi['type']}): {qi['question']}")
+                choices = qi["choices"]
+                if choices:
+                    answer_letters = {a.strip() for a in qi["answer"].split(",")}
+                    fmt = "   ".join(
+                        f"{c} ✓" if c.split(":")[0].strip() in answer_letters else c
+                        for c in choices
+                    )
+                    sections.append(f"   {fmt}")
+                    sections.append(f"   → {qi['answer']}")
+                else:
+                    sections.append(f"   → {qi['answer']}")
+                sections.append("")
+        return "\n".join(sections).strip()
+
+    df["qa_text"] = df["image_path"].apply(_format_qa)
+
+    # --- Bounding boxes: visual_locations are [x1,y1,x2,y2] in 256×256 space.
+    # Normalize to [y_min, y_max, x_min, x_max] in [0,1] for the transform pipeline. ---
+    _COORD = 256.0
+
+    def _norm_bboxes(row):
+        locs = row.get("visual_locations") or []
+        bboxes = []
+        for loc in locs:
+            if len(loc) == 4:
+                x1, y1, x2, y2 = loc
+                bboxes.append([
+                    round(y1 / _COORD, 6),
+                    round(y2 / _COORD, 6),
+                    round(x1 / _COORD, 6),
+                    round(x2 / _COORD, 6),
+                ])
+        return _json.dumps(bboxes) if bboxes else None
+
+    def _bbox_labels_fn(row):
+        regions = row.get("visual_regions") or []
+        return _json.dumps(regions) if regions else None
+
+    df["bbox_norm"]       = df.apply(_norm_bboxes, axis=1)
+    df["bbox_labels_json"] = df.apply(_bbox_labels_fn, axis=1)
+
+    class _GEMeXAdapter:
+        LABEL_COLS = []
+        REG_COLS = []
+        _cols = {
+            "report":      "ori_report",        # radiology report → Report box
+            "qa_text":     "qa_text",            # all Q&A for image → Q&A box
+            "bbox":        "bbox_norm",
+            "bbox_labels": "bbox_labels_json",
+        }
+
+        def __init__(self, dataframe):
+            self._df = dataframe
+
+        def get_harmonized_df(self):
+            return self._df
+
+        def verify_images(self, drop_missing=True):
+            def _exists(p):
+                fp = os.path.join(base_dir_exp, p) if base_dir_exp else p
+                return os.path.isfile(fp)
+            tqdm.pandas(desc="Verifying GEMeX-VQA images")
+            mask = self._df["image_path"].progress_apply(_exists)
+            missing = self._df[~mask].copy()
+            if not missing.empty and drop_missing:
+                self._df = self._df[mask].reset_index(drop=True)
+            return missing
+
+    return _GEMeXAdapter(df), None
 
 
 # To add a dataset: write a _build_* function above, then add one line here.
@@ -1254,6 +1570,16 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         base_dir_placeholder="e.g. /data/chexpertplus/DICOM/Uncompressed/",
         csv_placeholder="auto: df_chexpert_plus_240401.csv",
         extra_placeholder="auto: report_fixed.json",
+    ),
+    "CheXlocalize": DatasetConfig(
+        False,
+        "Segmentation JSON (optional)",
+        _build_chexlocalize,
+        modality="CXR",
+        extra_field2_label="Mask output dir (required for output_mask)",
+        base_dir_placeholder="e.g. /data/chexlocalize/CheXpert/test/",
+        csv_placeholder="auto: test_labels.csv",
+        extra_placeholder="auto: gt_segmentations_test.json",
     ),
     "── ChestX-ray14 ──": _header("CXR"),
     "ChestX-ray14 (Train)": DatasetConfig(
@@ -1433,6 +1759,15 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         csv_placeholder="auto: image_labels_test.csv",
         extra_placeholder="auto: annotations_test.csv",
     ),
+    "── VinDr-PCXR ──": _header("CXR"),
+    "VinDr-PCXR": DatasetConfig(
+        False,
+        "",
+        _build_vindr_pcxr,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/VINDR-PCXR/",
+        csv_placeholder="(not required, parsed from image_labels CSV files)",
+    ),
     "── OpenI IU CXR ──": _header("CXR"),
     "OpenI IU CXR (PNG)": DatasetConfig(
         False,
@@ -1469,6 +1804,37 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         base_dir_placeholder="e.g. /data/Shenzhen-Hospital-CXR-Set/CXR_png/",
         csv_placeholder="(not required — label is in filename)",
         extra_placeholder="e.g. /data/Shenzhen-Hospital-CXR-Set/tb_region_masks/",
+    ),
+    "── EmoryCXR ──": _header("CXR"),
+    "EmoryCXR v2": DatasetConfig(
+        False,
+        "Label CSV (finding labels)",
+        _build_emory_cxr,
+        modality="CXR",
+        extra_field2_label="Report CSV",
+        base_dir_placeholder="e.g. /path/to/EmoryCXRv2/DEID_PNG/",
+        csv_placeholder="REQUIRED: full path to the EmoryCXR v2 metadata CSV",
+        extra_placeholder="e.g. /path/to/EmoryCXRv2/TABLES/<finding-label CSV>",
+        extra_placeholder2="e.g. /path/to/EmoryCXRv2/TABLES/<report CSV>",
+    ),
+    "── MS-CXR ──": _header("CXR"),
+    "MS-CXR (phrase grounding)": DatasetConfig(
+        False,
+        "",
+        _build_ms_cxr,
+        modality="CXR",
+        csv_label="CSV path (required — MS-CXR local alignment CSV)",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/",
+        csv_placeholder="e.g. /data/ms-cxr/MS_CXR_Local_Alignment_v1.1.0.csv",
+    ),
+    "MS-CXR-T (temporal progression)": DatasetConfig(
+        False,
+        "",
+        _build_ms_cxr_t,
+        modality="CXR",
+        csv_label="CSV path (required — MS-CXR-T temporal classification CSV)",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/",
+        csv_placeholder="e.g. /data/ms-cxr-t/MS_CXR_T_temporal_image_classification_v1.0.0.csv",
     ),
     "── RSNA Pneumonia ──": _header("CXR"),
     "RSNA Pneumonia": DatasetConfig(
@@ -1621,6 +1987,27 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         modality="Radiograph",
         base_dir_placeholder="e.g. ~/datasets/Bone Age Validation Set/",
         csv_placeholder="auto: Validation Dataset.csv",
+    ),
+    # ── VQA datasets ─────────────────────────────────────────────────────────
+    "── ROCO ──": _header("VQA"),
+    "ROCO (radiology captioning)": DatasetConfig(
+        False,
+        "",
+        _build_roco,
+        modality="VQA",
+        base_dir_placeholder="e.g. /data/roco-dataset/",
+        csv_placeholder="(not required)",
+        extra_placeholder="splits filter (default: train,validation,test)",
+    ),
+    "── GEMeX-VQA ──": _header("VQA"),
+    "GEMeX-VQA": DatasetConfig(
+        False,
+        "GEMeX-VQA data dir (JSONL files)",
+        _build_gemex_vqa,
+        modality="VQA",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/files/",
+        csv_placeholder="(not required)",
+        extra_placeholder="e.g. ~/datasets/gemex-vqa/",
     ),
 }
 
@@ -2295,7 +2682,7 @@ def load_dataset(
 
         available_keys = {"img"}
         if data_dicts:
-            for k in ["cls", "mask", "report", "bbox", "bbox_labels", "reg"]:
+            for k in ["cls", "mask", "report", "qa_text", "bbox", "bbox_labels", "reg"]:
                 if k in data_dicts[0]:
                     available_keys.add(k)
 
@@ -2610,6 +2997,7 @@ def _run(
             "",
             "",
             "",
+            "",
             None,
             [],
         )
@@ -2624,6 +3012,7 @@ def _run(
     sample_dict = (
         reuse_sample if reuse_sample is not None else random.choice(data_dicts)
     )
+    qa_text = sample_dict.get("qa_text", "") or ""
 
     aug_params = dict(
         flip_axis=int(flip_axis),
@@ -2697,7 +3086,7 @@ def _run(
     try:
         base_sample = make_transform([])(sample_dict.copy())
     except Exception as exc:
-        return [], f"Error loading sample: {exc}", "", "", "", "", None, []
+        return [], f"Error loading sample: {exc}", "", "", "", "", "", None, []
 
     # Post-transform samples cached alongside the gallery so the "Next bbox →"
     # button can re-render with a different bbox index without re-running the
@@ -2812,6 +3201,7 @@ def _run(
         image_stats,
         labels_text,
         report_text,
+        qa_text,
         code_snippet,
         sample_dict,
         gallery_samples,
@@ -2820,8 +3210,8 @@ def _run(
 
 def run_2d(ds_state, img_size, pad, show_mask, show_bbox, *aug_inputs):
     results = _run(ds_state, img_size, pad, show_mask, show_bbox, *aug_inputs)
-    # results: gallery, info, image_stats, labels, report, code, sample_dict, gallery_samples
-    return *results, gr.update(interactive=results[6] is not None)
+    # results: gallery, info, image_stats, labels, report, qa_text, code, sample_dict, gallery_samples
+    return *results, gr.update(interactive=results[7] is not None)
 
 
 def run_2d_same(
@@ -2831,6 +3221,7 @@ def run_2d_same(
         return (
             [],
             "No sample yet — click 'Run on random sample' first.",
+            "",
             "",
             "",
             "",
@@ -2880,7 +3271,7 @@ def run_3d(
         hu_max=hu_max,
         pixdim=pixdim,
     )
-    return *results, gr.update(interactive=results[6] is not None)
+    return *results, gr.update(interactive=results[7] is not None)
 
 
 def run_3d_same(
@@ -2903,6 +3294,7 @@ def run_3d_same(
         return (
             [],
             "No sample yet — click 'Run on random sample' first.",
+            "",
             "",
             "",
             "",
@@ -3271,11 +3663,12 @@ def _output_panel():
         with gr.Row():
             labels_out = gr.Textbox(label="Labels", interactive=False, scale=1)
             report_out = gr.Textbox(label="Report", interactive=False, scale=2, lines=3)
+        qa_out = gr.Textbox(label="Q & A", interactive=False, lines=8, visible=True)
     with gr.Accordion(
         "Transform code snippet", open=False, elem_classes=["aug-accordion"]
     ):
         code_out = gr.Code(label="", language="python", interactive=False)
-    return labels_out, report_out, sample_info, image_stats, gallery, code_out
+    return labels_out, report_out, qa_out, sample_info, image_stats, gallery, code_out
 
 
 def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
@@ -3427,7 +3820,7 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
             "_Gallery order: **Original** → individual augmentations → **Compound** (when ≥2 enabled)_"
         )
 
-    labels_out, report_out, sample_info, image_stats, gallery, code_out = (
+    labels_out, report_out, qa_out, sample_info, image_stats, gallery, code_out = (
         _output_panel()
     )
 
@@ -3496,6 +3889,7 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
             image_stats,
             labels_out,
             report_out,
+            qa_out,
             code_out,
             last_sample,
             gallery_samples_state,
@@ -3518,6 +3912,7 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
             image_stats,
             labels_out,
             report_out,
+            qa_out,
             code_out,
             last_sample,
             gallery_samples_state,
@@ -3622,4 +4017,8 @@ with gr.Blocks(title="RadHarmony Visualizer", css=_CSS) as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0")
+    import argparse as _ap
+    _p = _ap.ArgumentParser()
+    _p.add_argument("--server-port", type=int, default=7860)
+    _args, _ = _p.parse_known_args()
+    demo.launch(server_name="0.0.0.0", server_port=_args.server_port)

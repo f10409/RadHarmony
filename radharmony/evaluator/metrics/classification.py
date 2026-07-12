@@ -85,6 +85,18 @@ def compute_metrics(
     y_true = np.asarray(y_true).ravel()
     y_score = np.asarray(y_score).ravel()
 
+    # Multi-label datasets (e.g. Emory gpt-oss-120b labels) routinely have NaN
+    # for ungraded conditions per row. Mask them out per-label before scoring.
+    # Two failure modes: (a) NaN survives all the way → roc_auc_score raises
+    # "Input y_true contains NaN"; (b) NaN gets int-cast somewhere upstream →
+    # turns into integer garbage like -2147483648, which then trips sklearn's
+    # multi-class detector ("multi_class must be in ('ovo','ovr')"). Reject
+    # anything that isn't exactly 0 or 1 (or 0.0/1.0).
+    y_true_f = y_true.astype(np.float64, copy=False)
+    finite = ~np.isnan(y_true_f) & np.isin(y_true_f, [0.0, 1.0])
+    y_true = y_true_f[finite].astype(int)
+    y_score = y_score[finite]
+
     n_pos = int((y_true == 1).sum())
     n_neg = int((y_true == 0).sum())
     if n_pos < 2 or n_neg < 2:

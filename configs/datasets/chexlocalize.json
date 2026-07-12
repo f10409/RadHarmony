@@ -1,0 +1,115 @@
+{
+  "_comment": "CXR dataset (CheXpert 'test' split) with NLP-derived classification labels, plus a subset (499/668 images) of per-pathology ground-truth segmentation masks (COCO RLE, from CheXlocalize's gt_segmentations_test.json) used to evaluate saliency-method localization. Masks are unioned across pathologies into a single combined abnormality mask per image, since the RadHarmony pipeline supports one mask per image (see harmonizer notes). Raw radiologist polygon annotations (gt_annotations_test.json), human-benchmark annotations/salient points (hb_*), and Grad-CAM outputs (gradcam_*) exist in the source data but are out of scope for this integration.",
+
+  "dataset_name": "CheXlocalize",
+  "registry_key": "chexlocalize",
+  "modality": "2D",
+  "image_format": "JPEG",
+
+  "base_image_dir": "/path/to/chexlocalize/CheXpert/test",
+
+  "primary_csv": {
+    "_comment": "The main metadata CSV that lists every image row.",
+    "path": "/path/to/chexlocalize/CheXpert/test_labels.csv",
+    "filename_variants": ["test_labels.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "No Patient ID column exists in this CSV. Derived from the Path column.",
+    "column": null,
+    "derivation": "extract 'patient<digits>' from the Path column, e.g. 'test/patient64741/study1/view1_frontal.jpg' -> 'patient64741'"
+  },
+
+  "study_id": {
+    "_comment": "No study-id column exists. Derived from Path; combined with patient_id for uniqueness (500 unique patients/studies, 668 rows -- studies can have multiple views).",
+    "column": null,
+    "derivation": "extract 'study<digits>' from Path and join with patient_id, e.g. 'patient64741_study1'"
+  },
+
+  "image_path": {
+    "_comment": "Path column already relative to base_image_dir once the 'test/' prefix is stripped.",
+    "column": "Path",
+    "derivation": null,
+    "prefix_to_strip": "test/"
+  },
+
+  "labels": {
+    "_comment": "Label columns and how to handle uncertain values. Labels live in the primary CSV itself (not a separate file). All values in this test split are strictly 0.0/1.0 -- no -1 uncertainty labels, no NaNs.",
+    "columns": [
+      "Atelectasis",
+      "Cardiomegaly",
+      "Consolidation",
+      "Edema",
+      "Enlarged Cardiomediastinum",
+      "Fracture",
+      "Lung Lesion",
+      "Lung Opacity",
+      "No Finding",
+      "Pleural Effusion",
+      "Pleural Other",
+      "Pneumonia",
+      "Pneumothorax",
+      "Support Devices"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are in the primary CSV; no separate label file.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "No NaN/-1 values present in this split; settings below are defensive defaults and are not expected to trigger.",
+      "nan_action": "to_zero",
+      "negative_one_action": "to_nan",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "Not a CSV column. Derived from the image filename, which encodes 'viewN_frontal' or 'viewN_lateral'.",
+    "column": null,
+    "source": "derived from filename: 'frontal' or 'lateral' substring in the Path basename",
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "Segmentation mask support. Source is gt_segmentations_test.json, keyed by '<study_id>_<view_basename>' -> {pathology: {size:[H,W], counts: COCO-RLE}}, covering 499/668 images. One COCO-RLE mask PER PATHOLOGY per image (up to 10; pathology names in the JSON -- e.g. 'Airspace Opacity', CheXpert's older name for 'Lung Opacity' -- are irrelevant since every mask for an image is unioned regardless of name). RadHarmony's pipeline supports only a single combined mask per image, so all per-pathology masks for an image are unioned (bitwise OR) into one binary 'any abnormal region' mask, following the same union pattern used for multi-row RLE masks in SIIM-ACR. Requires pycocotools for COCO RLE decoding (new dependency, added to pyproject.toml). Images without any entry in the JSON get an all-zero mask when output_mask=True (same convention as SIIM-ACR's no-finding rows).",
+    "supported": true,
+    "column": null,
+    "format": "rle",
+    "source_json": {
+      "path": "/path/to/chexlocalize/CheXlocalize/gt_segmentations_test.json",
+      "key_format": "<study_id>_<view_basename_without_ext>"
+    }
+  },
+
+  "bboxes": {
+    "_comment": "No bounding-box data exists anywhere in the source dataset (checked CSV and CheXlocalize/ directory). Not supported.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "No radiology report data found in the source dataset. Not supported.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "mask_json_path: path to gt_segmentations_test.json, required when output_mask=True."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Segmentation masks require decoding COCO RLE via pycocotools and unioning per-pathology masks into one binary mask per image; see 'masks' section."
+}

@@ -97,15 +97,23 @@ class MIMICCXRDataset(BaseRadiologicalDataset):
                 )
                 or csv_path
             )
-            self._label_csv_path = (
-                infer_path(
-                    base_image_dir,
-                    "mimic-cxr-2.0.0-chexpert.csv",
-                    "mimic-cxr-2.0.0-chexpert.csv.gz",
-                    user_path=label_csv_path or "",
+            # Only search for the label CSV when it will actually be read
+            # (output_cls=True or caller passed an explicit path). The full
+            # infer_path search walks "uncle" directories under the dataset
+            # root, which on NAS4 has descended into PMC-Rad-Plus and hung
+            # on a degraded NFS readdir — skip it when labels aren't needed.
+            if output_cls or label_csv_path:
+                self._label_csv_path = (
+                    infer_path(
+                        base_image_dir,
+                        "mimic-cxr-2.0.0-chexpert.csv",
+                        "mimic-cxr-2.0.0-chexpert.csv.gz",
+                        user_path=label_csv_path or "",
+                    )
+                    or label_csv_path
                 )
-                or label_csv_path
-            )
+            else:
+                self._label_csv_path = None
             self._report_csv_path = (
                 infer_path(
                     base_image_dir,

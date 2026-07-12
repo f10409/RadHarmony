@@ -40,6 +40,8 @@ from radharmony.dataset import (
     CheXpertTrainDataset,
     CheXpertValidDataset,
     CheXpertPlusDataset,
+    CheXlocalizeDataset,
+    VQARadDataset,
     MIMICCXRDataset,
     MIMICCXRJPGDataset,
     MIMICCXRJPGTestDataset,
@@ -77,6 +79,14 @@ CHEXPERT_VALID_CSV    = "/mnt/NAS3/datasets/external/CheXpert-v1.0/valid.csv"
 CHEXPERT_PLUS_BASE    = "/mnt/NAS4/datasets/external/CheXpert_Plus/chexpertplus/DICOM/Uncompressed/"
 CHEXPERT_PLUS_CSV     = "/mnt/NAS4/datasets/external/CheXpert_Plus/chexpertplus/df_chexpert_plus_240401.csv"
 CHEXPERT_PLUS_JSON    = "/mnt/NAS4/datasets/external/CheXpert_Plus/chexpertplus/report_fixed.json"
+
+# CheXlocalize (CheXpert "test" split + per-pathology segmentation masks)
+CHEXLOCALIZE_BASE      = "/mnt/NAS4/datasets/external/chexlocalize/CheXpert/test/"
+CHEXLOCALIZE_CSV       = "/mnt/NAS4/datasets/external/chexlocalize/CheXpert/test_labels.csv"
+CHEXLOCALIZE_MASK_JSON = "/mnt/NAS4/datasets/external/chexlocalize/CheXlocalize/gt_segmentations_test.json"
+
+# VQA-RAD (visual question answering)
+VQA_RAD_BASE = "/mnt/NAS4/datasets/external/VQA-RAD/VQA_RAD Image Folder"
 
 # MIMIC-CXR (DICOM + JPG)
 MIMIC_CXR_BASE        = "/mnt/NAS4/datasets/external/MIMIC-CXR-V2-AWS/files/"
@@ -201,6 +211,9 @@ def get_specs() -> list[DatasetSpec]:
     ``build(...)`` calls one-to-one."""
     S = DatasetSpec
     return [
+        # ── VQA ──
+        S("vqa_rad", VQARadDataset, dict(
+            base_image_dir=VQA_RAD_BASE, output_question_type=True)),
         # ── 2-D CXR ──
         S("chexpert_train", CheXpertTrainDataset, dict(
             base_image_dir=CHEXPERT_TRAIN_BASE, csv_path=CHEXPERT_TRAIN_CSV,
@@ -212,6 +225,14 @@ def get_specs() -> list[DatasetSpec]:
             base_image_dir=CHEXPERT_PLUS_BASE, csv_path=CHEXPERT_PLUS_CSV,
             label_json_path=CHEXPERT_PLUS_JSON, output_cls=True,
             output_report=True, drop_uncertain=False)),
+        S("chexlocalize", CheXlocalizeDataset, dict(
+            base_image_dir=CHEXLOCALIZE_BASE, csv_path=CHEXLOCALIZE_CSV,
+            output_cls=True)),
+        S("chexlocalize_mask", CheXlocalizeDataset, dict(
+            base_image_dir=CHEXLOCALIZE_BASE, csv_path=CHEXLOCALIZE_CSV,
+            mask_json_path=CHEXLOCALIZE_MASK_JSON,
+            mask_output_dir=os.path.join(MASK_OUT, "chexlocalize"),
+            output_cls=True, output_mask=True)),
         S("mimic_cxr", MIMICCXRDataset, dict(
             base_image_dir=MIMIC_CXR_BASE, csv_path=MIMIC_RECORD_CSV,
             label_csv_path=MIMIC_CHEXPERT_CSV, report_csv_path=MIMIC_STUDY_CSV,

@@ -1,6 +1,6 @@
 # Datasets
 
-RadHarmony supports 34 dataset configurations across 25 underlying datasets. Click a dataset name for the full page (constructor args, harmonizer notes, label columns).
+RadHarmony supports 43 dataset configurations across 34 underlying datasets. Click a dataset name for the full page (constructor args, harmonizer notes, label columns).
 
 ## Inventory
 
@@ -8,6 +8,8 @@ RadHarmony supports 34 dataset configurations across 25 underlying datasets. Cli
 |---------|----------|-----|--------|-------------------|------|
 | CheXpert | CXR | 2D | 14 pathologies | cls | [→](datasets/chexpert.md) |
 | CheXpert-Plus | CXR | 2D | 14 pathologies | cls, report | [→](datasets/chexpert_plus.md) |
+| CheXlocalize | CXR | 2D | 14 pathologies | cls, mask | [→](datasets/chexlocalize.md) |
+| VQA-RAD | CXR/CT/MRI | 2D | n/a (VQA) | question, answer | [→](datasets/vqa_rad.md) |
 | MIMIC-CXR (DICOM) | CXR | 2D | 14 pathologies | cls, report | [→](datasets/mimic_cxr.md) |
 | MIMIC-CXR-JPG | CXR | 2D | 14 pathologies | cls | [→](datasets/mimic_cxr_jpg.md) |
 | MIMIC-CXR-JPG (Test) | CXR | 2D | 14 pathologies | cls | [→](datasets/mimic_cxr_jpg.md) |
@@ -19,6 +21,7 @@ RadHarmony supports 34 dataset configurations across 25 underlying datasets. Cli
 | ReXGradient-160K (Test) | CXR | 2D | none | report | [→](datasets/rexgradient.md) |
 | VinDr-CXR (Train) | CXR | 2D | 28 findings | cls, bbox | [→](datasets/vindr_cxr.md) |
 | VinDr-CXR (Test) | CXR | 2D | 28 findings | cls, bbox | [→](datasets/vindr_cxr.md) |
+| VinDr-PCXR | CXR | 2D | 15 conditions (pediatric) | cls, bbox | [→](datasets/vindr_pcxr.md) |
 | SIIM-ACR Pneumothorax | CXR | 2D | pneumothorax | cls, mask | [→](datasets/siim_acr_ptx.md) |
 | SIIM COVID-19 | CXR | 2D | 4 appearance classes | cls, bbox | [→](datasets/siim_covid19.md) |
 | RSNA Pneumonia | CXR | 2D | 3 classes | cls, bbox | [→](datasets/rsna_pneumonia.md) |
@@ -40,6 +43,12 @@ RadHarmony supports 34 dataset configurations across 25 underlying datasets. Cli
 | BRAX (DICOM) | CXR | 2D | 14 pathologies | cls | [→](datasets/brax.md) |
 | BRAX (PNG) | CXR | 2D | 14 pathologies | cls | [→](datasets/brax.md) |
 | RANZCR CLiP | CXR | 2D | 11 catheter/line labels | cls, mask | [→](datasets/ranzcr_clip.md) |
+| GEMeX-VQA | CXR | 2D | n/a (VQA over MIMIC-CXR-JPG) | question, answer, bbox | [→](datasets/gemex_vqa.md) |
+| MIMIC-Ext-CXR-QBA | CXR | 2D | n/a (VQA over MIMIC-CXR) | question, answer | [→](datasets/mimic_ext_cxr_qba.md) |
+| ROCO | Multimodal | 2D | n/a (captioning) | question (empty), answer, keywords | [→](datasets/roco.md) |
+| EmoryCXR v2 | CXR | 2D | 14 pathologies | cls, report | [→](datasets/emory_cxr.md) |
+| MS-CXR | CXR | 2D | 8 findings + phrase grounding | cls, bbox | [→](datasets/ms_cxr.md) |
+| MS-CXR-T | CXR | 2D | temporal progression (5 findings) | previous_img | [→](datasets/ms_cxr_t.md) |
 
 ## Finding a dataset's label columns
 

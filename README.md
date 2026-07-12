@@ -52,8 +52,11 @@ The base install gives you the dataset API. Install extras for models, notebooks
 | `ark_plus` | Ark+ Swin-L (`torchvision`) — manual checkpoint + side-installs `timm==0.5.4` into `third_party_models/Ark/timm-054` on first call | `uv pip install -e ".[ark_plus]"` |
 | `medical_mae` | Medical MAE CXR ViT (`torchvision`) — cloned repo + manual checkpoint + side-installs `timm==0.4.12` into `third_party_models/medical_mae/timm-0412` on first call | `uv pip install -e ".[medical_mae]"` |
 | `siglip2` | SigLIP 2 backbone (`transformers`) — general-domain vision-language baseline, 1152-d pooled embeddings, 384×384 input | `uv pip install -e ".[siglip2]"` |
+| `chexagent_gen` | Generative CheXagent-2-3b (pins `transformers==4.40.0`, `torch==2.7.1`) for report generation; install in its own venv | `uv pip install -e ".[chexagent_gen]"` |
+| `maira2_gen` | Generative MAIRA-2 (`transformers>=4.46,<4.47`) for report generation; install in its own venv | `uv pip install -e ".[maira2_gen]"` |
+| `radeval` | RadEval metrics for report-generation scoring (`radeval[api] @ git+jbdel/RadEval`); install in its own venv | `uv pip install -e ".[radeval]"` |
 
-Combine extras as needed, e.g. `uv pip install -e ".[model,app]"`.
+Combine extras as needed, e.g. `uv pip install -e ".[model,app]"`. The three generative extras (`chexagent_gen`, `maira2_gen`, `radeval`) pin incompatible `transformers` versions and are meant to be installed in separate venvs (see [pyproject.toml](pyproject.toml) comments).
 
 ## Quick Start
 
@@ -83,7 +86,9 @@ metrics). Six classification evaluators are available — linear probe, k-NN
 probe, SVM probe, prototype probe, zero-shot, and fine-tune — plus three
 segmentation evaluators (`LinearProbeSegEvaluator` 1×1 Conv2d head,
 `ConvProbeSegEvaluator` conv-block head, and `UPerNetSegEvaluator` simple
-feature pyramid + `UperNetHead`), all over frozen dense features.
+feature pyramid + `UperNetHead`), all over frozen dense features. A
+`ReportGenerationEvaluator` scores VLM-generated reports with the RadEval
+metric suite (BLEU, ROUGE, BERTScore, RadCliQ, and other language metrics).
 
 Use a built-in backbone recipe for the fastest setup:
 
@@ -142,7 +147,7 @@ See the [evaluator wiki](https://f10409.github.io/RadHarmony/evaluator/index.htm
 
 ## Supported Datasets
 
-A broad collection of public radiological datasets covering 2D CXR, 3D CT, and 3D MRI — including CheXpert, CheXpert-Plus, MIMIC-CXR (DICOM/JPG), ChestX-ray14, PadChest, ReXGradient-160K, VinDr-CXR, SIIM-ACR PTX, SIIM COVID-19, RSNA Pneumonia, RSNA PE Detection <sup>beta</sup>, RSNA Bone Age <sup>beta</sup>, RSNA 2022 Cervical Spine <sup>beta</sup>, RSNA 2023 Abdominal Trauma <sup>beta</sup>, RSNA 2024 Lumbar Spine <sup>beta</sup>, CT-RATE <sup>beta</sup>, RAD-ChestCT <sup>beta</sup>, TAIX-Ray, BRAX, RANZCR CLiP, OpenI IU CXR, Montgomery County CXR, and Shenzhen Hospital CXR.
+A broad collection of public radiological datasets covering 2D CXR, 3D CT, and 3D MRI — including CheXpert, CheXpert-Plus, CheXlocalize, MIMIC-CXR (DICOM/JPG), ChestX-ray14, PadChest, ReXGradient-160K, VinDr-CXR, VinDr-PCXR (pediatric), SIIM-ACR PTX, SIIM COVID-19, RSNA Pneumonia, RSNA PE Detection <sup>beta</sup>, RSNA Bone Age <sup>beta</sup>, RSNA 2022 Cervical Spine <sup>beta</sup>, RSNA 2023 Abdominal Trauma <sup>beta</sup>, RSNA 2024 Lumbar Spine <sup>beta</sup>, CT-RATE <sup>beta</sup>, RAD-ChestCT <sup>beta</sup>, TAIX-Ray, BRAX, RANZCR CLiP, OpenI IU CXR, Montgomery County CXR, Shenzhen Hospital CXR, VQA-RAD, GEMeX-VQA (chest-CXR VQA), MIMIC-Ext-CXR-QBA (CXR VQA), ROCO (radiology captioning), MS-CXR and MS-CXR-T (phrase grounding & temporal progression), and the institutional EmoryCXR v2.
 
 See the [Datasets inventory](https://f10409.github.io/RadHarmony/datasets.html) for the full table with registry keys, modalities, and label counts.
 

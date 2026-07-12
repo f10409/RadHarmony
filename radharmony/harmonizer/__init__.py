@@ -1,12 +1,17 @@
 from .base import BaseHarmonizer
 from .base_vqa import BaseVQAHarmonizer
+from .vqa_rad import VQARadHarmonizer
 from .brax import BRAXHarmonizer
+from .gemex_vqa import GEMeXVQAHarmonizer
+from .mimic_ext_cxr_qba import MIMICExtCXRQBAHarmonizer
+from .roco import ROCOHarmonizer
 from .chexpert import (
     CheXpertHarmonizer,
     CheXpertTrainHarmonizer,
     CheXpertValidHarmonizer,
     CheXpertPlusHarmonizer,
 )
+from .chexlocalize import CheXlocalizeHarmonizer
 from .chestxray14 import (
     ChestXray14Harmonizer,
     ChestXray14BboxHarmonizer,
@@ -75,11 +80,19 @@ from .siim_covid19 import (
 )
 from .taix_ray import TAIXRayHarmonizer
 from .vindr_cxr import VinDrCXRTrainHarmonizer, VinDrCXRTestHarmonizer
+from .vindr_pcxr import VinDrPCXRHarmonizer
+from .emory_cxr import EmoryCXRHarmonizer
+from .ms_cxr import MSCXRHarmonizer
+from .ms_cxr_t import MSCXRTHarmonizer
 
 __all__ = [
     "BaseHarmonizer",
     "BaseVQAHarmonizer",
+    "VQARadHarmonizer",
     "BRAXHarmonizer",
+    "GEMeXVQAHarmonizer",
+    "MIMICExtCXRQBAHarmonizer",
+    "ROCOHarmonizer",
     "ChestXray14Harmonizer",
     "ChestXray14BboxHarmonizer",
     "ChestXray14TrainHarmonizer",
@@ -88,6 +101,7 @@ __all__ = [
     "CheXpertTrainHarmonizer",
     "CheXpertValidHarmonizer",
     "CheXpertPlusHarmonizer",
+    "CheXlocalizeHarmonizer",
     "CTRATEHarmonizer",
     "MontgomeryCXRHarmonizer",
     "OpenICXRHarmonizer",
@@ -131,5 +145,9 @@ __all__ = [
     "TAIXRayHarmonizer",
     "VinDrCXRTrainHarmonizer",
     "VinDrCXRTestHarmonizer",
+    "VinDrPCXRHarmonizer",
+    "EmoryCXRHarmonizer",
+    "MSCXRHarmonizer",
+    "MSCXRTHarmonizer",
 ]
 

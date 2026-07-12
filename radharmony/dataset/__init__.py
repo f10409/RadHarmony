@@ -1,5 +1,6 @@
 from .base import BaseRadiologicalDataset
 from .base_vqa import BaseVQADataset
+from .vqa_rad import VQARadDataset
 from .brax import BRAXDataset, BRAXPNGDataset
 from .chestxray14 import (
     ChestXray14Dataset,
@@ -13,6 +14,7 @@ from .chexpert import (
     CheXpertValidDataset,
     CheXpertPlusDataset,
 )
+from .chexlocalize import CheXlocalizeDataset
 from .ct_rate import CTRATEDataset
 from .mimic_cxr import (
     MIMICCXRDataset,
@@ -70,16 +72,23 @@ from .siim_covid19 import (
     SIIMCOVID19TrainDataset,
     SIIMCOVID19TestDataset,
 )
+from .gemex_vqa import GEMeXVQADataset
+from .mimic_ext_cxr_qba import MIMICExtCXRQBADataset
+from .roco import ROCODataset
 from .montgomery_cxr import MontgomeryCXRDataset
 from .openi_cxr import OpenICXRDataset
 from .shenzhen_cxr import ShenzhenCXRDataset
 from .taix_ray import TAIXRay512Dataset, TAIXRayDataset
 from .transforms import RadiologyTransform2D, RadiologyTransform3D
 from .vindr_cxr import VinDrCXRTrainDataset, VinDrCXRTestDataset
+from .vindr_pcxr import VinDrPCXRDataset
+from .emory_cxr import EmoryCXRDataset
+from .ms_cxr import MSCXRDataset, MSCXRTDataset
 
 __all__ = [
     "BaseRadiologicalDataset",
     "BaseVQADataset",
+    "VQARadDataset",
     "BRAXDataset",
     "BRAXPNGDataset",
     "ChestXray14Dataset",
@@ -90,6 +99,7 @@ __all__ = [
     "CheXpertTrainDataset",
     "CheXpertValidDataset",
     "CheXpertPlusDataset",
+    "CheXlocalizeDataset",
     "CTRATEDataset",
     "MIMICCXRDataset",
     "MIMICCXRJPGDataset",
@@ -127,6 +137,9 @@ __all__ = [
     "SIIMCOVID19Dataset",
     "SIIMCOVID19TrainDataset",
     "SIIMCOVID19TestDataset",
+    "GEMeXVQADataset",
+    "MIMICExtCXRQBADataset",
+    "ROCODataset",
     "MontgomeryCXRDataset",
     "OpenICXRDataset",
     "ShenzhenCXRDataset",
@@ -134,6 +147,10 @@ __all__ = [
     "TAIXRayDataset",
     "VinDrCXRTrainDataset",
     "VinDrCXRTestDataset",
+    "VinDrPCXRDataset",
+    "EmoryCXRDataset",
+    "MSCXRDataset",
+    "MSCXRTDataset",
     "RadiologyTransform2D",
     "RadiologyTransform3D",
 ]

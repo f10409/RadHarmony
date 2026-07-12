@@ -1,10 +1,14 @@
 # TAIX-Ray
 
-**Modality:** CXR | **Format:** PNG | **Dim:** 2D | **Labels:** 8 findings (binary or ordinal)
+**Modality:** CXR (bedside AP, ICU cohort) | **Format:** 16-bit grayscale PNG (MONOCHROME2) | **Dim:** 2D | **Labels:** 8 findings, prospective structured expert grading (binary or ordinal)
 
 ## Overview
 
-TAIX-Ray is a Thai chest X-ray dataset with annotations for 8 clinically relevant findings. It supports two label modes: **binary** (finding present/absent) and **ordinal** (severity grade). The dataset is distributed in two variants: a 512-px version and original resolution. RadHarmony provides a separate dataset class for each resolution variant.
+TAIX-Ray is a **German bedside intensive-care CXR dataset** from **University Hospital RWTH Aachen** (Truhn Lab). It comprises 215,381 anteroposterior bedside radiographs from 47,724 ICU patients (median age 68) collected across 10 ICU wards on 18 Siemens Mobilett MIRA mobile radiography systems over 14 years (January 2010 – December 2023). During routine clinical reporting, 134 radiologists provided prospective, structured, itemized annotations for 8 clinically relevant findings (not NLP-extracted labels) using a standardized 5-point ordinal severity template (heart size uses 4 grades; all others use 5). The dataset supports two label modes: **binary** (severity ≥ 1 → 1) and **ordinal** (raw 0–4 grades, 0–3 for heart size). Two resolutions are distributed: 512-px longer-dim resized (bilinear) and original resolution. RadHarmony provides a separate dataset class for each resolution variant.
+
+**Citation**: Truhn D, Geiger D, Siepmann R, von der Stück MS, Bressem KK, Kather JN, Kuhl C, Müller-Franzes G, Nebelung S. *A comprehensive bedside chest radiography dataset with structured, itemized and graded radiologic reports.* Scientific Data 2026;13:632. DOI [10.1038/s41597-026-07271-7](https://doi.org/10.1038/s41597-026-07271-7). Repository: [github.com/TruhnLab/TAIX-Ray](https://github.com/TruhnLab/TAIX-Ray).
+
+**Provenance note** (corrected 2026-07-11): TLAIM is the HuggingFace organization name for "Truhn Lab AI Medicine" (a lab-name acronym, not a country code). Prior wiki text incorrectly described this as a Thai dataset; the source paper places all authors at RWTH Aachen (Germany) and Technical University of Munich, with Kather at TU Dresden. Images are 16-bit grayscale PNG stored as MONOCHROME2 with inversion applied where required; no VOI LUT windowing or intensity normalization is applied by the release.
 
 ## Download
 

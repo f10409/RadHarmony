@@ -72,6 +72,8 @@ Every evaluator shares the same constructor surface (`dataset=` for k-fold, `tra
 |---------|----------|------|
 | CheXpert | CXR | [chexpert.md](datasets/chexpert.md) |
 | CheXpert-Plus | CXR | [chexpert_plus.md](datasets/chexpert_plus.md) |
+| CheXlocalize | CXR | [chexlocalize.md](datasets/chexlocalize.md) |
+| VQA-RAD | CXR/CT/MRI | [vqa_rad.md](datasets/vqa_rad.md) |
 | MIMIC-CXR (DICOM) | CXR | [mimic_cxr.md](datasets/mimic_cxr.md) |
 | MIMIC-CXR-JPG | CXR | [mimic_cxr_jpg.md](datasets/mimic_cxr_jpg.md) |
 | ChestX-ray14 | CXR | [chestxray14.md](datasets/chestxray14.md) |

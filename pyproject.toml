@@ -12,11 +12,13 @@ dependencies = [
     "pandas",
     "numpy",
     "pydicom",
+    "pycocotools",
     "simpleitk>=2.5.3",
     "pyarrow>=15",
     "tqdm",
     "scikit-learn",
     "matplotlib>=3.10.8",
+    "ipykernel>=7.2.0",
 ]
 
 [project.optional-dependencies]
@@ -43,6 +45,44 @@ biomed = [
     "transformers>=5.6.0",
 ]
 chexagent = ["transformers>=5.6.0", "sentencepiece", "protobuf"]
+# Generative CheXagent-2-3b. The model card PINS transformers==4.40.0 +
+# torch==2.7.1; install WITHOUT the `model`/`radeval` extras (they require
+# newer transformers — deliberate conflict, hence the two-env workflow).
+# Stage A only: `uv pip install -e ".[chexagent_gen]"` in its own env.
+chexagent_gen = [
+    "transformers==4.40.0",
+    "torch==2.7.1",
+    "torchvision==0.22.1",
+    "accelerate",
+    "einops",
+    "opencv-python",
+    "albumentations",
+    "sentencepiece",
+    "protobuf",
+]
+# Generative MAIRA-2 (microsoft/maira-2). Needs transformers>=4.46, so
+# it conflicts with chexagent_gen's transformers==4.40.0 — separate venv.
+# Stage A only: `uv pip install -e ".[maira2_gen]"` in its own env.
+maira2_gen = [
+    # transformers 5.x refactored LlavaForConditionalGeneration to require
+    # self.model; MAIRA-2's custom-code Maira2ForConditionalGeneration doesn't
+    # define it → AttributeError at inference. Pin to the 4.46.x line the
+    # MAIRA-2 model card was developed against.
+    "transformers>=4.46.0,<4.47",
+    "huggingface-hub<1.0",
+    "accelerate>=0.27.0",
+    "torch",
+    "torchvision",
+    "pillow",
+    "sentencepiece",
+    "protobuf",
+]
+# jbdel/RadEval (v2.2.1, EMNLP 2025). NOT on PyPI — the PyPI `radeval` 0.0.x
+# is an unrelated package. Install the real framework from GitHub source.
+# Stage B only: separate env (newer transformers) — never with chexagent_gen.
+radeval = [
+    "radeval[api] @ git+https://github.com/jbdel/RadEval.git ; python_version >= '3.11'",
+]
 medsiglip  = ["transformers>=5.6.0", "sentencepiece", "protobuf"]
 medimageinsights = ["mup", "fvcore", "tenacity", "huggingface_hub"]
 chexfound = ["omegaconf"]
@@ -53,6 +93,35 @@ medical_mae = ["torchvision>=0.26.0"]
 siglip2 = ["transformers>=5.6.0", "sentencepiece", "protobuf"]
 all = [
     "radharmony[model,notebook,app]",
+]
+
+[tool.uv]
+# chexagent_gen (transformers==4.40.0, torch==2.7.1) and maira2_gen
+# (transformers>=4.46,<4.47) intentionally pin older versions per their model
+# cards; they cannot resolve alongside any extra pulling transformers>=5.6.0 or
+# torch/torchvision>=recent. Declared pairwise so `uv lock` produces separate
+# resolutions per install space instead of failing outright.
+conflicts = [
+    [{ extra = "chexagent_gen" }, { extra = "maira2_gen" }],
+    [{ extra = "chexagent_gen" }, { extra = "radeval" }],
+    [{ extra = "chexagent_gen" }, { extra = "all" }],
+    [{ extra = "chexagent_gen" }, { extra = "model" }],
+    [{ extra = "chexagent_gen" }, { extra = "biomed" }],
+    [{ extra = "chexagent_gen" }, { extra = "chexagent" }],
+    [{ extra = "chexagent_gen" }, { extra = "medsiglip" }],
+    [{ extra = "chexagent_gen" }, { extra = "dinov3" }],
+    [{ extra = "chexagent_gen" }, { extra = "siglip2" }],
+    [{ extra = "chexagent_gen" }, { extra = "eva_x" }],
+    [{ extra = "chexagent_gen" }, { extra = "ark_plus" }],
+    [{ extra = "chexagent_gen" }, { extra = "medical_mae" }],
+    [{ extra = "maira2_gen" }, { extra = "all" }],
+    [{ extra = "maira2_gen" }, { extra = "model" }],
+    [{ extra = "maira2_gen" }, { extra = "biomed" }],
+    [{ extra = "maira2_gen" }, { extra = "chexagent" }],
+    [{ extra = "maira2_gen" }, { extra = "medsiglip" }],
+    [{ extra = "maira2_gen" }, { extra = "dinov3" }],
+    [{ extra = "maira2_gen" }, { extra = "siglip2" }],
+    [{ extra = "maira2_gen" }, { extra = "radeval" }],
 ]
 
 [tool.setuptools.packages.find]

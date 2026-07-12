@@ -61,16 +61,31 @@ class LinearProbeEvaluator(BaseClsEvaluator):
         X_test: np.ndarray,
         y_test: np.ndarray,
     ) -> np.ndarray:
-        """Fit one probe per label column, return probability matrix (N_test, L)."""
+        """Fit one probe per label column, return probability matrix (N_test, L).
+
+        Per-label NaN masking: a row with NaN at label k is dropped from
+        that label's training set (CheXpert U-Ignore semantics). Without
+        this, the prior code did ``y_train[:, k].astype(int)`` which casts
+        NaN to integer garbage (e.g. -2147483648). sklearn then sees a
+        3-class problem (garbage, 0, 1), and ``predict_proba[:, 1]`` returns
+        ``P(class=0)`` instead of ``P(positive)`` because the garbage value
+        sorts first — producing AUROC = 1 − true_AUROC (systematic inversion
+        across all labels). Confirmed 2026-05-21 on Emory + MIMIC raddino runs.
+        """
         n_labels = y_train.shape[1]
         probs = np.zeros((X_test.shape[0], n_labels), dtype=np.float32)
         for k in range(n_labels):
-            y_k = y_train[:, k].astype(int)
+            y_k_raw = y_train[:, k]
+            mask = ~np.isnan(y_k_raw)
+            if mask.sum() < 2:
+                probs[:, k] = np.nan
+                continue
+            y_k = y_k_raw[mask].astype(int)
             if len(np.unique(y_k)) < 2:
                 probs[:, k] = np.nan
                 continue
             clf = self.probe_cls(**self.probe_kwargs)
-            clf.fit(X_train, y_k)
+            clf.fit(X_train[mask], y_k)
             probs[:, k] = clf.predict_proba(X_test)[:, 1]
         return probs
 
@@ -103,7 +118,9 @@ class LinearProbeEvaluator(BaseClsEvaluator):
     ) -> list[dict]:
         if self.n_bootstrap <= 0:
             return []
-        rng = np.random.default_rng(seed)
+        # n_train can be -1 (full-train sentinel), making the composed seed
+        # negative; modern numpy rejects negative seeds. Coerce to uint32.
+        rng = np.random.default_rng(int(seed) & 0xFFFFFFFF)
         n = y_test.shape[0]
         rows = []
         for b in range(self.n_bootstrap):

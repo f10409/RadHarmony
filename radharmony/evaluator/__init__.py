@@ -1,8 +1,9 @@
 """Foundation-model downstream-task evaluators for RadHarmony.
 
-Six classification evaluators (linear/kNN/SVM/prototype probe, zero-shot,
-minimal fine-tune) and one frozen-feature segmentation linear probe.
-``language/`` remains a reserved namespace.
+Ships classification evaluators (linear/kNN/SVM/prototype probe, zero-shot,
+minimal fine-tune), a frozen-feature segmentation linear probe, and a language
+evaluator (:class:`ReportGenerationEvaluator` — VLM report generation scored
+with the RadEval metric suite).
 """
 
 from .base import BaseEvaluator
@@ -21,6 +22,7 @@ from .segmentation import (
     LinearProbeSegEvaluator,
     UPerNetSegEvaluator,
 )
+from .language import ReportGenerationEvaluator
 from ._registry import register_evaluator, resolve_evaluator, list_evaluators
 from .transforms import EncoderPreprocessTransform, RadiologyEncoderTransform
 from .wrappers import ImageEncoderWrapper
@@ -39,6 +41,7 @@ __all__ = [
     "ConvProbeSegEvaluator",
     "LinearProbeSegEvaluator",
     "UPerNetSegEvaluator",
+    "ReportGenerationEvaluator",
     "EncoderPreprocessTransform",
     "RadiologyEncoderTransform",
     "ImageEncoderWrapper",

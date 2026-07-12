@@ -31,6 +31,28 @@ Install the corresponding extra first: `uv pip install -e ".[<extra>]"`.
 | [`make_medical_mae`](medical_mae.md) | 768 / 384 | 224×224 | `(transform, encoder)` | `medical_mae` + cloned repo + manual ckpt + side-loaded `timm==0.4.12` |
 | [`make_siglip2`](siglip2.md) | 1152 | 384×384 | `(transform, image_encoder, text_encoder, processor)` | `siglip2` |
 
+## Generative recipes (report generation)
+
+These recipes wrap a vision-language *generator* (not a contrastive encoder)
+and return a `(transform, report_generator)` pair with a different contract:
+
+- `transform`: a callable `sample_dict -> sample_dict` that converts each
+  sample's image (any MONAI-readable format including DICOM) to a temporary
+  PNG file and stores its **path string** back under `img`. Reports pass
+  through unchanged.
+- `report_generator`: a callable `list[str] -> list[str]` that takes image
+  paths and returns generated report text. Pair it with
+  [`ReportGenerationEvaluator`](../evaluator/index.md).
+
+| Factory | Base model | Returns | Extra |
+|---------|-----------|---------|-------|
+| [`make_chexagent_generator`](chexagent_gen.md) | StanfordAIMI/CheXagent-2-3b | `(transform, report_generator)` | `chexagent_gen` (isolated venv, `transformers==4.40.0`) |
+| [`make_maira2_generator`](maira2_gen.md) | microsoft/maira-2 | `(transform, report_generator)` | `maira2_gen` (isolated venv, `transformers>=4.46,<4.47`) |
+
+`chexagent_gen` and `maira2_gen` pin incompatible `transformers` versions per
+their model cards, so each must be installed in its own venv (declared as
+uv `conflicts` in `pyproject.toml`).
+
 ## Segmentation mode
 
 Every recipe accepts `output_keys={"img", "mask"}` to switch the encoder into

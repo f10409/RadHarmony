@@ -41,12 +41,14 @@ nav:
     - Phase Grounding (Label Extraction): phase-grounding.md
     - CheXpert: datasets/chexpert.md
     - CheXpert-Plus: datasets/chexpert_plus.md
+    - CheXlocalize: datasets/chexlocalize.md
     - MIMIC-CXR (DICOM): datasets/mimic_cxr.md
     - MIMIC-CXR-JPG: datasets/mimic_cxr_jpg.md
     - ChestX-ray14: datasets/chestxray14.md
     - PadChest: datasets/padchest.md
     - ReXGradient-160K: datasets/rexgradient.md
     - VinDr-CXR: datasets/vindr_cxr.md
+    - VinDr-PCXR: datasets/vindr_pcxr.md
     - BRAX: datasets/brax.md
     - RANZCR CLiP: datasets/ranzcr_clip.md
     - SIIM-ACR Pneumothorax: datasets/siim_acr_ptx.md
@@ -64,6 +66,13 @@ nav:
     - Montgomery County CXR: datasets/montgomery_cxr.md
     - Shenzhen Hospital CXR: datasets/shenzhen_cxr.md
     - OpenI IU CXR: datasets/openi_cxr.md
+    - VQA-RAD: datasets/vqa_rad.md
+    - GEMeX-VQA: datasets/gemex_vqa.md
+    - MIMIC-Ext-CXR-QBA: datasets/mimic_ext_cxr_qba.md
+    - ROCO: datasets/roco.md
+    - EmoryCXR v2: datasets/emory_cxr.md
+    - MS-CXR: datasets/ms_cxr.md
+    - MS-CXR-T: datasets/ms_cxr_t.md
   - Dataset API:
     - Dataset API: api.md
     - Transforms: transforms.md
@@ -78,6 +87,7 @@ nav:
     - Linear Probe (Segmentation): evaluator/linear_probe_seg.md
     - Conv Probe (Segmentation): evaluator/conv_probe_seg.md
     - UPerNet (Segmentation): evaluator/upernet_seg.md
+    - Report Generation: evaluator/report_generation.md
   - Backbones:
     - Overview: backbones/index.md
     - RAD-DINO: backbones/raddino.md
@@ -91,6 +101,8 @@ nav:
     - Ark+: backbones/ark_plus.md
     - Medical MAE: backbones/medical_mae.md
     - SigLIP2: backbones/siglip2.md
+    - CheXagent (Generative): backbones/chexagent_gen.md
+    - MAIRA-2 (Generative): backbones/maira2_gen.md
     - Custom Backbones: backbones/custom_backbones.md
   - App Guide:
     - Using the App: app.md

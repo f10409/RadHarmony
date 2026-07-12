@@ -4,7 +4,7 @@
 produces standardized downstream-task results — DataFrame output with AUROC,
 AUPRC, F1, and eight other per-label metrics.
 
-Six classification evaluators plus three segmentation evaluators are available:
+Six classification evaluators, three segmentation evaluators, and one language evaluator are available:
 
 | Evaluator | Registry key | Mode | Summary |
 |-----------|-------------|------|---------|
@@ -17,6 +17,7 @@ Six classification evaluators plus three segmentation evaluators are available:
 | [LinearProbeSegEvaluator](linear_probe_seg.md) | `"linear_probe_seg"` | k-fold / fixed-split | 1×1 Conv2d head over frozen dense features (requires segmentation-mode backbone + `output_mask=True` dataset) |
 | [ConvProbeSegEvaluator](conv_probe_seg.md) | `"conv_probe_seg"` | k-fold / fixed-split | `1×1 → LN2d → 3×3 → LN2d` conv-block head over frozen dense features |
 | [UPerNetSegEvaluator](upernet_seg.md) | `"upernet_seg"` | k-fold / fixed-split | Simple Feature Pyramid + HF `UperNetHead` (PSP + FPN fuse) over frozen dense features |
+| [ReportGenerationEvaluator](report_generation.md) | `"report_generation"` | test-only | Runs a VLM `report_generator` over a dataset (with `output_report=True`), scores hypotheses against references with the RadEval metric suite (BLEU, ROUGE, BERTScore, RadCliQ, ...). Pair with `make_chexagent_generator` or `make_maira2_generator` (see [Backbones](../backbones/index.md)). Requires the `radeval` extra (installed in a separate venv). |
 
 For a hands-on walkthrough see
 [`notebooks/tutorials/evaluator_tutorial.ipynb`](https://github.com/f10409/RadHarmony/blob/main/notebooks/tutorials/evaluator_tutorial.ipynb).
@@ -98,7 +99,9 @@ common foundation models — `make_raddino`, `make_biomed_clip`,
 `make_chexagent`, `make_medsiglip`, `make_medimageinsights`, `make_chexfound`,
 `make_dinov3`, `make_eva_x`, `make_ark_plus`, `make_medical_mae`,
 `make_siglip2`. Each returns a `(transform, encoder, …)` tuple ready to pair
-with the dataset and the evaluator below.
+with the dataset and the evaluator below. Two generative recipes
+(`make_chexagent_generator`, `make_maira2_generator`) return
+`(transform, report_generator)` for pairing with `ReportGenerationEvaluator`.
 
 ```python
 from radharmony.evaluator.backbones import make_raddino, make_biomed_clip
