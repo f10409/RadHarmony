@@ -57,7 +57,7 @@ import re
 
 import pandas as pd
 
-from .base import BaseHarmonizer
+from ..base import BaseHarmonizer
 
 
 _SEX_RE  = re.compile(r"Patient['']s Sex:\s*([MF])", re.IGNORECASE)

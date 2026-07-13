@@ -4,7 +4,7 @@ import torch
 
 from radharmony.harmonizer import GEMeXVQAHarmonizer
 from radharmony.registry import register_dataset
-from .base_vqa import BaseVQADataset
+from ..base_vqa import BaseVQADataset
 
 
 @register_dataset("gemex_vqa")

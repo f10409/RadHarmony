@@ -72,7 +72,7 @@ from collections import defaultdict
 
 import pandas as pd
 
-from .base import BaseHarmonizer
+from ..base import BaseHarmonizer
 
 
 # Matches e.g. CHNCXR_0001_0.png  →  groups: ('0001', '0')

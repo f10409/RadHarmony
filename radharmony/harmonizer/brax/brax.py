@@ -46,7 +46,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from .base import BaseHarmonizer
+from ..base import BaseHarmonizer
 
 
 _VALID_IMAGE_FORMATS = ("dicom", "png")

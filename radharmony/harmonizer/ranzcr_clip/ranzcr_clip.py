@@ -31,7 +31,7 @@ import os
 
 import pandas as pd
 
-from .base import BaseHarmonizer
+from ..base import BaseHarmonizer
 
 
 # Mapping from raw CSV column name -> clean snake_case label name.

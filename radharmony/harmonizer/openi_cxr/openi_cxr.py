@@ -61,7 +61,7 @@ import xml.etree.ElementTree as ET
 
 import pandas as pd
 
-from .base import BaseHarmonizer
+from ..base import BaseHarmonizer
 
 
 # ------------------------------------------------------------------

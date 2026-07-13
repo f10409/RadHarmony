@@ -45,7 +45,7 @@ import os
 import pandas as pd
 import pydicom
 
-from .base import BaseHarmonizer
+from ..base import BaseHarmonizer
 
 
 # Image-level label columns (original CSV names → snake_case)

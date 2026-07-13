@@ -17,8 +17,8 @@ import torch
 
 from radharmony.harmonizer.vindr_pcxr import VinDrPCXRHarmonizer
 from radharmony.registry import register_dataset
-from .base import BaseRadiologicalDataset
-from .transforms import RadiologyTransform2D
+from ..base import BaseRadiologicalDataset
+from ..transforms import RadiologyTransform2D
 
 
 _LABEL_COLS = [

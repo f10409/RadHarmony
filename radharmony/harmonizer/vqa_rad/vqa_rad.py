@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 
-from .base_vqa import BaseVQAHarmonizer
+from ..base_vqa import BaseVQAHarmonizer
 
 
 class VQARadHarmonizer(BaseVQAHarmonizer):

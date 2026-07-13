@@ -4,7 +4,7 @@ import torch
 
 from radharmony.harmonizer.mimic_ext_cxr_qba import MIMICExtCXRQBAHarmonizer
 from radharmony.registry import register_dataset
-from .base_vqa import BaseVQADataset
+from ..base_vqa import BaseVQADataset
 
 
 @register_dataset("mimic_ext_cxr_qba")

@@ -5,7 +5,7 @@ import ast
 import numpy as np
 import pandas as pd
 
-from .base import BaseHarmonizer
+from ..base import BaseHarmonizer
 
 
 class PadChestHarmonizer(BaseHarmonizer):

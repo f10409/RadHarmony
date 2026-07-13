@@ -5,7 +5,7 @@ import os
 
 import numpy as np
 
-from .base import BaseHarmonizer
+from ..base import BaseHarmonizer
 
 
 class CheXlocalizeHarmonizer(BaseHarmonizer):
