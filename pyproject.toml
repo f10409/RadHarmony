@@ -85,8 +85,8 @@ maira2_gen = [
 medgemma_gen = [
     "transformers>=5.6.0",
     "accelerate>=0.27.0",
-    "torch",
-    "torchvision",
+    "torch==2.7.1",
+    "torchvision==0.22.1",
     "pillow",
     "sentencepiece",
     "protobuf",
@@ -139,7 +139,25 @@ conflicts = [
     [{ extra = "maira2_gen" }, { extra = "radeval" }],
     [{ extra = "chexagent_gen" }, { extra = "medgemma_gen" }],
     [{ extra = "maira2_gen" }, { extra = "medgemma_gen" }],
+    [{ extra = "medgemma_gen" }, { extra = "all" }],
+    [{ extra = "medgemma_gen" }, { extra = "model" }],
+    [{ extra = "medgemma_gen" }, { extra = "biomed" }],
+    [{ extra = "medgemma_gen" }, { extra = "chexagent" }],
+    [{ extra = "medgemma_gen" }, { extra = "medsiglip" }],
+    [{ extra = "medgemma_gen" }, { extra = "dinov3" }],
+    [{ extra = "medgemma_gen" }, { extra = "siglip2" }],
+    [{ extra = "medgemma_gen" }, { extra = "eva_x" }],
+    [{ extra = "medgemma_gen" }, { extra = "ark_plus" }],
+    [{ extra = "medgemma_gen" }, { extra = "medical_mae" }],
 ]
+
+# Keep the lock universal (resolves for every platform), but minimise the number
+# of version-forks uv explores. The default "requires-python" strategy forks a
+# separate resolution per compatible version, which — combined with the many
+# conflicting extras that pull an unpinned torch and its huge NVIDIA
+# `cuda-toolkit` metapackage tree — makes `uv lock` backtrack for ~90 min.
+# "fewest" prefers the smallest set of versions, collapsing that explosion.
+fork-strategy = "fewest"
 
 [tool.setuptools.packages.find]
 where = ["."]
