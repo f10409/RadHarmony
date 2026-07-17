@@ -32,8 +32,16 @@ _IMPRESSION_RE = re.compile(
 _PREAMBLE_RE = re.compile(
     r"(?is)^.*?\b(?:FINDINGS?|IMPRESSION|CONCLUSION)S?\s*:"
 )
+# Clinical-context header (the reason for exam), used as generation *input*,
+# never as a scoring target. Terminates at the next section header.
+_INDICATION_RE = re.compile(
+    r"(?is)\b(?:INDICATION|CLINICAL INDICATION|CLINICAL HISTORY|HISTORY|"
+    r"REASON FOR (?:THE )?EXAM(?:INATION)?)S?\s*:(.*?)"
+    r"(?=\n\s*(?:TECHNIQUE|COMPARISON|FINDINGS?|IMPRESSION|CONCLUSION|"
+    r"HISTORY|INDICATION)S?\s*:|\Z)"
+)
 
-_VALID_SECTIONS = {"findings", "impression", "both", "full"}
+_VALID_SECTIONS = {"findings", "impression", "both", "full", "indication"}
 
 
 def _clean(text: str) -> str:
@@ -83,6 +91,12 @@ def parse_report_section(source: str, section: str = "findings") -> str:
 
     if section == "full":
         return _clean(raw)
+
+    if section == "indication":
+        # No body fallback: absence must read as "no indication" (empty),
+        # never the whole note — otherwise findings would leak into the input.
+        m = _INDICATION_RE.search(raw)
+        return _clean(m.group(1)) if m else ""
 
     f_match = _FINDINGS_RE.search(raw)
     i_match = _IMPRESSION_RE.search(raw)

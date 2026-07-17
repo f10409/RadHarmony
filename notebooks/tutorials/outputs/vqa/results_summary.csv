@@ -1,0 +1,4 @@
+label,token_f1_mean,token_f1_std,token_f1_ci_lo,token_f1_ci_hi,accuracy_mean,accuracy_std,accuracy_ci_lo,accuracy_ci_hi,token_recall_mean,token_recall_std,token_recall_ci_lo,token_recall_ci_hi
+closed,0.7535624476110645,0.0,,,0.7535624476110645,0.0,,,,,,
+open,0.3528113539961881,0.0,,,,,,,0.3431796297436108,0.0,,
+overall,0.5654875349047946,0.0,,,,,,,,,,

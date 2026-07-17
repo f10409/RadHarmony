@@ -47,8 +47,9 @@ _CHEXAGENT_GEN_HUB = "StanfordAIMI/CheXagent-2-3b"
 _DEFAULT_PROMPT = (
     "Write the FINDINGS and IMPRESSION sections of a chest radiograph "
     "report for this image as a clinical narrative paragraph."
-)  # Kept for the legacy single-prompt path; multi-step ABCDE recipe below
-   # supersedes it when prompt is None (the default).
+)  # A ready-made single-shot prompt: pass prompt=_DEFAULT_PROMPT (or your own
+   # string) to make_chexagent_generator to use the single-call path. The
+   # default (prompt=None) uses the multi-step ABCDE recipe below.
 
 # Multi-step "ABCDE" recipe from the official Stanford-AIMI/CheXagent demo
 # (commit e4f31e6e, demos/app_demo.py): one generation call per anatomy →
@@ -71,12 +72,36 @@ _IMPRESSION_PROMPT_TMPL = "Write the Impression section for the following Findin
 def make_chexagent_generator(
     device: str = "cuda",
     hub: str = _CHEXAGENT_GEN_HUB,
-    prompt: str = _DEFAULT_PROMPT,
+    prompt: str | None = None,
+    findings_prompts: list[str] | None = None,
+    impression_prompt: str | None = None,
     max_new_tokens: int = 512,
     dtype: torch.dtype = torch.bfloat16,
     tmp_dir: str | None = None,
-) -> tuple[Callable[[dict], dict], Callable[[list[str]], list[str]]]:
+) -> tuple[Callable[[dict], dict], Callable[..., list[str]]]:
     """Return ``(transform, report_generator)`` for generative CheXagent-2.
+
+    Prompting
+    ---------
+    prompt :
+        Controls the generation strategy:
+
+        - ``None`` (default) → the multi-step **ABCDE** recipe (one call per
+          anatomy → concatenate findings → one impression call), matching the
+          official Stanford-AIMI demo.
+        - a **string** → single-shot: one image call with that prompt (e.g.
+          ``prompt=_DEFAULT_PROMPT`` or your own instruction).
+    findings_prompts :
+        Override the ABCDE per-anatomy findings prompts (list of strings).
+        Only used on the multi-step path (``prompt is None``). Defaults to the
+        demo's five anatomy prompts.
+    impression_prompt :
+        Override the impression template on the multi-step path. Must contain
+        a ``{findings}`` placeholder. Defaults to the demo's template.
+
+    In every case, if the evaluator passes a per-image indication (via
+    ``use_indication=True``), it is prepended to the prompt(s) as clinical
+    context.
 
     transform : callable ``sample_dict -> sample_dict``
         Converts ``sample["img"]`` (an absolute image path placed there by
@@ -84,9 +109,12 @@ def make_chexagent_generator(
         stores the PNG **path string** back under ``img``; passes
         ``report`` through unchanged. Plain callable (not a MONAI Compose)
         on purpose — we must keep ``img`` a string for CheXagent-2.
-    report_generator : callable ``list[str] -> list[str]``
-        Input: PNG path strings (one per image). Output: generated reports.
+    report_generator : callable ``(img_paths, indications=None) -> list[str]``
+        Input: PNG path strings (one per image) + optional indications.
+        Output: generated reports.
     """
+    findings_prompts = findings_prompts or _FINDINGS_PROMPTS
+    impression_tmpl = impression_prompt or _IMPRESSION_PROMPT_TMPL
     from transformers import (  # lazy: needs transformers==4.40.0 (card)
         AutoModelForCausalLM,
         AutoTokenizer,
@@ -152,25 +180,37 @@ def make_chexagent_generator(
         )
 
     @torch.no_grad()
-    def report_generator(img_paths: list[str]) -> list[str]:
+    def report_generator(img_paths, indications=None) -> list[str]:
         """Official Stanford-AIMI/CheXagent demo recipe (`demos/app_demo.py`):
         step 1 — 5 anatomy-specific findings calls + concatenate; step 2 —
         impression call (text-only) over the concatenated findings.
         Produces free-text-style reports, NOT the single-shot grounded
         markup the original prompt yielded.
+
+        ``indications`` (optional): a per-image list of clinical-indication
+        strings (``None`` entries → none). When present, the indication is
+        prepended to each anatomy findings prompt as clinical context.
         """
+        inds = indications if indications is not None else [None] * len(img_paths)
         out: list[str] = []
-        for path in img_paths:
+        for path, ind in zip(img_paths, inds):
+            prefix = f"Clinical indication: {ind}. " if ind else ""
+
+            if prompt is not None:
+                # Single-shot path: one image call with the custom prompt.
+                out.append(_ask_with_image(str(path), prefix + prompt))
+                continue
+
             # Step 1: ABCDE findings (skip the "Determine the view" prefix —
             # the demo discards its output, but we still keep parity by not
             # accumulating it).
             findings_parts = []
-            for fp in _FINDINGS_PROMPTS:
-                findings_parts.append(_ask_with_image(str(path), fp))
+            for fp in findings_prompts:
+                findings_parts.append(_ask_with_image(str(path), prefix + fp))
             findings = " ".join(p for p in findings_parts if p).strip()
 
             # Step 2: impression (text-only call over the concatenated findings)
-            impression = _ask_text(_IMPRESSION_PROMPT_TMPL.format(findings=findings))
+            impression = _ask_text(impression_tmpl.format(findings=findings))
 
             out.append(f"FINDINGS: {findings}\n\nIMPRESSION: {impression}")
         return out

@@ -4,7 +4,7 @@
 produces standardized downstream-task results — DataFrame output with AUROC,
 AUPRC, F1, and eight other per-label metrics.
 
-Six classification evaluators, three segmentation evaluators, and one language evaluator are available:
+Six classification evaluators, three segmentation evaluators, and two language evaluators are available:
 
 | Evaluator | Registry key | Mode | Summary |
 |-----------|-------------|------|---------|
@@ -18,6 +18,7 @@ Six classification evaluators, three segmentation evaluators, and one language e
 | [ConvProbeSegEvaluator](conv_probe_seg.md) | `"conv_probe_seg"` | k-fold / fixed-split | `1×1 → LN2d → 3×3 → LN2d` conv-block head over frozen dense features |
 | [UPerNetSegEvaluator](upernet_seg.md) | `"upernet_seg"` | k-fold / fixed-split | Simple Feature Pyramid + HF `UperNetHead` (PSP + FPN fuse) over frozen dense features |
 | [ReportGenerationEvaluator](report_generation.md) | `"report_generation"` | test-only | Runs a VLM `report_generator` over a dataset (with `output_report=True`), scores hypotheses against references with the RadEval metric suite (BLEU, ROUGE, BERTScore, RadCliQ, ...). Pair with `make_chexagent_generator` or `make_maira2_generator` (see [Backbones](../backbones/index.md)). Requires the `radeval` extra (installed in a separate venv). |
+| [VQAEvaluator](vqa.md) | `"vqa"` | test-only | Runs a question-conditioned VLM over a VQA dataset (`VQARadDataset`, `MIMICExtCXRQBADataset`) and scores answers with tokenized-F1 + yes/no accuracy — the MedGemma protocol. Pair with `make_medgemma_vqa` (paper replication) or `make_chexagent_vqa`. |
 
 For a hands-on walkthrough see
 [`notebooks/tutorials/evaluator_tutorial.ipynb`](https://github.com/f10409/RadHarmony/blob/main/notebooks/tutorials/evaluator_tutorial.ipynb).

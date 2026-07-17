@@ -57,12 +57,33 @@ ev.save_results(df)
 
 ## Generation recipe
 
-`report_generator` runs the official Stanford AIMI multi-step "ABCDE" recipe from [`demos/app_demo.py`](https://github.com/Stanford-AIMI/CheXagent) (commit `e4f31e6e`):
+By default (`prompt=None`) `report_generator` runs the official Stanford AIMI multi-step "ABCDE" recipe from [`demos/app_demo.py`](https://github.com/Stanford-AIMI/CheXagent) (commit `e4f31e6e`):
 
 1. **Findings.** One generation call per anatomical region (Airway, Breathing, Cardiac, Diaphragm, Everything-else). Outputs are concatenated with spaces.
 2. **Impression.** A text-only call over the concatenated findings, prompted with "Write the Impression section for the following Findings: ...".
 
 The returned string is formatted as `"FINDINGS: ...\n\nIMPRESSION: ..."`, matching the reference-report style [`ReportGenerationEvaluator`](../evaluator/index.md) parses out of MIMIC-CXR notes.
+
+### Choosing / overriding the prompt
+
+- **Single-shot** — pass a `prompt` string to generate the whole report in one image call instead of the ABCDE recipe:
+
+  ```python
+  transform, report_generator = make_chexagent_generator(
+      prompt="Write the FINDINGS and IMPRESSION for this chest X-ray.",
+  )
+  ```
+
+- **Customize the ABCDE path** — keep `prompt=None` and override the per-anatomy prompts and/or the impression template:
+
+  ```python
+  transform, report_generator = make_chexagent_generator(
+      findings_prompts=["Describe the lungs.", "Describe the heart and mediastinum."],
+      impression_prompt="Summarize the impression from these findings: {findings}",
+  )
+  ```
+
+When the evaluator runs with `use_indication=True`, the parsed indication is prepended to the prompt(s) as clinical context in either mode.
 
 ## Recipe arguments
 
@@ -70,7 +91,9 @@ The returned string is formatted as `"FINDINGS: ...\n\nIMPRESSION: ..."`, matchi
 |----------|------|---------|-------------|
 | `device` | `str` | `"cuda"` | Passed to `.to(device)` after model load |
 | `hub` | `str` | `"StanfordAIMI/CheXagent-2-3b"` | HuggingFace model identifier |
-| `prompt` | `str` | (single-shot legacy prompt) | Retained for the legacy single-prompt path; the multi-step ABCDE recipe above supersedes it |
+| `prompt` | `str \| None` | `None` | `None` → multi-step ABCDE recipe; a string → single-shot generation with that prompt |
+| `findings_prompts` | `list[str] \| None` | `None` (demo's 5 anatomy prompts) | Override the per-anatomy findings prompts (ABCDE path only) |
+| `impression_prompt` | `str \| None` | `None` (demo's template) | Override the impression template (must contain `{findings}`; ABCDE path only) |
 | `max_new_tokens` | `int` | `512` | Cap per generation call |
 | `dtype` | `torch.dtype` | `torch.bfloat16` | Model precision |
 | `tmp_dir` | `str` | auto (`tempfile.mkdtemp(prefix="chexagent_png_")`) | Directory for the intermediate PNGs the transform writes |

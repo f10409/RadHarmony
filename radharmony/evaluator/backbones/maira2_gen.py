@@ -38,7 +38,7 @@ def make_maira2_generator(
     dtype: torch.dtype = torch.bfloat16,
     tmp_dir: str | None = None,
     get_grounding: bool = False,
-) -> tuple[Callable[[dict], dict], Callable[[list[str]], list[str]]]:
+) -> tuple[Callable[[dict], dict], Callable[..., list[str]]]:
     """Return ``(transform, report_generator)`` for generative MAIRA-2.
 
     transform : callable ``sample_dict -> sample_dict``
@@ -86,16 +86,20 @@ def make_maira2_generator(
         return sample
 
     @torch.no_grad()
-    def report_generator(img_paths: list[str]) -> list[str]:
+    def report_generator(img_paths, indications=None) -> list[str]:
+        """``indications`` (optional): per-image clinical-indication strings
+        (``None`` entries → none), wired into MAIRA-2's native ``indication``
+        reporting-input slot."""
+        inds = indications if indications is not None else [None] * len(img_paths)
         out: list[str] = []
-        for path in img_paths:
+        for path, ind in zip(img_paths, inds):
             # --- official MAIRA-2 reporting recipe; isolated for easy correction ---
             img = Image.open(str(path)).convert("RGB")
             inputs = processor.format_and_preprocess_reporting_input(
                 current_frontal=img,
                 current_lateral=None,
                 prior_frontal=None,
-                indication=None,
+                indication=(ind or None),
                 technique=None,
                 comparison=None,
                 prior_report=None,

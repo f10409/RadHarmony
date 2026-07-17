@@ -1,0 +1,2 @@
+label,bleu_mean,bleu_std,bleu_ci_lo,bleu_ci_hi,radgraph_simple_mean,radgraph_simple_std,radgraph_simple_ci_lo,radgraph_simple_ci_hi,radgraph_partial_mean,radgraph_partial_std,radgraph_partial_ci_lo,radgraph_partial_ci_hi,radgraph_complete_mean,radgraph_complete_std,radgraph_complete_ci_lo,radgraph_complete_ci_hi
+report,0.0418,0.0,,,0.2622,0.0,,,0.2398,0.0,,,0.1778,0.0,,

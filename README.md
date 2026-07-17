@@ -54,9 +54,10 @@ The base install gives you the dataset API. Install extras for models, notebooks
 | `siglip2` | SigLIP 2 backbone (`transformers`) — general-domain vision-language baseline, 1152-d pooled embeddings, 384×384 input | `uv pip install -e ".[siglip2]"` |
 | `chexagent_gen` | Generative CheXagent-2-3b (pins `transformers==4.40.0`, `torch==2.7.1`) for report generation; install in its own venv | `uv pip install -e ".[chexagent_gen]"` |
 | `maira2_gen` | Generative MAIRA-2 (`transformers>=4.46,<4.47`) for report generation; install in its own venv | `uv pip install -e ".[maira2_gen]"` |
+| `medgemma_gen` | Generative MedGemma-4B (`google/medgemma-4b-it`, gated) for VQA / report generation; install in its own venv | `uv pip install -e ".[medgemma_gen]"` |
 | `radeval` | RadEval metrics for report-generation scoring (`radeval[api] @ git+jbdel/RadEval`); install in its own venv | `uv pip install -e ".[radeval]"` |
 
-Combine extras as needed, e.g. `uv pip install -e ".[model,app]"`. The three generative extras (`chexagent_gen`, `maira2_gen`, `radeval`) pin incompatible `transformers` versions and are meant to be installed in separate venvs (see [pyproject.toml](pyproject.toml) comments).
+Combine extras as needed, e.g. `uv pip install -e ".[model,app]"`. The generative extras (`chexagent_gen`, `maira2_gen`, `medgemma_gen`, `radeval`) pin incompatible `transformers` versions and are meant to be installed in separate venvs (see [pyproject.toml](pyproject.toml) comments).
 
 ## Quick Start
 
@@ -88,7 +89,11 @@ segmentation evaluators (`LinearProbeSegEvaluator` 1×1 Conv2d head,
 `ConvProbeSegEvaluator` conv-block head, and `UPerNetSegEvaluator` simple
 feature pyramid + `UperNetHead`), all over frozen dense features. A
 `ReportGenerationEvaluator` scores VLM-generated reports with the RadEval
-metric suite (BLEU, ROUGE, BERTScore, RadCliQ, and other language metrics).
+metric suite (BLEU, ROUGE, BERTScore, RadCliQ, and other language metrics; pair
+with `make_chexagent_generator`, `make_maira2_generator`, or
+`make_medgemma_generator`), and
+a `VQAEvaluator` scores question-conditioned VLM answers with tokenized-F1 and
+yes/no accuracy (the MedGemma protocol; pair with `make_medgemma_vqa`).
 
 Use a built-in backbone recipe for the fastest setup:
 
@@ -157,11 +162,15 @@ Worked examples in [`notebooks/`](notebooks/):
 
 | Notebook | Contents |
 |---|---|
+| [`tutorials/radharmony_hands_on.ipynb`](notebooks/tutorials/radharmony_hands_on.ipynb) | Gentle hands-on introduction — load a dataset, inspect labels / masks / VQA outputs, and pass it to a `DataLoader`; no prior ML experience assumed |
+| [`tutorials/radharmony_hands_on_evaluation.ipynb`](notebooks/tutorials/radharmony_hands_on_evaluation.ipynb) | Companion to the hands-on intro — evaluate foundation models two ways: a RAD-DINO linear probe (classification) and a CheXagent-2 generative VQA loop scored with lexical metrics |
 | [`tutorials/dataset_api_tour.ipynb`](notebooks/tutorials/dataset_api_tour.ipynb) | Full dataset-API tour: harmonizers, preprocessors, datasets, transforms, registry |
 | [`tutorials/custom_dataset_tutorial.ipynb`](notebooks/tutorials/custom_dataset_tutorial.ipynb) | Template for integrating a new dataset |
 | [`tutorials/evaluator_tutorial.ipynb`](notebooks/tutorials/evaluator_tutorial.ipynb) | End-to-end evaluator walkthrough: linear probe on VinDr-CXR with RAD-DINO |
 | [`evaluator/fm_comparison.ipynb`](notebooks/evaluator/fm_comparison.ipynb) | FM benchmark — 11 foundation-model image encoders × 6 probing strategies on VinDr-CXR / TAIX-Ray |
 | [`evaluator/fm_comparison_seg.ipynb`](notebooks/evaluator/fm_comparison_seg.ipynb) | FM benchmark — 11 encoders × three segmentation heads (linear / conv / UPerNet) on SIIM-ACR PTX and Montgomery-CXR |
+| [`evaluator/report_generation_example.ipynb`](notebooks/evaluator/report_generation_example.ipynb) | Report generation, Stage A — run a VLM (CheXagent-2 / MAIRA-2) over a dataset and dump `(id, ref, hyp)` pairs |
+| [`evaluator/score_reports_radeval.ipynb`](notebooks/evaluator/score_reports_radeval.ipynb) | Report generation, Stage B — score the pairs parquet with the RadEval metric suite (standalone RadEval env) |
 | [`datasets/dataset_integrity_check.ipynb`](notebooks/datasets/dataset_integrity_check.ipynb) | Integrity pass over every supported dataset — instantiate, iterate, validate outputs, visualize samples; headless counterpart: [`scripts/check_datasets.py`](scripts/check_datasets.py) |
 
 ## Contributors

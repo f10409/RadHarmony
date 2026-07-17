@@ -77,6 +77,21 @@ maira2_gen = [
     "sentencepiece",
     "protobuf",
 ]
+# Generative MedGemma-4B (google/medgemma-4b-it) for VQA / report generation.
+# Gemma-3-based → needs a recent transformers; GATED on Hugging Face (accept
+# the license + `huggingface-cli login` first). Its own env — conflicts with
+# chexagent_gen (transformers==4.40.0) and maira2_gen (transformers<4.47).
+# `uv pip install -e ".[medgemma_gen]"`.
+medgemma_gen = [
+    "transformers>=5.6.0",
+    "accelerate>=0.27.0",
+    "torch",
+    "torchvision",
+    "pillow",
+    "sentencepiece",
+    "protobuf",
+    "huggingface_hub",
+]
 # jbdel/RadEval (v2.2.1, EMNLP 2025). NOT on PyPI — the PyPI `radeval` 0.0.x
 # is an unrelated package. Install the real framework from GitHub source.
 # Stage B only: separate env (newer transformers) — never with chexagent_gen.
@@ -122,6 +137,8 @@ conflicts = [
     [{ extra = "maira2_gen" }, { extra = "dinov3" }],
     [{ extra = "maira2_gen" }, { extra = "siglip2" }],
     [{ extra = "maira2_gen" }, { extra = "radeval" }],
+    [{ extra = "chexagent_gen" }, { extra = "medgemma_gen" }],
+    [{ extra = "maira2_gen" }, { extra = "medgemma_gen" }],
 ]
 
 [tool.setuptools.packages.find]

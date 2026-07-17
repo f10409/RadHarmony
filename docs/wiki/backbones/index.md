@@ -40,18 +40,36 @@ and return a `(transform, report_generator)` pair with a different contract:
   sample's image (any MONAI-readable format including DICOM) to a temporary
   PNG file and stores its **path string** back under `img`. Reports pass
   through unchanged.
-- `report_generator`: a callable `list[str] -> list[str]` that takes image
-  paths and returns generated report text. Pair it with
+- `report_generator`: a callable `(img_paths, indications=None) -> list[str]`
+  that takes image paths (and an optional per-image clinical indication) and
+  returns generated report text. Pair it with
   [`ReportGenerationEvaluator`](../evaluator/index.md).
 
 | Factory | Base model | Returns | Extra |
 |---------|-----------|---------|-------|
 | [`make_chexagent_generator`](chexagent_gen.md) | StanfordAIMI/CheXagent-2-3b | `(transform, report_generator)` | `chexagent_gen` (isolated venv, `transformers==4.40.0`) |
 | [`make_maira2_generator`](maira2_gen.md) | microsoft/maira-2 | `(transform, report_generator)` | `maira2_gen` (isolated venv, `transformers>=4.46,<4.47`) |
+| `make_medgemma_generator` | google/medgemma-4b-it (gated) | `(transform, report_generator)` | `medgemma_gen` (isolated venv, recent `transformers`) |
 
-`chexagent_gen` and `maira2_gen` pin incompatible `transformers` versions per
-their model cards, so each must be installed in its own venv (declared as
-uv `conflicts` in `pyproject.toml`).
+`chexagent_gen`, `maira2_gen`, and `medgemma_gen` pin incompatible
+`transformers` versions per their model cards, so each must be installed in
+its own venv (declared as uv `conflicts` in `pyproject.toml`).
+`make_medgemma_generator` exposes a real `prompt` parameter (default is the
+report's `"<INDICATION> findings:"` form) and shares the `medgemma_gen` env
+with `make_medgemma_vqa`.
+
+## VQA recipes (visual question answering)
+
+These wrap a **question-conditioned** VLM and return a
+`(transform, vqa_answerer)` pair, where `vqa_answerer(imgs, questions) ->
+list[str]`. Pair with [`VQAEvaluator`](../evaluator/vqa.md). `make_medgemma_vqa`
+is the one to use for reproducing the MedGemma technical report's VQA-RAD /
+SLAKE numbers.
+
+| Factory | Base model | Returns | Extra |
+|---------|-----------|---------|-------|
+| `make_medgemma_vqa` | google/medgemma-4b-it (gated) | `(transform, vqa_answerer)` | `medgemma_gen` (isolated venv, recent `transformers`) |
+| `make_chexagent_vqa` | StanfordAIMI/CheXagent-2-3b | `(transform, vqa_answerer)` | `chexagent_gen` (isolated venv, `transformers==4.40.0`) |
 
 ## Segmentation mode
 

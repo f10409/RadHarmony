@@ -96,6 +96,9 @@ from .biomed_clip import make_biomed_clip
 from .chexagent import make_chexagent
 from .chexagent_gen import make_chexagent_generator
 from .maira2_gen import make_maira2_generator
+from .medgemma_gen import make_medgemma_generator
+from .medgemma_vqa import make_medgemma_vqa
+from .chexagent_vqa import make_chexagent_vqa
 from .medsiglip import make_medsiglip
 from .medimageinsights import make_medimageinsights
 from .chexfound import make_chexfound
@@ -105,4 +108,4 @@ from .ark_plus import make_ark_plus
 from .medical_mae import make_medical_mae
 from .siglip2 import make_siglip2
 
-__all__ = ["make_raddino", "make_biomed_clip", "make_chexagent", "make_chexagent_generator", "make_maira2_generator", "make_medsiglip", "make_medimageinsights", "make_chexfound", "make_dinov3", "make_eva_x", "make_ark_plus", "make_medical_mae", "make_siglip2"]
+__all__ = ["make_raddino", "make_biomed_clip", "make_chexagent", "make_chexagent_generator", "make_maira2_generator", "make_medgemma_generator", "make_medgemma_vqa", "make_chexagent_vqa", "make_medsiglip", "make_medimageinsights", "make_chexfound", "make_dinov3", "make_eva_x", "make_ark_plus", "make_medical_mae", "make_siglip2"]

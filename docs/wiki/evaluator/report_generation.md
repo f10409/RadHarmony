@@ -11,8 +11,11 @@ Report generation has no training phase, so the k-fold / fixed-split machinery o
 The evaluator never inspects model internals. Wrap any chest-X-ray VLM (CheXagent-2, MAIRA-2, MedGemma, LLaVA-Rad, ...) into one minimal callable:
 
 ```text
-report_generator(imgs) -> list[str]     # returns len(imgs) generated reports
+report_generator(imgs, indications=None) -> list[str]   # len(imgs) reports
 ```
+
+`indications` is an optional per-image list of clinical-indication strings
+(`None` entries → no indication); see [Indication-conditioned generation](#indication-conditioned-generation). A legacy single-argument `report_generator(imgs)` also works — the evaluator detects the accepted arity.
 
 For CheXagent-2 and MAIRA-2, use the [`make_chexagent_generator`](../backbones/chexagent_gen.md) / [`make_maira2_generator`](../backbones/maira2_gen.md) recipes. They return `(transform, report_generator)` where `transform` handles image loading (any MONAI-readable format including DICOM) and stores the PNG **path string** under `img`. For those recipes, `imgs` in the callable above is a list of file-path strings, one per image; the batch loader collates them as `list[str]`.
 
@@ -58,6 +61,8 @@ ev.save_results(df)
 | `dataset` | dataset | — | RadHarmony dataset constructed with `output_report=True` |
 | `metrics` | `tuple[str, ...]` | `FULL_METRICS` (16 metrics) | RadEval metric names. See [Metric suite](#metric-suite) below |
 | `ref_section` | `str` | `"findings"` | One of `"findings"`, `"impression"`, `"both"`, or `"full"` |
+| `use_indication` | `bool` | `False` | Parse the indication section from each report and pass it to the generator as per-sample context (indication-conditioned reporting) |
+| `indication_section` | `str` | `"indication"` | Section name handed to the parser for the indication text |
 | `device` | `str` | `"cuda"` | Currently unused (the generator owns its device); kept for symmetry with other evaluators |
 | `batch_size` | `int` | `8` | Inference DataLoader batch size |
 | `num_workers` | `int` | `4` | Inference DataLoader workers |
@@ -109,6 +114,30 @@ Unknown / unavailable metrics surface RadEval's own per-metric error (missing mo
 | `bootstrap` | `-1` = point estimate; `0..n_bootstrap-1` = resample |
 | `<metric columns>` | One column per metric leaf (nested RadEval outputs are flattened, e.g. `radgraph.f1`, `radgraph.precision`) |
 
+## Indication-conditioned generation
+
+The **indication** (the clinical reason for the exam) is legitimate generation
+*input* — it is what the radiologist has before dictating — and **not** a
+scoring target, so conditioning on it is fair (the reference remains the
+FINDINGS/IMPRESSION). MedGemma (`"<INDICATION> findings:"`) and MAIRA-2 (its
+native `indication` reporting-input slot) both use it.
+
+Set `use_indication=True` and the evaluator parses the indication section out
+of each report and passes it to the generator as the per-sample context:
+
+```python
+ev = ReportGenerationEvaluator(
+    report_generator, dataset=ds, ref_section="findings", use_indication=True,
+)
+```
+
+`make_maira2_generator` wires the string into MAIRA-2's `indication=` slot;
+`make_chexagent_generator` prepends it to the anatomy prompts; and
+`make_medgemma_generator` prepends it as `"Indication: <ind>. "` before its
+`prompt`. The indication parser returns `""` when no indication header is
+found (so absence reads as "no indication" — it never falls back to the report
+body).
+
 ## Two-stage workflow
 
 The full 16-metric suite pulls in RadEval (which pins incompatible `transformers` vs the `chexagent_gen` / `maira2_gen` extras), so generation and scoring often run in separate venvs. `ReportGenerationEvaluator` exposes `generate_only(out_parquet)`:
@@ -120,6 +149,12 @@ ev.generate_only("outputs/run1/pairs.parquet")
 ```
 
 The parquet has columns `sample_id`, `reference`, `hypothesis`. Load it in a separate `radeval` venv and score the columns directly with RadEval.
+
+Two worked notebooks walk through the full two-stage flow end to end:
+[`notebooks/evaluator/report_generation_example.ipynb`](https://github.com/f10409/RadHarmony/blob/main/notebooks/evaluator/report_generation_example.ipynb)
+(Stage A — generate) and
+[`notebooks/evaluator/score_reports_radeval.ipynb`](https://github.com/f10409/RadHarmony/blob/main/notebooks/evaluator/score_reports_radeval.ipynb)
+(Stage B — score).
 
 ## Notes
 

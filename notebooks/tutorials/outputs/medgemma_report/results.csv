@@ -1,0 +1,2 @@
+fold,seed,bootstrap,label,bleu,radgraph_simple,radgraph_partial,radgraph_complete
+-1,-1,-1,report,0.0418,0.2622,0.2398,0.1778

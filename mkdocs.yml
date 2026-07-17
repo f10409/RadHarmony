@@ -88,6 +88,7 @@ nav:
     - Conv Probe (Segmentation): evaluator/conv_probe_seg.md
     - UPerNet (Segmentation): evaluator/upernet_seg.md
     - Report Generation: evaluator/report_generation.md
+    - Visual Question Answering: evaluator/vqa.md
   - Backbones:
     - Overview: backbones/index.md
     - RAD-DINO: backbones/raddino.md
@@ -107,6 +108,8 @@ nav:
   - App Guide:
     - Using the App: app.md
     - Extending the App: app-extend.md
+  - Datathon26:
+    - Overview: datathon26.md
 
 plugins:
   - search

@@ -22,7 +22,7 @@ from .segmentation import (
     LinearProbeSegEvaluator,
     UPerNetSegEvaluator,
 )
-from .language import ReportGenerationEvaluator
+from .language import GenerativeEvaluator, ReportGenerationEvaluator, VQAEvaluator
 from ._registry import register_evaluator, resolve_evaluator, list_evaluators
 from .transforms import EncoderPreprocessTransform, RadiologyEncoderTransform
 from .wrappers import ImageEncoderWrapper
@@ -41,7 +41,9 @@ __all__ = [
     "ConvProbeSegEvaluator",
     "LinearProbeSegEvaluator",
     "UPerNetSegEvaluator",
+    "GenerativeEvaluator",
     "ReportGenerationEvaluator",
+    "VQAEvaluator",
     "EncoderPreprocessTransform",
     "RadiologyEncoderTransform",
     "ImageEncoderWrapper",

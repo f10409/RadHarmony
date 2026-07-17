@@ -51,5 +51,7 @@ demo
 radharmony_judy
 third_party_models
 
+datathon26/sample_data.ipynb
+
 # Local, uncommitted dataset configs with real data paths (internal use)
 configs/local/
