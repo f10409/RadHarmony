@@ -8,6 +8,11 @@ from .classification import (
     DatathonSVMProbeEvaluator,
 )
 from .language import DatathonReportGenerationEvaluator
+from .segmentation import (
+    DatathonConvProbeSegEvaluator,
+    DatathonLinearProbeSegEvaluator,
+    DatathonUPerNetSegEvaluator,
+)
 
 __all__ = [
     "IdentityEncoder",
@@ -17,4 +22,7 @@ __all__ = [
     "DatathonSVMProbeEvaluator",
     "DatathonPrototypeProbeEvaluator",
     "DatathonReportGenerationEvaluator",
+    "DatathonLinearProbeSegEvaluator",
+    "DatathonConvProbeSegEvaluator",
+    "DatathonUPerNetSegEvaluator",
 ]
