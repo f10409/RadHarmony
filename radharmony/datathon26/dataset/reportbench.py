@@ -10,7 +10,7 @@ and the raw image root — *the same two inputs an ordinary RadHarmony dataset
 takes* — to a ready dataset object:
 
     ds = DatathonEmbeddingDataset(
-        harmonized_df=df,                 # one row per study (labels + report)
+        harmonized_df=df,                 # one row per image (labels + report)
         base_image_dir="/data/mimic",     # where the raw images live
         client=ReportBenchClient(
             rbclient_path="/mnt/NAS4/.../skill/rbclient.py",
@@ -26,6 +26,22 @@ per-study folder layout the service expects, (2) drives ``rbclient.py`` to submi
 the job and wait for it, then (3) points the matching datathon26 dataset at the
 returned results folder.
 
+Compatibility with the live reportbench (as of the study-keyed manifest + ``.npz``
+embedding format):
+
+* **Tasks** are ``report`` and ``embed`` (not ``embeddings``).
+* **Indication** is supplied through the job ``manifest.json`` (study-keyed), never
+  a per-study ``text.txt`` — the file mechanism was removed server-side.
+* **Manifest** schema is
+  ``{"studies": {"<study_id>": {"images": [{"path", "view"}], "indication"?}}}``
+  where ``path`` is a bare filename inside the study folder. It is written for the
+  *report* task only when an ``indication_col`` is given (so an indication can be
+  attached); the *embed* task submits without a manifest (views/indications don't
+  affect embeddings, and a manifest would only add rejection surface).
+* **Outputs** land under ``<data_dir>/<run>/_reportbench_out/<model>/<study>/`` as
+  ``<model>_report.txt`` (per study) and ``<model>_<stem>.npz`` (per image; an
+  archive with ``global`` / ``patches``).
+
 The ``rbclient.py`` CLI itself is treated as an opaque tool driven by subprocess
 (per the datathon ``INSTRUCTIONS.md``): ``config`` / ``check`` / ``prepare`` /
 ``submit --model <m> --task <t> --input <run>`` / ``watch`` / ``results``. Every
@@ -35,16 +51,23 @@ directories) is configurable so the wrapper survives details not visible here.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
-from typing import Sequence
+from typing import Callable, Sequence
 
 import pandas as pd
 import torch
 
-from .embedding_dataset import EmbeddingResultsDataset
-from .report_dataset import ReportResultsDataset
+from .embedding_dataset import EmbeddingResultsDataset, viewwise_embedding_path
+from .report_dataset import ReportResultsDataset, perstudy_report_path
+
+#: Raw ``view_position`` strings → the manifest's allowed labels (ap/pa/lateral/ll).
+_VIEW_ALIASES = {
+    "ap": "ap", "pa": "pa", "lateral": "lateral", "ll": "ll",
+    "lat": "lateral", "frontal": "pa", "front": "pa",
+}
 
 
 class ReportBenchClient:
@@ -58,8 +81,10 @@ class ReportBenchClient:
         rbclient_path: Path to ``rbclient.py`` (on the datathon server, typically
             ``/mnt/NAS4/projects/bkhosra/sharing/datathon/skill/rbclient.py``).
         data_dir: Your team data folder — the ``--data-dir`` the CLI writes
-            submissions and results into. Results for run ``<name>`` land in
-            ``<data_dir>/<name>/<study>/`` (see :attr:`results_dir`).
+            submissions and results into. The submitted run ``<name>`` lands in
+            ``<data_dir>/<name>/`` and the service writes outputs under
+            ``<data_dir>/<name>/_reportbench_out/<model>/`` (see
+            :meth:`output_dir`).
         api_key: Team API key (``rb_...``). When given, :meth:`config` is run
             once before the first job to persist the key + data dir.
         python_exe: Interpreter used to launch the CLI (default ``python3``).
@@ -116,11 +141,17 @@ class ReportBenchClient:
         self._run("models")
 
     def prepare(self, from_dir: str, name: str) -> None:
-        """Copy the staged study folders in ``from_dir`` into the run ``name``."""
+        """Copy the staged study folders in ``from_dir`` into the run ``name``.
+
+        Called without ``--link`` so ``rbclient.py`` writes real file copies into
+        the run folder — the job manifest resolves image paths *inside* the run
+        folder, which the service requires (a symlink whose target escapes the
+        folder is rejected).
+        """
         self._run("prepare", "--from", os.path.abspath(from_dir), "--name", name)
 
     def submit(self, model: str, task: str, run_name: str) -> None:
-        """Submit run ``run_name`` to ``model`` for ``task`` (``report``/``embeddings``)."""
+        """Submit run ``run_name`` to ``model`` for ``task`` (``report``/``embed``)."""
         self._run("submit", "--model", model, "--task", task, "--input", run_name)
 
     def watch(self) -> None:
@@ -131,9 +162,46 @@ class ReportBenchClient:
         """Print the results summary."""
         self._run("results", "--print")
 
-    def results_dir(self, run_name: str) -> str:
-        """Directory the service writes per-study results into for ``run_name``."""
+    def run_dir(self, run_name: str) -> str:
+        """The submitted run/input folder: ``<data_dir>/<run_name>``."""
         return os.path.join(self.data_dir, run_name)
+
+    # Back-compat alias — earlier code called this ``results_dir``.
+    results_dir = run_dir
+
+    def output_dir(self, run_name: str, model: str) -> str:
+        """Where the service writes per-study outputs for ``run_name`` + ``model``.
+
+        ``<data_dir>/<run_name>/_reportbench_out/<model>``.
+        """
+        return os.path.join(self.data_dir, run_name, "_reportbench_out", model)
+
+
+def _study_view_labels(view_positions: Sequence) -> list[str]:
+    """Map a study's ``view_position`` values to manifest labels (ap/pa/lateral/ll).
+
+    Guarantees a valid labelling for ≤2 images (≤1 frontal + ≤1 lateral): if any
+    value is unmappable, or the mapped labels would put two images in the same
+    frontal/lateral group, fall back to positional labels (first → ``pa``, second
+    → ``lateral``). Report models ignore the labels; only the view-aware model
+    (model-e) uses them, so a best-effort positional guess is the safe default.
+    """
+    labels = [
+        _VIEW_ALIASES.get(str(vp).strip().lower()) if vp is not None and str(vp).strip() else None
+        for vp in view_positions
+    ]
+
+    def _group(lbl):
+        if lbl in ("ap", "pa"):
+            return "frontal"
+        if lbl in ("lateral", "ll"):
+            return "lateral"
+        return None
+
+    groups = [_group(lbl) for lbl in labels]
+    if any(lbl is None for lbl in labels) or groups.count("frontal") > 1 or groups.count("lateral") > 1:
+        return ["pa" if i == 0 else "lateral" for i in range(len(view_positions))]
+    return labels  # type: ignore[return-value]
 
 
 def _stage_studies(
@@ -143,14 +211,17 @@ def _stage_studies(
     *,
     image_col: str,
     study_col: str,
+    view_col: str | None,
     indication_col: str | None,
     link: bool,
-) -> int:
+) -> dict:
     """Lay the studies referenced by ``harmonized_df`` out for ``rbclient prepare``.
 
-    Builds ``<staging_dir>/<study_id>/<view files>`` (+ optional ``text.txt``),
-    grouping every image row of a study into that study's folder. Returns the
-    number of study folders created.
+    Builds ``<staging_dir>/<study_id>/<view files>``, grouping every image row of
+    a study into that study's folder, and returns the study-keyed **manifest**
+    ``{"studies": {"<study_id>": {"images": [{"path", "view"}], "indication"?}}}``
+    describing exactly what was staged. The caller decides whether to write the
+    manifest (see :func:`_run_reportbench`).
     """
     if study_col not in harmonized_df.columns:
         raise KeyError(f"harmonized_df has no '{study_col}' column.")
@@ -158,11 +229,12 @@ def _stage_studies(
         raise KeyError(f"harmonized_df has no '{image_col}' column.")
 
     os.makedirs(staging_dir, exist_ok=True)
-    n_studies = 0
+    manifest: dict = {"studies": {}}
     for study_id, group in harmonized_df.groupby(study_col, sort=False):
         study_dir = os.path.join(staging_dir, str(study_id))
         os.makedirs(study_dir, exist_ok=True)
         seen: dict[str, int] = {}
+        staged: list[tuple[str, object]] = []  # (filename in the study folder, view_position)
         for _, row in group.iterrows():
             rel = str(row[image_col])
             src = os.path.join(base_image_dir, rel) if base_image_dir else rel
@@ -176,22 +248,52 @@ def _stage_studies(
             else:
                 seen[fname] = 0
             dst = os.path.join(study_dir, fname)
-            if os.path.exists(dst) or os.path.islink(dst):
-                continue
-            if link:
-                try:
-                    os.symlink(os.path.abspath(src), dst)
-                except OSError:
+            if not (os.path.exists(dst) or os.path.islink(dst)):
+                if link:
+                    try:
+                        os.symlink(os.path.abspath(src), dst)
+                    except OSError:
+                        shutil.copy2(src, dst)
+                else:
                     shutil.copy2(src, dst)
-            else:
-                shutil.copy2(src, dst)
+            vp = row[view_col] if view_col and view_col in group.columns else None
+            staged.append((fname, vp))
+
+        views = _study_view_labels([vp for _, vp in staged])
+        entry: dict = {"images": [
+            {"path": fname, "view": view} for (fname, _), view in zip(staged, views)
+        ]}
         if indication_col and indication_col in group.columns:
             text = str(group.iloc[0][indication_col] or "").strip()
             if text and text.lower() != "nan":
-                with open(os.path.join(study_dir, "text.txt"), "w") as f:
-                    f.write(text)
-        n_studies += 1
-    return n_studies
+                entry["indication"] = text
+        manifest["studies"][str(study_id)] = entry
+    return manifest
+
+
+def _verify_results(
+    harmonized_df: pd.DataFrame,
+    results_dir: str,
+    result_path: Callable[[pd.Series], str],
+) -> None:
+    """Fail early (with the missing relative paths) if the join won't resolve."""
+    if not os.path.isdir(results_dir):
+        raise FileNotFoundError(
+            f"Results directory does not exist: {results_dir}. Pass results_dir= "
+            "if rbclient.py wrote results somewhere else."
+        )
+    missing: list[str] = []
+    for _, row in harmonized_df.iterrows():
+        rel = result_path(row)
+        if not os.path.isfile(os.path.join(results_dir, rel)):
+            missing.append(rel)
+    if missing:
+        preview = ", ".join(missing[:5])
+        raise FileNotFoundError(
+            f"{len(missing)}/{len(harmonized_df)} expected result files are missing "
+            f"under {results_dir} (e.g. {preview}). Check that the job finished and "
+            "that the model/run names are right; override with results_dir= if needed."
+        )
 
 
 def _run_reportbench(
@@ -206,68 +308,52 @@ def _run_reportbench(
     results_dir: str | None,
     image_col: str,
     study_col: str,
+    view_col: str | None,
     indication_col: str | None,
     link: bool,
     check: bool,
     skip_submit: bool,
-    result_filename: str,
+    write_manifest: bool,
+    result_path: Callable[[pd.Series], str],
 ) -> str:
-    """Stage → submit → watch, and return the results directory to score.
+    """Stage → (manifest) → submit → watch, and return the results directory to score.
 
-    When ``skip_submit`` is set the staging/submit/watch steps are skipped and
-    the existing ``results_dir`` is reused (re-scoring a finished run).
+    When ``skip_submit`` is set the staging/submit/watch steps are skipped and the
+    existing results directory is reused (re-scoring a finished run).
     """
-    resolved_results = results_dir or client.results_dir(run_name)
+    resolved_results = results_dir or client.output_dir(run_name, model)
 
     if not skip_submit:
         staging = staging_dir or os.path.join(client.data_dir, ".staging", run_name)
-        n = _stage_studies(
+        manifest = _stage_studies(
             harmonized_df,
             base_image_dir,
             staging,
             image_col=image_col,
             study_col=study_col,
+            view_col=view_col,
             indication_col=indication_col,
             link=link,
         )
-        print(f"[reportbench] staged {n} studies into {staging}")
+        print(f"[reportbench] staged {len(manifest['studies'])} studies into {staging}")
 
         client.ensure_configured()
         if check:
             client.check()
         client.prepare(staging, run_name)
+        if write_manifest:
+            # Written into the prepared run folder (after prepare, which wipes+recreates it).
+            manifest_path = os.path.join(client.run_dir(run_name), "manifest.json")
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f, indent=2)
+            print(f"[reportbench] wrote manifest for {len(manifest['studies'])} studies "
+                  f"→ {manifest_path}")
         client.submit(model, task, run_name)
         client.watch()
         client.results()
 
-    _verify_results(harmonized_df, resolved_results, study_col, result_filename)
+    _verify_results(harmonized_df, resolved_results, result_path)
     return resolved_results
-
-
-def _verify_results(
-    harmonized_df: pd.DataFrame,
-    results_dir: str,
-    study_col: str,
-    result_filename: str,
-) -> None:
-    """Fail early (with the missing study ids) if the join won't resolve."""
-    if not os.path.isdir(results_dir):
-        raise FileNotFoundError(
-            f"Results directory does not exist: {results_dir}. Pass results_dir= "
-            "if rbclient.py wrote results somewhere else."
-        )
-    missing: list[str] = []
-    for study_id in harmonized_df[study_col].astype(str).unique():
-        if not os.path.isfile(os.path.join(results_dir, study_id, result_filename)):
-            missing.append(study_id)
-    if missing:
-        preview = ", ".join(missing[:5])
-        raise FileNotFoundError(
-            f"{len(missing)}/{harmonized_df[study_col].nunique()} studies are "
-            f"missing {result_filename} under {results_dir} (e.g. {preview}). "
-            "Check that rbclient.py preserved the study-folder names and that the "
-            "job finished; override with results_dir= if needed."
-        )
 
 
 def DatathonEmbeddingDataset(
@@ -276,52 +362,60 @@ def DatathonEmbeddingDataset(
     *,
     client: ReportBenchClient,
     model: str,
-    run_name: str = "run_embeddings",
-    task: str = "embeddings",
+    run_name: str = "run_embed",
+    task: str = "embed",
     staging_dir: str | None = None,
     results_dir: str | None = None,
     image_col: str = "image_path",
     study_col: str = "study_id",
-    indication_col: str | None = None,
+    view_col: str = "view_position",
     link: bool = True,
     check: bool = False,
     skip_submit: bool = False,
+    emb_key: str = "global",
+    emb_ext: str = ".npz",
     label_cols: Sequence[str] | None = None,
     cache_dir: str | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> EmbeddingResultsDataset:
-    """Run the embeddings task through reportbench and return a ready dataset.
+    """Run the embed task through reportbench and return a ready dataset.
 
     Takes the same two inputs as an ordinary RadHarmony dataset — a harmonized
-    frame and the raw image root — stages the studies, submits the *embeddings*
-    task via :class:`ReportBenchClient`, waits for it, then returns an
-    :class:`EmbeddingResultsDataset` pointed at the ``<study>/embedding.npy``
-    results.
+    frame (**one row per image/view**) and the raw image root — stages the
+    studies, submits the *embed* task via :class:`ReportBenchClient`, waits, then
+    returns an :class:`EmbeddingResultsDataset` pointed at the per-image
+    ``<study>/<model>_<stem>.npz`` results (its ``global`` vector feeds the probe).
 
-    (This is a factory function, not a class: it does the submission work up
-    front and hands back the underlying :class:`EmbeddingResultsDataset`.)
+    The embed task submits **without a manifest** (views/indications don't affect
+    embeddings), so studies are scanned positionally and every image is embedded.
+
+    (This is a factory function, not a class: it does the submission work up front
+    and hands back the underlying :class:`EmbeddingResultsDataset`.)
 
     Args:
-        harmonized_df: One row per study, with ``study_col`` / ``image_col`` and
+        harmonized_df: One row per image, with ``study_col`` / ``image_col`` and
             the one-hot label columns (as produced by ``sample_data.ipynb``).
         base_image_dir: Root prepended to ``image_col`` to locate the raw images.
         client: Configured :class:`ReportBenchClient`.
         model: reportbench model id (e.g. ``"model-a"``). See ``client.models()``.
-        run_name: Submission/run name; results land in ``<data_dir>/<run_name>``.
-        task: reportbench task name for embeddings (default ``"embeddings"``).
+        run_name: Submission/run name; the run lands in ``<data_dir>/<run_name>``.
+        task: reportbench task name (default ``"embed"``).
         staging_dir: Where to build the per-study submission layout (default
             ``<data_dir>/.staging/<run_name>``).
         results_dir: Override the results directory (default
-            ``client.results_dir(run_name)``).
-        image_col, study_col: Column names in ``harmonized_df``.
-        indication_col: Optional column whose text is written as each study's
-            ``text.txt`` indication.
-        link: Symlink staged images (default) instead of copying.
+            ``<data_dir>/<run_name>/_reportbench_out/<model>``).
+        image_col, study_col, view_col: Column names in ``harmonized_df``.
+        link: Symlink staged images (default) instead of copying. ``prepare`` still
+            writes real copies into the run folder either way.
         check: Run ``rbclient.py check`` before submitting.
         skip_submit: Skip staging/submit/watch and reuse an existing
             ``results_dir`` (re-score a finished run).
+        emb_key: Which array to read from each ``.npz`` (default ``"global"``).
+        emb_ext: Embedding file extension (default ``".npz"``; ``".npy"`` for a
+            bare-array layout).
         label_cols, cache_dir, dtype: Forwarded to :class:`EmbeddingResultsDataset`.
     """
+    resolver = viewwise_embedding_path(model, ext=emb_ext)
     resolved = _run_reportbench(
         harmonized_df,
         base_image_dir,
@@ -333,15 +427,19 @@ def DatathonEmbeddingDataset(
         results_dir=results_dir,
         image_col=image_col,
         study_col=study_col,
-        indication_col=indication_col,
+        view_col=view_col,
+        indication_col=None,
         link=link,
         check=check,
         skip_submit=skip_submit,
-        result_filename="embedding.npy",
+        write_manifest=False,
+        result_path=resolver,
     )
     return EmbeddingResultsDataset(
         resolved,
         harmonized_df=harmonized_df,
+        result_path=resolver,
+        emb_key=emb_key,
         label_cols=list(label_cols) if label_cols is not None else None,
         cache_dir=cache_dir,
         dtype=dtype,
@@ -360,6 +458,7 @@ def DatathonReportDataset(
     results_dir: str | None = None,
     image_col: str = "image_path",
     study_col: str = "study_id",
+    view_col: str = "view_position",
     indication_col: str | None = None,
     link: bool = True,
     check: bool = False,
@@ -370,10 +469,17 @@ def DatathonReportDataset(
 
     The report-generation counterpart of :func:`DatathonEmbeddingDataset` (also a
     factory function, not a class): stages studies, submits the *report* task,
-    waits, then returns a :class:`ReportResultsDataset` pointed at the
-    ``<study>/report.txt`` results (its inline ``report`` column supplies the
-    reference text). See that function for the shared arguments.
+    waits, then returns a :class:`ReportResultsDataset` pointed at the per-study
+    ``<study>/<model>_report.txt`` results (the frame's inline ``report`` column
+    supplies the reference text). See that function for the shared arguments.
+
+    A study-keyed ``manifest.json`` is written **only when** ``indication_col`` is
+    given, so each study's indication is passed to the model as clinical context;
+    without it the job is submitted with no manifest (views positional). The frame
+    may have one row per image — it is de-duplicated to one row per study for
+    reference scoring.
     """
+    resolver = perstudy_report_path(model)
     resolved = _run_reportbench(
         harmonized_df,
         base_image_dir,
@@ -385,14 +491,18 @@ def DatathonReportDataset(
         results_dir=results_dir,
         image_col=image_col,
         study_col=study_col,
+        view_col=view_col,
         indication_col=indication_col,
         link=link,
         check=check,
         skip_submit=skip_submit,
-        result_filename="report.txt",
+        write_manifest=indication_col is not None,
+        result_path=resolver,
     )
+    ref_df = harmonized_df.drop_duplicates(study_col).copy()
     return ReportResultsDataset(
         resolved,
-        harmonized_df=harmonized_df,
+        harmonized_df=ref_df,
+        result_path=resolver,
         cache_dir=cache_dir,
     )

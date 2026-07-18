@@ -53,27 +53,38 @@ _NON_LABEL_COLS = frozenset(
 )
 
 
-def _load_npy(path, dtype=torch.float32):
-    """Load a saved embedding vector as a torch tensor (module-level → picklable)."""
+def _load_npy(path, dtype=torch.float32, key="global"):
+    """Load a saved embedding as a torch tensor (module-level → picklable).
+
+    Handles both a bare ``.npy`` array and the reportbench ``.npz`` archive. The
+    live service writes one ``.npz`` per image holding ``global`` (``[dim]`` — the
+    pooled image vector) and, when the model exposes them, ``patches``
+    (``[n_patches, dim]``). For an archive the ``key`` array is returned (default
+    ``"global"``); a bare ``.npy`` is returned as-is.
+    """
     arr = np.load(path)
+    if hasattr(arr, "files"):  # NpzFile archive (reportbench embed output)
+        arr = arr[key] if key in arr.files else arr[arr.files[0]]
     return torch.as_tensor(np.asarray(arr), dtype=dtype)
 
 
-def viewwise_embedding_path(model: str, ext: str = ".npy"):
-    """Build a ``result_path`` for the real reportbench per-view embedding layout.
+def viewwise_embedding_path(model: str, ext: str = ".npz"):
+    """Build a ``result_path`` for the real reportbench per-image embedding layout.
 
-    The service writes one embedding **per view** as
-    ``<study_id>/<model>_<view><ext>`` (e.g. ``.../model-a_pa.npy``), where the
-    view is the stem of the submitted image (``<study_id>/pa.dcm`` → ``pa``).
-    Pass the returned function as ``result_path=`` to
-    :class:`EmbeddingResultsDataset` and give one row per image.
+    The service writes one embedding **per image** as
+    ``<study_id>/<model>_<stem><ext>`` (e.g. ``.../model-a_pa.npz``), where the
+    stem is the basename of the submitted image (``<study_id>/pa.dcm`` → ``pa``).
+    Default ``ext`` is ``.npz`` (the live format — an archive with ``global`` /
+    ``patches``); pass ``ext=".npy"`` for a bare-array layout. Pass the returned
+    function as ``result_path=`` to :class:`EmbeddingResultsDataset` and give one
+    row per image.
     """
 
     def _fn(row):
         import os
 
-        view = os.path.splitext(os.path.basename(str(row["image_path"])))[0]
-        return f"{row['study_id']}/{model}_{view}{ext}"
+        stem = os.path.splitext(os.path.basename(str(row["image_path"])))[0]
+        return f"{row['study_id']}/{model}_{stem}{ext}"
 
     return _fn
 
@@ -137,6 +148,7 @@ class EmbeddingResultsDataset(BaseRadiologicalDataset):
         result_path=None,
         cache_dir: str | None = None,
         dtype: torch.dtype = torch.float32,
+        emb_key: str = "global",
         transform=None,
     ):
         if harmonized_df is None and csv_path is None:
@@ -153,7 +165,7 @@ class EmbeddingResultsDataset(BaseRadiologicalDataset):
         if transform is None:
             transform = mt.Compose(
                 [
-                    mt.Lambdad(keys="img", func=functools.partial(_load_npy, dtype=dtype)),
+                    mt.Lambdad(keys="img", func=functools.partial(_load_npy, dtype=dtype, key=emb_key)),
                     mt.ToTensord(keys=["cls"]),
                     mt.SelectItemsd(keys=["img", "cls"]),
                 ]
