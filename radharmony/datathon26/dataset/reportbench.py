@@ -176,6 +176,27 @@ class ReportBenchClient:
         """
         return os.path.join(self.data_dir, run_name, "_reportbench_out", model)
 
+    def ensure_output_writable(self, run_name: str, mode: int = 0o777) -> None:
+        """Pre-create ``<run>/_reportbench_out`` so the service can write results.
+
+        The service writes to ``<input>/_reportbench_out/<model>`` and often runs
+        as a **different user** than the one staging the batch. If the run folder
+        isn't writable by that user, its output ``mkdir`` fails and submit returns
+        403 (older servers: a bare 500). We create the output root ahead of time
+        and open its permissions (default world-writable — the batch already lives
+        under an unguessable, non-listable team path) so the service's per-model
+        ``mkdir`` succeeds regardless of who owns the run folder. Best-effort:
+        chmod failures (e.g. we don't own the dir) are ignored.
+        """
+        run_dir = self.run_dir(run_name)
+        out_root = os.path.join(run_dir, "_reportbench_out")
+        os.makedirs(out_root, exist_ok=True)
+        for d in (run_dir, out_root):
+            try:
+                os.chmod(d, mode)
+            except OSError:
+                pass
+
 
 def _study_view_labels(view_positions: Sequence) -> list[str]:
     """Map a study's ``view_position`` values to manifest labels (ap/pa/lateral/ll).
@@ -341,6 +362,9 @@ def _run_reportbench(
         if check:
             client.check()
         client.prepare(staging, run_name)
+        # Make sure the service (possibly a different user) can create outputs under
+        # the run folder — otherwise its output mkdir 403s / 500s.
+        client.ensure_output_writable(run_name)
         if write_manifest:
             # Written into the prepared run folder (after prepare, which wipes+recreates it).
             manifest_path = os.path.join(client.run_dir(run_name), "manifest.json")
