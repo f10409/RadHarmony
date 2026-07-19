@@ -5,6 +5,7 @@ from .report_dataset import ReportResultsDataset, perstudy_report_path
 from .seg_dataset import PatchSegResultsDataset
 from .reportbench import (
     DatathonEmbeddingDataset,
+    DatathonPatchEmbeddingDataset,
     DatathonReportDataset,
     ReportBenchClient,
 )
@@ -12,6 +13,7 @@ from .reportbench import (
 __all__ = [
     "DatathonEmbeddingDataset",
     "EmbeddingResultsDataset",
+    "DatathonPatchEmbeddingDataset",
     "DatathonReportDataset",
     "ReportResultsDataset",
     "PatchSegResultsDataset",
