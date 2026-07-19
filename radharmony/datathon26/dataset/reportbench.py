@@ -54,6 +54,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
 import subprocess
 from typing import Callable, Sequence
 
@@ -62,6 +63,7 @@ import torch
 
 from .embedding_dataset import EmbeddingResultsDataset, viewwise_embedding_path
 from .report_dataset import ReportResultsDataset, perstudy_report_path
+from .seg_dataset import PatchSegResultsDataset
 
 #: Raw ``view_position`` strings → the manifest's allowed labels (ap/pa/lateral/ll).
 _VIEW_ALIASES = {
@@ -102,6 +104,7 @@ class ReportBenchClient:
         python_exe: str = "python3",
         cwd: str | None = None,
         env: dict | None = None,
+        world_readable: bool = True,
     ):
         self.rbclient_path = os.path.abspath(rbclient_path)
         self.data_dir = os.path.abspath(data_dir)
@@ -109,6 +112,7 @@ class ReportBenchClient:
         self.python_exe = python_exe
         self.cwd = cwd or os.path.dirname(self.rbclient_path)
         self.env = env
+        self.world_readable = world_readable
         self._configured = False
 
     # ── low-level ────────────────────────────────────────────────────────
@@ -149,6 +153,33 @@ class ReportBenchClient:
         folder is rejected).
         """
         self._run("prepare", "--from", os.path.abspath(from_dir), "--name", name)
+
+    def make_world_readable(self, run_name: str) -> None:
+        """Add ``o+rX`` to the prepared run tree (and ``o+x`` to ``data_dir``).
+
+        ``rbclient.py prepare`` copies studies with the *prepare subprocess's*
+        umask — on shared systems commonly ``007``, which leaves the run and
+        study directories ``o---``. The reportbench service runs as a different
+        user and reads the batch over NFS, so those directories are untraversable
+        and ``submit`` fails with an opaque HTTP 500. Making the tree
+        world-readable is deterministic (unlike umask propagation into the
+        subprocess) and safe for the anonymized studies deposited here. Owner is
+        unchanged; only the "other" read/traverse bits are added.
+        """
+        def _add(path: str, bits: int) -> None:
+            try:
+                os.chmod(path, os.stat(path).st_mode | bits)
+            except OSError:
+                pass  # not owner / transient NFS error — leave as-is
+
+        _add(self.data_dir, stat.S_IXOTH)  # traverse into the batch root
+        root = self.run_dir(run_name)
+        _add(root, stat.S_IROTH | stat.S_IXOTH)
+        for dirpath, dirnames, filenames in os.walk(root):
+            for d in dirnames:
+                _add(os.path.join(dirpath, d), stat.S_IROTH | stat.S_IXOTH)
+            for f in filenames:
+                _add(os.path.join(dirpath, f), stat.S_IROTH)
 
     def submit(self, model: str, task: str, run_name: str) -> None:
         """Submit run ``run_name`` to ``model`` for ``task`` (``report``/``embed``)."""
@@ -372,6 +403,12 @@ def _run_reportbench(
                 json.dump(manifest, f, indent=2)
             print(f"[reportbench] wrote manifest for {len(manifest['studies'])} studies "
                   f"→ {manifest_path}")
+        if getattr(client, "world_readable", False):
+            # prepare copies with the subprocess umask (often o---); make the run
+            # tree traversable/readable so the service (a different user) can read
+            # it, else submit fails with an opaque HTTP 500. The output folder is
+            # handled separately by ensure_output_writable (called after prepare).
+            client.make_world_readable(run_name)
         client.submit(model, task, run_name)
         client.watch()
         client.results()
@@ -529,4 +566,93 @@ def DatathonReportDataset(
         harmonized_df=ref_df,
         result_path=resolver,
         cache_dir=cache_dir,
+    )
+
+
+def DatathonPatchEmbeddingDataset(
+    harmonized_df: pd.DataFrame,
+    base_image_dir: str,
+    *,
+    client: ReportBenchClient,
+    model: str,
+    run_name: str = "run_embed",
+    task: str = "embed",
+    staging_dir: str | None = None,
+    results_dir: str | None = None,
+    image_col: str = "image_path",
+    study_col: str = "study_id",
+    view_col: str = "view_position",
+    link: bool = True,
+    check: bool = False,
+    skip_submit: bool = False,
+    emb_ext: str = ".npz",
+    mask_col: str = "mask_path",
+    mask_dir: str | None = None,
+    grid_key: str = "grid",
+    mask_size: int | None = None,
+    feat_size: int | None = None,
+    cache_dir: str | None = None,
+    dtype: torch.dtype = torch.float32,
+) -> PatchSegResultsDataset:
+    """Run the embed task through reportbench and return a SEGMENTATION dataset.
+
+    The segmentation counterpart of :func:`DatathonEmbeddingDataset` (also a factory
+    function, not a class). It submits the **same** *embed* task — one ``.npz`` per
+    image holding ``global`` + ``patches`` (+ ``grid``) — but, instead of reading the
+    pooled ``global`` vector, returns a :class:`PatchSegResultsDataset` that folds
+    each image's ``patches`` into a dense ``[dim, H, W]`` feature map and serves it
+    with the ground-truth ``mask_col`` mask. Classification and segmentation therefore
+    share a single embed submission: run this with ``skip_submit=True`` +
+    ``results_dir=`` (or the same ``run_name``) to reuse a run you already embedded
+    for :func:`DatathonEmbeddingDataset`.
+
+    Args:
+        harmonized_df: One row per image, with ``study_col`` / ``image_col`` and a
+            segmentation-mask column (``mask_col``).
+        base_image_dir: Root prepended to ``image_col`` to locate the raw images.
+        client, model, run_name, task, staging_dir, results_dir, image_col,
+            study_col, view_col, link, check, skip_submit: as for
+            :func:`DatathonEmbeddingDataset`.
+        emb_ext: Embedding file extension (default ``".npz"``).
+        mask_col: Column holding each image's ground-truth mask path.
+        mask_dir: Root prepended to *relative* ``mask_col`` values (absolute paths
+            are used as-is). Masks resolve against this rather than
+            ``base_image_dir``/the embed outputs. ``None`` for absolute mask paths.
+        grid_key: ``.npz`` key with the patch grid ``(H, W)`` (default ``"grid"``).
+        mask_size: If set, masks are resized (nearest) to ``mask_size²``.
+        feat_size: If set, feature maps are resized to ``feat_size²`` — needed when
+            the patch grid varies per image.
+        cache_dir, dtype: Forwarded to :class:`PatchSegResultsDataset`.
+    """
+    resolver = viewwise_embedding_path(model, ext=emb_ext)
+    resolved = _run_reportbench(
+        harmonized_df,
+        base_image_dir,
+        client,
+        model=model,
+        task=task,
+        run_name=run_name,
+        staging_dir=staging_dir,
+        results_dir=results_dir,
+        image_col=image_col,
+        study_col=study_col,
+        view_col=view_col,
+        indication_col=None,
+        link=link,
+        check=check,
+        skip_submit=skip_submit,
+        write_manifest=False,
+        result_path=resolver,
+    )
+    return PatchSegResultsDataset(
+        resolved,
+        harmonized_df=harmonized_df,
+        result_path=resolver,
+        mask_col=mask_col,
+        mask_dir=mask_dir,
+        grid_key=grid_key,
+        mask_size=mask_size,
+        feat_size=feat_size,
+        cache_dir=cache_dir,
+        dtype=dtype,
     )

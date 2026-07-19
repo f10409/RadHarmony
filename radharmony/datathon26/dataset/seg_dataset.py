@@ -16,6 +16,7 @@ trains on the frozen patch features and is scored with Dice/IoU.
 from __future__ import annotations
 
 import functools
+import os
 
 import numpy as np
 import pandas as pd
@@ -76,7 +77,9 @@ def _load_mask(path, size=None, dtype=torch.float32):
     m = np.asarray(m)
     if m.ndim == 3:
         m = m[..., 0]
-    t = torch.as_tensor(m, dtype=dtype)
+    # .copy() → own the buffer: PIL/npz arrays are read-only, which warns under
+    # torch.from_numpy ("non-writable tensor").
+    t = torch.from_numpy(m.copy()).to(dtype)
     if size is not None:
         t = F.interpolate(t[None, None].float(), size=(size, size), mode="nearest")[0, 0].to(dtype)
     return t[None]  # [1, S, S]
@@ -95,6 +98,11 @@ class PatchSegResultsDataset(BaseRadiologicalDataset):
         result_path: Callable ``row -> relative .npz path`` under
             ``embeddings_dir`` (use ``viewwise_embedding_path(model)``).
         mask_col: Column holding each image's mask path (default ``"mask_path"``).
+        mask_dir: Root prepended to *relative* ``mask_col`` values (absolute paths
+            are used as-is). Masks live in their own tree — a sibling of the
+            reportbench embed outputs — so they resolve against ``mask_dir`` rather
+            than ``embeddings_dir``. Leave ``None`` when the column already holds
+            absolute paths.
         grid_key: ``.npz`` key with the patch grid ``(H, W)`` (default ``"grid"``).
         mask_size: If set, masks are resized (nearest) to ``mask_size²`` — makes
             them batchable and sets the probe's output resolution.
@@ -115,6 +123,7 @@ class PatchSegResultsDataset(BaseRadiologicalDataset):
         csv_path: str | None = None,
         result_path=None,
         mask_col: str = "mask_path",
+        mask_dir: str | None = None,
         grid_key: str = "grid",
         mask_size: int | None = None,
         feat_size: int | None = None,
@@ -129,6 +138,7 @@ class PatchSegResultsDataset(BaseRadiologicalDataset):
         self.dtype = dtype
         self._result_path = result_path
         self._mask_col = mask_col
+        self._mask_dir = mask_dir
 
         if transform is None:
             transform = mt.Compose(
@@ -163,4 +173,12 @@ class PatchSegResultsDataset(BaseRadiologicalDataset):
         # base emits 'mask' from the 'mask_path' column; honour a custom mask_col.
         if self._mask_col != "mask_path":
             df["mask_path"] = df[self._mask_col]
+        # get_data_dict passes non-image path columns through verbatim (no base
+        # join), so resolve relative mask paths against mask_dir here. Masks live
+        # in their own tree, separate from the embed outputs under embeddings_dir.
+        if self._mask_dir is not None and "mask_path" in df.columns:
+            root = self._mask_dir
+            df["mask_path"] = df["mask_path"].astype(str).map(
+                lambda p: p if os.path.isabs(p) else os.path.join(root, p)
+            )
         return df

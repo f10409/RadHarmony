@@ -13,6 +13,7 @@ shared registries (keys prefixed ``datathon26_``).
 
 from .dataset import (
     DatathonEmbeddingDataset,
+    DatathonPatchEmbeddingDataset,
     DatathonReportDataset,
     EmbeddingResultsDataset,
     PatchSegResultsDataset,
@@ -37,6 +38,7 @@ from .evaluator import (
 __all__ = [
     "DatathonEmbeddingDataset",
     "EmbeddingResultsDataset",
+    "DatathonPatchEmbeddingDataset",
     "DatathonReportDataset",
     "ReportResultsDataset",
     "PatchSegResultsDataset",
