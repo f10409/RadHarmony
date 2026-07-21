@@ -162,8 +162,8 @@ Worked examples in [`notebooks/`](notebooks/):
 
 | Notebook | Contents |
 |---|---|
-| [`tutorials/radharmony_hands_on.ipynb`](notebooks/tutorials/radharmony_hands_on.ipynb) | Gentle hands-on introduction — load a dataset, inspect labels / masks / VQA outputs, and pass it to a `DataLoader`; no prior ML experience assumed |
-| [`tutorials/radharmony_hands_on_evaluation.ipynb`](notebooks/tutorials/radharmony_hands_on_evaluation.ipynb) | Companion to the hands-on intro — evaluate foundation models two ways: a RAD-DINO linear probe (classification) and a CheXagent-2 generative VQA loop scored with lexical metrics |
+| [`datathon26/radharmony_hands_on.ipynb`](datathon26/radharmony_hands_on.ipynb) | Gentle hands-on introduction — load a dataset, inspect labels / masks / VQA outputs, and pass it to a `DataLoader`; no prior ML experience assumed |
+| [`datathon26/radharmony_hands_on_evaluation.ipynb`](datathon26/radharmony_hands_on_evaluation.ipynb) | Companion to the hands-on intro — evaluate foundation models two ways: a RAD-DINO linear probe (classification) and a CheXagent-2 generative VQA loop scored with lexical metrics |
 | [`tutorials/dataset_api_tour.ipynb`](notebooks/tutorials/dataset_api_tour.ipynb) | Full dataset-API tour: harmonizers, preprocessors, datasets, transforms, registry |
 | [`tutorials/custom_dataset_tutorial.ipynb`](notebooks/tutorials/custom_dataset_tutorial.ipynb) | Template for integrating a new dataset |
 | [`tutorials/evaluator_tutorial.ipynb`](notebooks/tutorials/evaluator_tutorial.ipynb) | End-to-end evaluator walkthrough: linear probe on VinDr-CXR with RAD-DINO |
