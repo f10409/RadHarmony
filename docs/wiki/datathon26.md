@@ -27,7 +27,7 @@ submit one yourself (§6).
 ## Workflow
 
 ```
-sample_data.ipynb           reportbench service              radharmony.datathon26
+batch preparation           reportbench service              radharmony.datathon26
 ─────────────────           ───────────────────              ─────────────────────
 sample + anonymize   ──►  submit a run              ──►  point a dataset at the
 6 CXR datasets            (embed / report task)          results dir + batch CSV
@@ -38,7 +38,7 @@ mapping.csv (private)       <study>/<model>_<stem>.npz
                             <study>/<model>_report.txt
 ```
 
-1. `datathon26/sample_data.ipynb` samples and anonymizes six harmonized CXR
+1. An internal batch-preparation step samples and anonymizes six harmonized CXR
    datasets (DS1=MIMIC-CXR, DS2=ReXGradient-160K, DS3=VinDr-CXR, DS4=EmoryCXR v2,
    DS5=PadChest, DS6=SIIM-ACR-PTX) into per-study submission folders
    (`DS1_patient_00001_study_00001/`), and writes the anonymized batch tables
