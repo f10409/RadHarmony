@@ -4,7 +4,7 @@ The datathon26 workflow submits anonymized studies to an external *reportbench*
 inference service; for the *embeddings* task the service writes one
 ``embedding.npy`` per study inside that study's folder::
 
-    <embeddings_dir>/<anon_study_id>/embedding.npy   # e.g. A_patient_00001_study_00001/
+    <embeddings_dir>/<anon_study_id>/embedding.npy   # e.g. DS1_patient_00001_study_00001/
 
 This dataset replaces image decoding with ``np.load`` of that vector, so the
 sample's ``"img"`` key carries the pre-extracted feature instead of a decoded
@@ -13,7 +13,7 @@ evaluators (linear / kNN / SVM / prototype probe) score the embeddings with no
 other change — the encoder forward pass becomes a pass-through.
 
 The study/label table is the anonymized batch frame produced by
-``datathon26/sample_data.ipynb`` (``dataset_{A..E}.csv``): one row per study,
+``datathon26/sample_data.ipynb`` (``dataset_{DS1..DS5}.csv``): one row per study,
 carrying the anonymized ``patient_id`` / ``study_id`` and the one-hot finding
 labels. Because that frame also carries free-text and demographic columns,
 label columns are auto-detected as the binary (0/1) numeric columns rather than
@@ -121,7 +121,7 @@ class EmbeddingResultsDataset(BaseRadiologicalDataset):
         harmonized_df: Anonymized batch frame (one row per study) with
             ``patient_id`` / ``study_id`` and one-hot label columns. Either this
             or ``csv_path`` is required.
-        csv_path: Path to ``dataset_{A..E}.csv`` (used when ``harmonized_df`` is
+        csv_path: Path to ``dataset_{DS1..DS5}.csv`` (used when ``harmonized_df`` is
             ``None``).
         label_cols: Explicit label columns. When ``None`` (default), the binary
             0/1 numeric columns are auto-detected.

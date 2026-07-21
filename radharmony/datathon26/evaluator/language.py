@@ -13,7 +13,7 @@ comparison is symmetric (findings-vs-findings by default).
 
 Usage::
 
-    ds = ReportResultsDataset(results_dir, csv_path="dataset_A.csv")
+    ds = ReportResultsDataset(results_dir, csv_path="dataset_DS1.csv")
     ev = DatathonReportGenerationEvaluator(dataset=ds, metrics=LIGHT_METRICS)
     results = ev.evaluate()
 """

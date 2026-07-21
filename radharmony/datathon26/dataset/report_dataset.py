@@ -56,7 +56,7 @@ class ReportResultsDataset(BaseRadiologicalDataset):
         harmonized_df: Anonymized batch frame (one row per study) with
             ``patient_id`` / ``study_id`` and an inline ``report`` column
             (reference text). Either this or ``csv_path`` is required.
-        csv_path: Path to ``dataset_{A..E}.csv`` (used when ``harmonized_df`` is
+        csv_path: Path to ``dataset_{DS1..DS5}.csv`` (used when ``harmonized_df`` is
             ``None``).
         result_path: Optional callable ``row -> relative path`` mapping each frame
             row to its predicted-report file under ``results_dir``. Defaults to

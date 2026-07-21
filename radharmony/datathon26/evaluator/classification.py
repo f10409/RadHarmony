@@ -11,7 +11,7 @@ bootstrap, threshold strategies, ``macro_average``, and the embedding cache.
 
 Usage::
 
-    ds = DatathonEmbeddingDataset(embeddings_dir, csv_path="dataset_A.csv")
+    ds = DatathonEmbeddingDataset(embeddings_dir, csv_path="dataset_DS1.csv")
     ev = DatathonLinearProbeEvaluator(dataset=ds, n_folds=5)
     results = ev.evaluate()
 """

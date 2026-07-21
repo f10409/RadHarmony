@@ -55,3 +55,8 @@ datathon26/sample_data.ipynb
 
 # Local, uncommitted dataset configs with real data paths (internal use)
 configs/local/
+
+# contains hardcoded reportbench API key — never commit
+datathon26/preextract_embeddings.py
+
+preextract.log
