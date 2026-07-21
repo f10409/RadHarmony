@@ -29,6 +29,12 @@ uv venv
 uv pip install -e .
 ```
 
+Next we need to register the Jupyter kernel.
+
+```bash
+python -m ipykernel install --user --name=RadHarmony
+```
+
 Python ≥ 3.10 required.
 
 ### Optional extras
