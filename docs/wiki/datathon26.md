@@ -30,20 +30,23 @@ submit one yourself (§6).
 sample_data.ipynb           reportbench service              radharmony.datathon26
 ─────────────────           ───────────────────              ─────────────────────
 sample + anonymize   ──►  submit a run              ──►  point a dataset at the
-5 CXR datasets            (embed / report task)          results dir + batch CSV
+6 CXR datasets            (embed / report task)          results dir + batch CSV
                                                                     │
-dataset_{A..E}.csv        writes under                             ▼
+dataset_{DS1..DS6}.csv    writes under                             ▼
 (labels + reports)        _reportbench_out/<model>/         evaluate() → metrics
 mapping.csv (private)       <study>/<model>_<stem>.npz
                             <study>/<model>_report.txt
 ```
 
-1. `datathon26/sample_data.ipynb` samples and anonymizes the five harmonized CXR
-   datasets (A=MIMIC, B=ReXGradient, C=VinDr, D=Emory, E=PadChest) into per-study
-   submission folders (`A_patient_00001_study_00001/`), and writes the anonymized
-   batch tables `dataset_{A..E}.csv` (one row per study, carrying the one-hot
-   finding **labels** and the free-text **report** ground truth) plus a private
-   `mapping.csv` de-anonymization key (never uploaded).
+1. `datathon26/sample_data.ipynb` samples and anonymizes six harmonized CXR
+   datasets (DS1=MIMIC-CXR, DS2=ReXGradient-160K, DS3=VinDr-CXR, DS4=EmoryCXR v2,
+   DS5=PadChest, DS6=SIIM-ACR-PTX) into per-study submission folders
+   (`DS1_patient_00001_study_00001/`), and writes the anonymized batch tables
+   `dataset_{DS1..DS6}.csv` (one row per study, carrying the one-hot finding
+   **labels** and the free-text **report** ground truth) plus a private
+   `mapping.csv` de-anonymization key (never uploaded). DS6 (SIIM-ACR-PTX) also
+   carries a pneumothorax `mask_path`, so it is the dataset the segmentation task
+   scores.
 2. The submission folder is sent to the reportbench service, which runs one of
    two tasks: **embed** or **report**. (The **embed** task submits without a
    manifest; the **report** task attaches a study-keyed `manifest.json` carrying
@@ -68,7 +71,7 @@ with one embedding `.npz` **per image** and one report **per study**:
 
 ```
 <results_dir>/<model>/                 # e.g. .../_reportbench_out/model-a/
-  A_patient_00018_study_00001/
+  DS1_patient_00018_study_00001/
     model-a_pa.npz       # embed task — one <model>_<stem>.npz per image
     model-a_lateral.npz  #   archive: global [dim] + patches [n, dim] + grid (H, W)
     model-a_report.txt   # report task — one <model>_report.txt per study
@@ -105,7 +108,7 @@ that submit a job and return an `EmbeddingResultsDataset` / `ReportResultsDatase
 `EmbeddingResultsDataset` auto-detects label columns as the binary (0/1)
 numeric columns in the batch frame, so free-text and demographic columns are
 never swept into the `cls` vector. The anonymized `patient_id`
-(`A_patient_00001`) is preserved so patient-grouped k-fold never splits one
+(`DS1_patient_00001`) is preserved so patient-grouped k-fold never splits one
 patient's studies across folds.
 
 ## Evaluators
@@ -146,7 +149,7 @@ from radharmony.datathon26 import (
 
 ds = EmbeddingResultsDataset(
     embeddings_dir="/path/to/_reportbench_out/model-a",  # <study>/model-a_<stem>.npz
-    csv_path="dataset_A.csv",                            # one row per image (labels)
+    csv_path="dataset_DS1.csv",                          # one row per image (labels)
     result_path=viewwise_embedding_path("model-a"),
 )
 
@@ -167,7 +170,7 @@ from radharmony.datathon26 import (
 
 ds = PatchSegResultsDataset(
     embeddings_dir="/path/to/_reportbench_out/model-a",  # <study>/model-a_<stem>.npz
-    csv_path="dataset_A.csv",                            # one row per image
+    csv_path="dataset_DS1.csv",                          # one row per image
     result_path=viewwise_embedding_path("model-a"),      # reads the .npz `patches`
     mask_col="mask_path",                                # GT mask per image
     mask_size=224,                                       # output resolution
@@ -194,7 +197,7 @@ from radharmony.evaluator.metrics.language import LIGHT_METRICS
 
 ds = ReportResultsDataset(
     results_dir="/path/to/_reportbench_out/model-a",  # <study>/model-a_report.txt
-    csv_path="dataset_A.csv",                         # one row per study; 'report' = reference
+    csv_path="dataset_DS1.csv",                       # one row per study; 'report' = reference
     result_path=perstudy_report_path("model-a"),
 )
 
