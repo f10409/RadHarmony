@@ -37,6 +37,13 @@ python -m ipykernel install --user --name=RadHarmony
 
 Python ≥ 3.10 required.
 
+### To automatically run all the installations including the jupyter kernels above, run the following instead:
+
+```bash
+chmod +x radharmony_venv_installation.sh
+./radharmony_venv_installation.sh
+```
+
 ### Optional extras
 
 The base install gives you the dataset API. Install extras for models, notebooks, or the Gradio app:
