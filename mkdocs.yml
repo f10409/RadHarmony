@@ -71,6 +71,7 @@ nav:
     - MIMIC-Ext-CXR-QBA: datasets/mimic_ext_cxr_qba.md
     - ROCO: datasets/roco.md
     - EmoryCXR v2: datasets/emory_cxr.md
+    - Emory CHORUS (X-ray subset): datasets/emory_chorus.md
     - MS-CXR: datasets/ms_cxr.md
     - MS-CXR-T: datasets/ms_cxr_t.md
   - Dataset API:

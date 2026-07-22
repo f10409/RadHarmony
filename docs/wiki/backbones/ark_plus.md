@@ -64,7 +64,7 @@ transform, encoder = make_ark_plus(
 from radharmony.evaluator.backbones import make_ark_plus
 from radharmony.dataset import VinDrCXRTrainDataset
 
-transform, encoder = make_ark_plus(device="cuda:0")
+transform, encoder = make_ark_plus(device="cuda:0", output_keys={"img", "cls"})
 
 ds = VinDrCXRTrainDataset(
     base_image_dir="/data/vindr/train/",
@@ -77,8 +77,19 @@ ds = VinDrCXRTrainDataset(
 ## Segmentation mode
 
 ```python
+from radharmony.dataset import SIIMACRPTXTrainDataset
+
 transform, encoder = make_ark_plus(device="cuda:0", output_keys={"img", "mask"})
 # forward(x) -> Tensor[B, 1536, 24, 24]   (stride 32 -> 768/32 = 24)
+
+ds = SIIMACRPTXTrainDataset(
+    base_image_dir="/data/siim-acr-ptx/dicom-images-train/",
+    csv_path="/data/siim-acr-ptx/train-rle.csv",
+    transform=transform,
+    mask_output_dir="/tmp/cache/siim_ptx_masks/",
+    output_mask=True,
+    cache_dir="/tmp/cache/ark_plus_seg/",
+)
 ```
 
 Captured from the final `model.norm` LayerNorm via a forward hook on the Swin

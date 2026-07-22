@@ -25,7 +25,7 @@ Weights are auto-downloaded from HuggingFace on first call.
 from radharmony.evaluator.backbones import make_chexagent
 from radharmony.dataset import VinDrCXRTrainDataset
 
-transform, image_encoder, text_encoder, processor = make_chexagent(device="cuda:0")
+transform, image_encoder, text_encoder, processor = make_chexagent(device="cuda:0", output_keys={"img", "cls"})
 
 ds = VinDrCXRTrainDataset(
     base_image_dir="/data/vindr/train/",
@@ -41,6 +41,17 @@ all four.
 ## Segmentation mode
 
 ```python
+from radharmony.dataset import SIIMACRPTXTrainDataset
+
 transform, image_encoder, *_ = make_chexagent(device="cuda:0", output_keys={"img", "mask"})
 # image_encoder(x) -> Tensor[B, 1024, 32, 32]   (512 / 16 = 32)
+
+ds = SIIMACRPTXTrainDataset(
+    base_image_dir="/data/siim-acr-ptx/dicom-images-train/",
+    csv_path="/data/siim-acr-ptx/train-rle.csv",
+    transform=transform,
+    mask_output_dir="/tmp/cache/siim_ptx_masks/",
+    output_mask=True,
+    cache_dir="/tmp/cache/chexagent_seg/",
+)
 ```

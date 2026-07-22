@@ -1,6 +1,6 @@
 # Datasets
 
-RadHarmony supports 43 dataset configurations across 34 underlying datasets. Click a dataset name for the full page (constructor args, harmonizer notes, label columns).
+RadHarmony supports 44 dataset configurations across 35 underlying datasets. Click a dataset name for the full page (constructor args, harmonizer notes, label columns).
 
 ## Inventory
 
@@ -47,6 +47,7 @@ RadHarmony supports 43 dataset configurations across 34 underlying datasets. Cli
 | MIMIC-Ext-CXR-QBA | CXR | 2D | n/a (VQA over MIMIC-CXR) | question, answer | [→](datasets/mimic_ext_cxr_qba.md) |
 | ROCO | Multimodal | 2D | n/a (captioning) | question (empty), answer, keywords | [→](datasets/roco.md) |
 | EmoryCXR v2 | CXR | 2D | 14 pathologies | cls, report | [→](datasets/emory_cxr.md) |
+| Emory CHORUS (X-ray subset) | CXR | 2D | none (image-only) | img | [→](datasets/emory_chorus.md) |
 | MS-CXR | CXR | 2D | 8 findings + phrase grounding | cls, bbox | [→](datasets/ms_cxr.md) |
 | MS-CXR-T | CXR | 2D | temporal progression (5 findings) | previous_img | [→](datasets/ms_cxr_t.md) |
 

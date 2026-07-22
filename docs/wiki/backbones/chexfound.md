@@ -54,7 +54,7 @@ transform, encoder = make_chexfound(
 from radharmony.evaluator.backbones import make_chexfound
 from radharmony.dataset import VinDrCXRTrainDataset
 
-transform, encoder = make_chexfound(device="cuda:0")
+transform, encoder = make_chexfound(device="cuda:0", output_keys={"img", "cls"})
 
 ds = VinDrCXRTrainDataset(
     base_image_dir="/data/vindr/train/",
@@ -67,8 +67,19 @@ ds = VinDrCXRTrainDataset(
 ## Segmentation mode
 
 ```python
+from radharmony.dataset import SIIMACRPTXTrainDataset
+
 transform, encoder = make_chexfound(device="cuda:0", output_keys={"img", "mask"})
 # forward(x) -> Tensor[B, 1024, 32, 32]   (512 / 16 = 32)
+
+ds = SIIMACRPTXTrainDataset(
+    base_image_dir="/data/siim-acr-ptx/dicom-images-train/",
+    csv_path="/data/siim-acr-ptx/train-rle.csv",
+    transform=transform,
+    mask_output_dir="/tmp/cache/siim_ptx_masks/",
+    output_mask=True,
+    cache_dir="/tmp/cache/chexfound_seg/",
+)
 ```
 
 `get_intermediate_layers` strips CLS + register tokens; the recipe uses

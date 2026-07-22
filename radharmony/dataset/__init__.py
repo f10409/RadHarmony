@@ -83,6 +83,7 @@ from .transforms import RadiologyTransform2D, RadiologyTransform3D
 from .vindr_cxr import VinDrCXRTrainDataset, VinDrCXRTestDataset
 from .vindr_pcxr import VinDrPCXRDataset
 from .emory_cxr import EmoryCXRDataset
+from .emory_chorus import EmoryCHORUSDataset
 from .ms_cxr import MSCXRDataset, MSCXRTDataset
 
 __all__ = [
@@ -149,6 +150,7 @@ __all__ = [
     "VinDrCXRTestDataset",
     "VinDrPCXRDataset",
     "EmoryCXRDataset",
+    "EmoryCHORUSDataset",
     "MSCXRDataset",
     "MSCXRTDataset",
     "RadiologyTransform2D",

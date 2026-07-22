@@ -82,6 +82,7 @@ from .taix_ray import TAIXRayHarmonizer
 from .vindr_cxr import VinDrCXRTrainHarmonizer, VinDrCXRTestHarmonizer
 from .vindr_pcxr import VinDrPCXRHarmonizer
 from .emory_cxr import EmoryCXRHarmonizer
+from .emory_chorus import EmoryCHORUSHarmonizer
 from .ms_cxr import MSCXRHarmonizer
 from .ms_cxr_t import MSCXRTHarmonizer
 
@@ -147,6 +148,7 @@ __all__ = [
     "VinDrCXRTestHarmonizer",
     "VinDrPCXRHarmonizer",
     "EmoryCXRHarmonizer",
+    "EmoryCHORUSHarmonizer",
     "MSCXRHarmonizer",
     "MSCXRTHarmonizer",
 ]

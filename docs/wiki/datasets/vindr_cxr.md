@@ -36,7 +36,7 @@ Both `VinDrCXRTrainDataset` and `VinDrCXRTestDataset` share the same signature:
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
 | `base_image_dir` | `str` | Yes | — | Split-specific dir — `train/` or `test/` — flat directory of `<image_id>.dicom` files (e.g. `/data/VinDr-CXR/vindr-cxr/1.0.0/train/`) |
-| `csv_path` | `str` | No | auto | Image-level labels CSV; auto-discovered |
+| `csv_path` | `str` | No | auto | Image-level labels CSV — `image_labels_train.csv` (train) / `image_labels_test.csv` (test); auto-discovered under `base_image_dir`, then sibling dirs |
 | `bbox_csv_path` | `str` | No | auto | Bounding box annotations CSV; auto-discovered |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Include `"mask"` in data dict |
