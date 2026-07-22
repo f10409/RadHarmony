@@ -9,8 +9,8 @@ Usage::
     from radharmony.dataset import EmoryCHORUSDataset
 
     ds = EmoryCHORUSDataset(
-        base_image_dir="/mnt/NAS4/datasets/internal/Emory_CHORUS/images_dicom_xray",
-        manifest_csv_path="/mnt/NAS4/datasets/internal/Emory_CHORUS/chorus_xray_manifest.csv",
+        base_image_dir="/path/to/Emory_CHORUS/images_dicom_xray",
+        manifest_csv_path="/path/to/Emory_CHORUS/chorus_xray_manifest.csv",
     )
 
 The first construction scans the DICOM tree and writes ``manifest_csv_path``;
