@@ -74,6 +74,7 @@ h = MIMICCXRHarmonizer(
     dicom_base_dir="/data/mimic-cxr/2.1.0/files/",
     label_csv_path="/data/mimic-cxr-jpg/2.0.0/mimic-cxr-2.0.0-chexpert.csv",
     report_csv_path="/data/mimic-cxr/2.1.0/cxr-study-list.csv.gz",
+    report_base_dir="/data/mimic-cxr/2.1.0/files/",
 )
 df = h.harmonize()
 print(df.columns.tolist())

@@ -58,5 +58,7 @@ configs/local/
 
 # contains hardcoded reportbench API key — never commit
 datathon26/preextract_embeddings.py
+# one-shot repair companion to the driver — keep the reportbench tooling untracked
+datathon26/repair_missing_embeddings.py
 
 preextract.log
