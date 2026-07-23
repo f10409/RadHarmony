@@ -18,6 +18,11 @@ for name in "${!envs[@]}"; do
   echo "=== ${name}: installing extras [${extras}] ==="
   uv pip install -e ".[${extras}]" --python "${py}"
 
+  if [[ "${name}" == "medgemma" ]]; then
+    echo "=== ${name}: installing extras [radeval] ==="
+    uv pip install -e ".[radeval]" --python "${py}"
+  fi
+
   echo "=== ${name}: installing ipykernel ==="
   uv pip install ipykernel --python "${py}"
 
