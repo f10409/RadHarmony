@@ -171,13 +171,11 @@ See the [Datasets inventory](https://f10409.github.io/RadHarmony/datasets.html) 
 
 ## Notebooks
 
-Worked examples in [`notebooks/`](notebooks/):
+Worked examples in [`datathon26/`](datathon26/) and [`notebooks/`](notebooks/):
 
 | Notebook | Contents |
 |---|---|
-| [`datathon26/radharmony_hands_on.ipynb`](datathon26/radharmony_hands_on.ipynb) | Gentle hands-on introduction — load a dataset, inspect labels / masks / VQA outputs, and pass it to a `DataLoader`; no prior ML experience assumed |
-| [`datathon26/radharmony_hands_on_evaluation.ipynb`](datathon26/radharmony_hands_on_evaluation.ipynb) | Companion to the hands-on intro — evaluate a foundation model (MedSigLIP / MedGemma) four ways: linear probe, segmentation probe, VQA, and report generation, each with a "try it yourself" model/dataset swap |
-| [`datathon26/radharmony_hands_on_evaluation_solutions.ipynb`](datathon26/radharmony_hands_on_evaluation_solutions.ipynb) | Answer key for the evaluation notebook — the same cells with every "try it yourself" blank filled in |
+| [`datathon26/`](datathon26/README.md) | Guided workshop — a numbered sequence (`0_setup` → `8_build_your_own`) covering environment + Hugging Face setup, loading and inspecting datasets, adding a custom/new dataset, linear and segmentation probes, VQA and report generation, and a build-your-own template. Participant notebooks with paired answers in [`datathon26/solutions/`](datathon26/solutions/); start from [`datathon26/README.md`](datathon26/README.md) |
 | [`tutorials/dataset_api_tour.ipynb`](notebooks/tutorials/dataset_api_tour.ipynb) | Full dataset-API tour: harmonizers, preprocessors, datasets, transforms, registry |
 | [`tutorials/custom_dataset_tutorial.ipynb`](notebooks/tutorials/custom_dataset_tutorial.ipynb) | Template for integrating a new dataset |
 | [`tutorials/evaluator_tutorial.ipynb`](notebooks/tutorials/evaluator_tutorial.ipynb) | End-to-end evaluator walkthrough: linear probe on VinDr-CXR with RAD-DINO |
