@@ -71,4 +71,14 @@ datathon26/repair_missing_embeddings.py
 # DUA). Keep the folder local; never commit it.
 datathon26/data/
 
+# scaffolding the add-dataset hands-on notebooks generate locally (my_montgomery,
+# my_mimic). These are throwaway examples participants build by running the
+# notebooks; keep them out of the package. Never commit.
+configs/datasets/my_montgomery.json
+configs/datasets/my_mimic.json
+radharmony/harmonizer/my_montgomery/
+radharmony/harmonizer/my_mimic/
+radharmony/dataset/my_montgomery/
+radharmony/dataset/my_mimic/
+
 preextract.log

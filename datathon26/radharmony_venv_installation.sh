@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+# Run from the repo root so `uv pip install -e .` finds pyproject.toml and the
+# venvs are created there, no matter which directory the notebook launches from.
+cd "$(dirname "$0")/.."
+
 declare -A envs=(
   ["medgemma"]="medsiglip,medgemma_gen"
   ["chexagent"]="chexagent_gen"

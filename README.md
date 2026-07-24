@@ -195,4 +195,5 @@ RadHarmony is developed and maintained by the [HITI Lab](https://www.hitilab.com
 - **Bardia Khosravi** ([@BardiaKh](https://github.com/BardiaKh))
 - **Judy Gichoya** ([@judywawira](https://github.com/judywawira))
 - **Reza Chavoshi**
+- **Theo Dapamede** ([@theodapamede](https://github.com/theodapamede))
 - and other members of the HITI Lab, Emory University.
