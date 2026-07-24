@@ -18,20 +18,32 @@ Score per label:
 ```python
 from radharmony.evaluator import ZeroShotEvaluator
 from radharmony.evaluator.backbones import make_biomed_clip
+from radharmony.dataset import VinDrCXRTestDataset
 
 transform, encoder, text_encoder, tokenizer = make_biomed_clip(device="cuda")
+
+# VinDr-CXR test split (carries both pneumothorax and cardiomegaly labels).
+# Pass the recipe's transform so preprocessing matches the encoder.
+ds = VinDrCXRTestDataset(
+    base_image_dir="/mnt/NAS4/datasets/external/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/test/",
+    transform=transform,
+    output_cls=True,
+    cache_dir=None,
+)
 
 ev = ZeroShotEvaluator(
     image_encoder=encoder,
     text_encoder=text_encoder,
     tokenizer=tokenizer,
-    test_dataset=test_ds,
+    dataset=ds,
     prompts={
         "pneumothorax": ["a chest X-ray showing pneumothorax", "pneumothorax present"],
         "cardiomegaly": ["a chest X-ray showing cardiomegaly"],
     },
     negative_prompts={
         "pneumothorax": ["a normal chest X-ray without pneumothorax"],
+        # cardiomegaly is left out on purpose: labels absent here fall back to
+        # positive-prompt-only scoring (see Notes).
     },
     n_bootstrap=100,
 )
@@ -50,7 +62,7 @@ ev = ZeroShotEvaluator(
     image_encoder=lambda x: model.encode_image(x),
     text_encoder=lambda toks: model.encode_text(toks),
     tokenizer=tokenizer,
-    test_dataset=test_ds,
+    dataset=ds,  # the VinDrCXRTestDataset built above
     prompts={"pneumothorax": ["a chest X-ray showing pneumothorax"]},
 )
 ```

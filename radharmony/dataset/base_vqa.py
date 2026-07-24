@@ -15,10 +15,13 @@ Multi-image studies (where one question spans multiple views) are deferred
 to Phase 2 along with a custom collate fn.
 """
 
+from __future__ import annotations
+
 import os
 import pandas as pd
 import torch
 import monai as mn
+import monai.transforms  # noqa: F401  (ensure mn.transforms is bound regardless of import order)
 
 from radharmony.utils.data_utils import split_data, kfold_splits
 from .transforms import _base_load_2d
