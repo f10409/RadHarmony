@@ -65,6 +65,8 @@ configs/local/
 datathon26/preextract_embeddings.py
 # one-shot repair companion to the driver — keep the reportbench tooling untracked
 datathon26/repair_missing_embeddings.py
+# local data-prep utility for the private CXR batch tables — keep untracked
+datathon26/filter_multi_image_studies.ipynb
 
 # toy datasets for the hands-on notebooks are distributed to participants out of
 # band, not through git (and mimic_cxr_toy is credentialed PhysioNet data under a
