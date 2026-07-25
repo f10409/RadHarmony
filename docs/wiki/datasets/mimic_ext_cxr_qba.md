@@ -12,7 +12,7 @@ This dataset uses `BaseVQADataset` rather than `BaseRadiologicalDataset`. The da
 
 Available from [PhysioNet: MIMIC-Ext-CXR-QBA](https://physionet.org/content/mimic-ext-cxr-qba/1.0.0/). Requires CITI training and signed DUA (also covers MIMIC-CXR access for the underlying images).
 
-Expected layout:
+## Expected layout
 
 ```
 mimic-cxr/
@@ -83,7 +83,7 @@ ds = MIMICExtCXRQBADataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import MIMICExtCXRQBAHarmonizer

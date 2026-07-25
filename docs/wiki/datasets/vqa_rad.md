@@ -27,7 +27,7 @@ curl -sL -o "VQA_RAD Image Folder.zip" \
 unzip -q "VQA_RAD Image Folder.zip" -d "VQA_RAD Image Folder"
 ```
 
-Expected layout:
+## Expected layout
 
 ```
 VQA-RAD/
@@ -100,7 +100,7 @@ test_ds = VQARadDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import VQARadHarmonizer

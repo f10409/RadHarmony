@@ -29,7 +29,12 @@ Authoritative primary source: BIMCV (Barcelona Supercomputing Center /
 Universitat Politècnica de València). Do not use third-party Kaggle
 mirrors — they are partial re-uploads.
 
-Expected layout after extracting each `N.zip` into `images/N/`:
+The PNGs live in 52 sibling subdirectories under `images/`. This is the
+same structural-exception pattern as ChestX-ray14's `images_001/.../images_012/`:
+`base_image_dir` is the deepest stable directory (`images/`) and the
+relative `image_path` carries the subdir name (`<ImageDir>/<ImageID>`).
+
+## Expected layout
 
 ```
 PadChest/
@@ -44,11 +49,6 @@ PadChest/
     50/  1 PNG       (legitimate — see notes)
     54/  4297 PNGs   (catch-all; slots 51/52/53 don't exist)
 ```
-
-The PNGs live in 52 sibling subdirectories under `images/`. This is the
-same structural-exception pattern as ChestX-ray14's `images_001/.../images_012/`:
-`base_image_dir` is the deepest stable directory (`images/`) and the
-relative `image_path` carries the subdir name (`<ImageDir>/<ImageID>`).
 
 ## Label columns
 
@@ -124,7 +124,7 @@ ds = PadChestDataset(
 train_ds, val_ds = ds.get_datasets(n_splits=5)
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import PadChestHarmonizer

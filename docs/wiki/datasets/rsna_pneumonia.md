@@ -10,7 +10,10 @@ The RSNA Pneumonia Detection Challenge dataset (2018) contains 26,684 chest X-ra
 
 Available from the [RSNA website](https://www.rsna.org/education/ai-resources-and-training/ai-image-challenge/RSNA-Pneumonia-Detection-Challenge-2018).
 
-Expected layout:
+This release uses a three-level UID hierarchy (study / series / SOP),
+unlike the flat Kaggle layout.
+
+## Expected layout
 
 ```
 rsna/
@@ -19,9 +22,6 @@ rsna/
     <SeriesInstanceUID>/
       <SOPInstanceUID>.dcm
 ```
-
-This release uses a three-level UID hierarchy (study / series / SOP),
-unlike the flat Kaggle layout.
 
 ## Label columns
 
@@ -69,7 +69,7 @@ ds = RSNAPneumoniaDataset(
 train_ds, val_ds = ds.get_datasets(n_splits=5)
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import RSNAPneumoniaHarmonizer

@@ -14,7 +14,7 @@ TAIX-Ray is a **German bedside intensive-care CXR dataset** from **University Ho
 
 Available from [HuggingFace: TLAIM/TAIX-Ray](https://huggingface.co/datasets/TLAIM/TAIX-Ray). Images are expected in a flat `images/` directory with an `annotation.csv`.
 
-Expected layout:
+## Expected layout
 
 ```
 TAIX-Ray/
@@ -96,7 +96,7 @@ ds = TAIXRayDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import TAIXRayHarmonizer

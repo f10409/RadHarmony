@@ -10,7 +10,7 @@ MIMIC-CXR is a large publicly available dataset of chest radiographs in DICOM fo
 
 Available at [PhysioNet: MIMIC-CXR](https://physionet.org/content/mimic-cxr/). Requires CITI training and signed DUA.
 
-Expected layout:
+## Expected layout
 
 ```
 mimic-cxr/2.1.0/
@@ -70,7 +70,7 @@ ds = MIMICCXRDataset(
 train_ds, val_ds = ds.get_datasets(n_splits=5)
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import MIMICCXRHarmonizer

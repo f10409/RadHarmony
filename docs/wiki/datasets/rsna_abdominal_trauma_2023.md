@@ -12,7 +12,7 @@ Patient-level labels are replicated across all series belonging to the same pati
 
 Available at [Kaggle — RSNA 2023 Abdominal Trauma Detection](https://www.kaggle.com/competitions/rsna-2023-abdominal-trauma-detection).
 
-Expected layout:
+## Expected layout
 
 ```
 rsna-2023-abdominal-trauma-detection/
@@ -89,7 +89,7 @@ train_ds, val_ds = ds.get_datasets(n_splits=5)
 
 There is no separate test-split dataset class — the competition test images have no public labels. To load test volumes for inference, point `base_image_dir` at `test_images/` and omit `csv_path`.
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import RSNAAbdominalTrauma2023Harmonizer

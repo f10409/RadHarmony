@@ -10,7 +10,7 @@ VinDr-CXR is a large-scale chest X-ray dataset from Vietnam containing 18,000 CX
 
 Available from [PhysioNet: VinDr-CXR](https://physionet.org/content/vindr-cxr/1.0.0/). Requires CITI training and signed DUA.
 
-Expected layout:
+## Expected layout
 
 ```
 vindr-cxr/1.0.0/
@@ -84,7 +84,7 @@ ds = VinDrCXRTestDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import VinDrCXRTrainHarmonizer

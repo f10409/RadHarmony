@@ -13,6 +13,8 @@ Available from the [RSNA website](https://www.rsna.org/artificial-intelligence/a
 Expected layout — train and val are separate downloads and each takes its
 own `base_image_dir`. They do not have to share a parent directory.
 
+## Expected layout
+
 Train (one ZIP):
 ```
 <train base_image_dir>/                 # e.g. boneage-training-dataset/
@@ -92,7 +94,7 @@ ds_val = RSNABoneAgeValDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import RSNABoneAgeTrainHarmonizer

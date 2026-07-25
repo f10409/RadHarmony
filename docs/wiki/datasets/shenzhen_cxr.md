@@ -154,7 +154,7 @@ fused PNG. The loop is idempotent — existing PNGs are not rewritten.
 
 Passing `output_mask=True` without `mask_output_dir` raises `ValueError`.
 
-## Usage
+## Dataset constructor
 
 ```python
 from radharmony.dataset import ShenzhenCXRDataset

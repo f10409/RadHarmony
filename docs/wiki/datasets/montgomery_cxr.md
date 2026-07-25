@@ -14,26 +14,6 @@ Available from the LHNCBC Tuberculosis Chest X-ray Datasets collection:
 
 > https://data.lhncbc.nlm.nih.gov/public/Tuberculosis-Chest-X-ray-Datasets/Montgomery-County-CXR-Set/
 
-After download, the expected layout is:
-
-```
-MontgomerySet/
-  CXR_png/                   # base_image_dir points here
-    MCUCXR_0001_0.png        # normal  (suffix _0)
-    MCUCXR_0001_1.png        # TB      (suffix _1)
-    ...
-  ManualMask/                # sibling of CXR_png/
-    leftMask/
-      MCUCXR_0001_0.png
-      ...
-    rightMask/
-      MCUCXR_0001_0.png
-      ...
-  ClinicalReadings/          # sibling of CXR_png/
-    MCUCXR_0001_0.txt        # one file per patient
-    ...
-```
-
 `base_image_dir` points at the `CXR_png/` images directory itself — the
 last common folder containing every image (matching the convention used by
 other RadHarmony datasets). `ClinicalReadings/` and `ManualMask/` are read
@@ -54,13 +34,33 @@ unzip -q MontgomerySet.zip
 If the zip URL redirects or is unavailable, visit the index page and follow the download link:
 > https://data.lhncbc.nlm.nih.gov/public/Tuberculosis-Chest-X-ray-Datasets/Montgomery-County-CXR-Set/index.html
 
+## Expected layout
+
+```
+MontgomerySet/
+  CXR_png/                   # base_image_dir points here
+    MCUCXR_0001_0.png        # normal  (suffix _0)
+    MCUCXR_0001_1.png        # TB      (suffix _1)
+    ...
+  ManualMask/                # sibling of CXR_png/
+    leftMask/
+      MCUCXR_0001_0.png
+      ...
+    rightMask/
+      MCUCXR_0001_0.png
+      ...
+  ClinicalReadings/          # sibling of CXR_png/
+    MCUCXR_0001_0.txt        # one file per patient
+    ...
+```
+
 ## Label columns
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `tuberculosis` | int (0/1) | Tuberculosis status — 0 = normal, 1 = TB-positive |
 
-## Extra columns
+## Extra metadata columns
 
 | Column | Description |
 |--------|-------------|
@@ -114,7 +114,7 @@ not rewritten on subsequent runs.
 
 Passing `output_mask=True` without `mask_output_dir` raises `ValueError`.
 
-## Usage
+## Dataset constructor
 
 ```python
 from radharmony.harmonizer import MontgomeryCXRHarmonizer
@@ -136,7 +136,7 @@ ds = MontgomeryCXRDataset(
 )
 ```
 
-## Notes
+## Harmonizer notes
 
 - The filename suffix (`_0` / `_1`) encodes TB status; this is the
   authoritative source of the `tuberculosis` label.

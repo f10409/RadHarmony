@@ -10,7 +10,12 @@ CheXpert-Plus is an extension of the original CheXpert dataset that pairs de-ide
 
 Available from the [Stanford AIMI Shared Datasets](https://stanfordaimi.azurewebsites.net/datasets/5158c524-d3ab-4e02-96e9-6ee9efc110a1) page. Requires registration.
 
-Expected layout (after extracting the DICOM tarball):
+The metadata CSV's `path_to_dcm` column stores paths like
+`train/patient42142/study5/view1_frontal.dcm`, so `base_image_dir` must be
+the directory that has `train/` and `valid/` as immediate subdirectories
+— i.e. `DICOM/Uncompressed/` for the official DICOM release.
+
+## Expected layout
 
 ```
 chexpertplus/
@@ -30,11 +35,6 @@ chexpertplus/
   PNG/
     png_chexpert_plus_chunk_*.zip   # PNG ships as zipped chunks
 ```
-
-The metadata CSV's `path_to_dcm` column stores paths like
-`train/patient42142/study5/view1_frontal.dcm`, so `base_image_dir` must be
-the directory that has `train/` and `valid/` as immediate subdirectories
-— i.e. `DICOM/Uncompressed/` for the official DICOM release.
 
 ## Label columns
 
@@ -82,7 +82,7 @@ ds = CheXpertPlusDataset(
 train_ds, val_ds = ds.get_datasets(n_splits=5)
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import CheXpertPlusHarmonizer

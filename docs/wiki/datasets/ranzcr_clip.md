@@ -17,7 +17,7 @@ import kagglehub
 path = kagglehub.competition_download("ranzcr-clip-catheter-line-classification")
 ```
 
-Expected layout:
+## Expected layout
 
 ```
 ranzcr-clip-catheter-line-classification/
@@ -127,7 +127,7 @@ train_ds, val_ds = ds.get_datasets(n_splits=10)
 !!! note
     Polyline annotations only cover a subset of training images. Images without annotations will have `NaN` for `mask_path` and no `"mask"` key in their data dict.
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import RANZCRClipHarmonizer

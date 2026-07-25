@@ -174,7 +174,7 @@ ds = ReXGradientTestDataset(
 test_ds = ds.get_datasets()   # 17,029 samples
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import ReXGradientValidHarmonizer

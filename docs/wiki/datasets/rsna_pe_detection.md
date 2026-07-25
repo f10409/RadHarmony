@@ -10,7 +10,7 @@ The RSNA-STR Pulmonary Embolism Detection Challenge (2020) dataset contains CT p
 
 Available on [Kaggle: RSNA STR Pulmonary Embolism Detection](https://www.kaggle.com/c/rsna-str-pulmonary-embolism-detection). Requires Kaggle account.
 
-Expected layout:
+## Expected layout
 
 ```
 rsna_pe_dataset/
@@ -91,7 +91,7 @@ ds = RSNAPEDetectionTestDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import RSNAPEDetectionTrainHarmonizer

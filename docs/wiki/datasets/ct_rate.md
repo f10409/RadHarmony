@@ -10,7 +10,7 @@ CT-RATE is a large-scale chest CT dataset containing 50,188 non-contrast chest C
 
 Available on [HuggingFace: ibrahimhamamci/CT-RATE](https://huggingface.co/datasets/ibrahimhamamci/CT-RATE). Requires HuggingFace account.
 
-Expected layout:
+## Expected layout
 
 ```
 CT-RATE/dataset/
@@ -83,7 +83,7 @@ ds = CTRATEDataset(
 train_ds, val_ds = ds.get_datasets(n_splits=5)
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import CTRATEHarmonizer

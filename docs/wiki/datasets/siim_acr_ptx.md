@@ -10,7 +10,10 @@ The SIIM-ACR Pneumothorax Segmentation dataset (2019 Kaggle challenge) contains 
 
 Available on [Kaggle: SIIM-ACR Pneumothorax Segmentation](https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation). Requires Kaggle account.
 
-Expected layout:
+The harmonizer globs `**/*.dcm` under `dicom_dir` and keeps the last
+three path components (`<study>/<series>/<image>.dcm`) as `image_path`.
+
+## Expected layout
 
 ```
 SIIM_ACR_Pneumothorax/
@@ -24,9 +27,6 @@ SIIM_ACR_Pneumothorax/
       <SeriesInstanceUID>/
         <image_id>.dcm
 ```
-
-The harmonizer globs `**/*.dcm` under `dicom_dir` and keeps the last
-three path components (`<study>/<series>/<image>.dcm`) as `image_path`.
 
 ## Label columns
 
@@ -89,7 +89,7 @@ ds = SIIMACRPTXTestDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import SIIMACRPTXTrainHarmonizer

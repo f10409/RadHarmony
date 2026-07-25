@@ -108,7 +108,7 @@ VINDR-PCXR/                     ← base_image_dir points here
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 
-## Usage
+## Dataset constructor
 
 ```python
 from radharmony.dataset import VinDrPCXRDataset

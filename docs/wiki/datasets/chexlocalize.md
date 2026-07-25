@@ -12,7 +12,7 @@ RadHarmony's mask pipeline supports a single combined mask per image (like SIIM-
 
 Available from the [CheXlocalize GitHub repo](https://github.com/rajpurkarlab/cheXlocalize) (Stanford AIMI / Rajpurkar Lab), which links to the Stanford AIMI download for both the CheXpert test-split images/labels and the CheXlocalize annotations/segmentations.
 
-Expected layout after extraction (CheXpert images + CheXlocalize annotations are separate downloads that sit side by side):
+## Expected layout
 
 ```
 chexlocalize/
@@ -111,7 +111,7 @@ sample = dataset[0]
 # sample["mask"] → Tensor(1, 224, 224); all-zero for images with no annotated finding
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import CheXlocalizeHarmonizer

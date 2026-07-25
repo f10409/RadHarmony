@@ -11,6 +11,8 @@ disagree. The five checks it mechanizes:
   3. description accuracy      -> registry-key-mismatch, default-mismatch,
                                   type-mismatch, default-dict-mismatch
   5. defaults documented       -> missing-default
+  6. layout consistency        -> shared-arg-not-grouped, missing-shared-subsection
+  7. section-title consistency -> nonstandard-section-title
   bash blocks                  -> unknown-extra, unknown-command
 
 It never executes doc code (uses ``ast``); it only imports the shipped package.
@@ -442,6 +444,46 @@ def doc_default_matches(cell: str, val) -> bool:
 
 
 # --------------------------------------------------------------------------
+# Section-title consistency (check 7)
+# --------------------------------------------------------------------------
+# Dataset pages share one section vocabulary (standardized 2026-07-25). This
+# denylist maps each deprecated synonym to its canonical heading so a new page
+# cannot reintroduce the drift. Scoped to dataset pages ONLY -- a bare "Notes"
+# heading is canonical on evaluator/backbone pages but on a dataset page the
+# trailing notes section is "Harmonizer notes". It is a denylist, not an
+# allowlist: legitimate dataset-specific sections (e.g. "Mask output",
+# "Bounding box classes", rsna_2022's per-variant H2s) are intentionally not
+# flagged -- only known-deprecated synonyms are.
+_DATASET_SECTION_SYNONYMS = {
+    "usage": "Dataset constructor",
+    "dataset (monai)": "Dataset constructor",
+    "harmonizer: instantiate and inspect": "Harmonizer",
+    "extra columns": "Extra metadata columns",
+    "data paths": "Example paths",
+    "notes": "Harmonizer notes",
+}
+
+
+def check_section_titles(rel: str, text: str) -> list[Finding]:
+    """Flag dataset-page ``##`` titles that use a deprecated synonym."""
+    if Path(rel).parent.name != "datasets":  # dataset per-page dir only
+        return []
+    findings: list[Finding] = []
+    for i, line in enumerate(text.splitlines(), start=1):
+        m = re.match(r"^##\s+(.*?)\s*$", line)
+        if not m:
+            continue
+        title = m.group(1).strip()
+        canon = _DATASET_SECTION_SYNONYMS.get(title.lower())
+        if canon and title != canon:
+            findings.append(Finding(
+                rel, i, "nonstandard-section-title", "warning", title,
+                f"Section heading `## {title}` is a non-standard synonym on a dataset page",
+                f"Rename to `## {canon}` for cross-page section-title consistency."))
+    return findings
+
+
+# --------------------------------------------------------------------------
 # Per-page audit
 # --------------------------------------------------------------------------
 def audit_page(path: Path, wiki_root: Path, tm: TruthModel) -> list[Finding]:
@@ -695,6 +737,9 @@ def audit_page(path: Path, wiki_root: Path, tm: TruthModel) -> list[Finding]:
                 "missing-shared-subsection", "warning", name_of,
                 f"`{name_of}` inherits shared args but the page has no `### Shared arguments` subsection",
                 f"Inline them under `### Shared arguments (inherited from {base_hint})` rather than linking to a central table."))
+
+    # --- check 7: section-title consistency (dataset pages) ---
+    findings.extend(check_section_titles(rel, text))
 
     # --- pass 6: bash blocks ---
     for blk in blocks:

@@ -33,7 +33,7 @@ executes doc code (it parses with `ast`); it only imports the package.
 - After a batch of API changes (new/renamed constructor args, changed defaults, new
   registry keys, new pip extras) when you want to catch every doc that fell behind.
 
-## What this audits (six checks)
+## What this audits (seven checks)
 
 | User's check | Mechanized as | Finding type(s) |
 |---|---|---|
@@ -42,6 +42,7 @@ executes doc code (it parses with `ast`); it only imports the package.
 | 3. Descriptions are accurate | registry key is registered; documented default matches code; verbatim default-kwargs dicts match | `registry-key-mismatch`, `default-mismatch`, `default-dict-mismatch` |
 | 5. Defaults are documented | every parameter that carries a default has a non-empty `Default` cell | `missing-default` |
 | 6. Layout is consistent (house style) | inherited/base-class args live under a `### Shared arguments` subsection, not mixed into the class-specific table nor hidden behind a cross-link to a central table | `shared-arg-not-grouped`, `missing-shared-subsection` |
+| 7. Section titles are consistent (house style) | dataset pages share one `##` section vocabulary; no page reintroduces a deprecated synonym | `nonstandard-section-title` |
 | (bash) install/CLI correctness | `pip install -e ".[<extra>]"` extras exist in pyproject | `unknown-extra`, `unknown-command` |
 
 Structural facts the helper handles — keep them in mind when reading results:
@@ -68,6 +69,19 @@ Structural facts the helper handles — keep them in mind when reading results:
   (no `**kwargs`) contributes only its own signature — base-only params are *not* demanded
   in its table. `unknown-kwarg` is only emitted for a *closed* signature (the forwarding
   chain terminates without `**kwargs`); a genuinely open passthrough is left alone.
+- **Section-title vocabulary (check 7, dataset pages).** All dataset pages share one
+  `##` section vocabulary (standardized 2026-07-25): `Overview` → `Download` →
+  `Expected layout` → label/column sections → `Constructor arguments` → `Dataset constructor`
+  → `Harmonizer` → `Load from saved harmonized CSV` → `Harmonizer notes` → `Outputs`
+  (or `VQA data dict`) → `Example paths`. Check 7 is a **denylist, not an allowlist**: it
+  flags only known deprecated synonyms (`Usage`/`Dataset (MONAI)` → `Dataset constructor`;
+  `Harmonizer: instantiate and inspect` → `Harmonizer`; `Extra columns` → `Extra metadata
+  columns`; `Data paths` → `Example paths`; bare `Notes` → `Harmonizer notes`). Legitimate
+  dataset-specific sections (`Mask output`, `Bounding box classes`, rsna_2022's per-variant
+  H2s, montgomery's split `Constructor arguments (harmonizer)/(dataset)`) are **not** flagged.
+  Scoped to `docs/wiki/datasets/*.md` only — a bare `## Notes` is canonical on evaluator and
+  backbone pages, so those categories are never checked. It does **not** enforce section
+  *order*, only titles.
 
 Severity: `error` = mechanical, high-confidence (fix these). `warning` = soft, needs a
 human glance (e.g. `default-mismatch`, which tolerates quote style and parenthetical notes
@@ -117,6 +131,11 @@ each type by hand before acting. Known nuances to apply judgment on:
   `### Shared arguments` subsection. `missing-shared-subsection` means an evaluator inherits
   shared args but the page inlines none (usually a leftover cross-link) — add the subsection.
   Both are gated to dataset/evaluator symbols; transforms and backbone factories never trip them.
+- **Section-title findings (check 7)** are `warning`-severity house-style nudges. A
+  `nonstandard-section-title` names the deprecated heading and its canonical replacement —
+  just rename the `##` heading (dataset pages only). If a genuinely new dataset-specific
+  section is being flagged, it isn't: check 7 only knows the fixed synonym denylist, so a
+  finding here always means one of the known synonyms crept back in.
 
 ### 3. Prose spot-check (the non-mechanized part of check 3)
 
@@ -141,7 +160,8 @@ Fix the **doc to match the code**, never the reverse (same rule as `update-docs`
 fixes: add a missing arg row (with the real default), remove/rename a phantom row, fill an
 empty `Default` cell, correct a stale registry key, remove an invalid kwarg from an example,
 move inherited args out of the class-specific table into a `### Shared arguments (inherited
-from <BaseClass>)` subsection (check 6).
+from <BaseClass>)` subsection (check 6); rename a deprecated dataset-page `##` heading to
+its canonical form (check 7).
 After editing, re-run the helper (whole wiki, or `--page` for the touched files) and confirm
 the targeted findings are gone and no new ones appeared.
 

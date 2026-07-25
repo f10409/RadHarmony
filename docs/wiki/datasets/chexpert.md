@@ -10,7 +10,7 @@ CheXpert is a large chest X-ray dataset from Stanford Medicine containing 224,31
 
 Available from the [Stanford AIMI Shared Datasets](https://stanfordaimi.azurewebsites.net/datasets/8cbd9ed4-2eb9-4565-affc-111cf4f7ebe2) page. Requires registration.
 
-Expected layout after extraction:
+## Expected layout
 
 ```
 CheXpert-v1.0/
@@ -98,7 +98,7 @@ ds = CheXpertValidDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import CheXpertTrainHarmonizer

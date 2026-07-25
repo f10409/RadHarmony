@@ -64,7 +64,7 @@ MIMIC-CXR-JPG is separate (obtain it via [PhysioNet](https://physionet.org/conte
 
 \* `data_dir` and `base_image_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 
-## Usage
+## Dataset constructor
 
 ```python
 from radharmony.dataset import GEMeXVQADataset

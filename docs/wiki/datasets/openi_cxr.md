@@ -98,7 +98,7 @@ Derived from `<MeSH><major>` tags in the XML via case-insensitive prefix matchin
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 
-## Usage
+## Dataset constructor
 
 ```python
 from radharmony.dataset import OpenICXRDataset

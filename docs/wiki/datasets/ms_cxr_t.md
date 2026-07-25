@@ -95,7 +95,7 @@ MS_CXR_T_temporal_image_classification_v1.0.0.csv   ← csv_path
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 
-## Usage
+## Dataset constructor
 
 ```python
 from radharmony.dataset import MSCXRTDataset

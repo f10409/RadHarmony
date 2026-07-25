@@ -10,7 +10,7 @@ The RSNA 2024 Lumbar Spine Degenerative Classification challenge dataset contain
 
 Available on [Kaggle: RSNA 2024 Lumbar Spine](https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification). Requires Kaggle account.
 
-Expected layout:
+## Expected layout
 
 ```
 rsna-2024-lumbar-spine-degenerative-classification/
@@ -92,7 +92,7 @@ ds = RSNA2024LumbarSpineTestDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import RSNA2024LumbarSpineTrainHarmonizer

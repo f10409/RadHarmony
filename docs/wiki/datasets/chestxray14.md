@@ -15,7 +15,11 @@ RadHarmony provides three dataset classes for this dataset:
 
 Available on [Kaggle: NIH Chest X-rays](https://www.kaggle.com/datasets/nih-chest-xrays/data). Requires Kaggle account.
 
-Expected layout:
+Images are split across twelve `images_001/` … `images_012/` sibling
+directories (the canonical NIH layout). The harmonizer scans each at load
+time and constructs `image_path = "images_00X/images/<filename>"`.
+
+## Expected layout
 
 ```
 CXR14/
@@ -31,10 +35,6 @@ CXR14/
   images_012/images/
     ...
 ```
-
-Images are split across twelve `images_001/` … `images_012/` sibling
-directories (the canonical NIH layout). The harmonizer scans each at load
-time and constructs `image_path = "images_00X/images/<filename>"`.
 
 ## Label columns
 
@@ -123,7 +123,7 @@ ds = ChestXray14BboxDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import ChestXray14TrainHarmonizer

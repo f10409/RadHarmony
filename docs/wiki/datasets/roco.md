@@ -71,7 +71,7 @@ The `scripts/fetch.py --subdir <name>` argument controls the image subfolder nam
 
 \* `base_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 
-## Usage
+## Dataset constructor
 
 ```python
 from radharmony.dataset import ROCODataset

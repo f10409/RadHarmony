@@ -14,7 +14,7 @@ RadHarmony provides two dataset classes for this dataset:
 
 Available at [PhysioNet: MIMIC-CXR-JPG](https://physionet.org/content/mimic-cxr-jpg/). Requires CITI training and signed DUA.
 
-Expected layout:
+## Expected layout
 
 ```
 mimic-cxr-jpg/2.0.0/
@@ -102,7 +102,7 @@ apply U-Zeros (`-1 → 0`), U-Ones (`-1 → 1`), or U-Ignore depending on
 the convention being reproduced. Pass `drop_uncertain=True` explicitly
 to drop any study with at least one uncertain label (~226 of 687).
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import MIMICCXRJPGHarmonizer

@@ -90,7 +90,7 @@ MS_CXR_Local_Alignment_v1.1.0.csv   ← csv_path
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 
-## Usage
+## Dataset constructor
 
 ```python
 from radharmony.dataset import MSCXRDataset

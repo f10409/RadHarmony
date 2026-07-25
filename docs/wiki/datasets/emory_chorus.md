@@ -24,18 +24,6 @@ about **10.3K images / 4.9K studies / 1.4K patients** (all `DX`, `MONOCHROME2`);
 the remainder are abdomen, spine, skull, and extremity films, kept only when
 `chest_only=False`.
 
-## Data paths
-
-| Resource | Path |
-|---|---|
-| Images (DICOM) | `/path/to/Emory_CHORUS/images_dicom_xray/` |
-| Manifest CSV (scan cache) | user-chosen; written on first harmonize |
-| OMOP-CDM tables | `/path/to/Emory_CHORUS/tables/` (not used by this release) |
-
-Image paths follow the structure
-`<person_id>/Images/<StudyInstanceUID>/<SeriesInstanceUID>/<sop>.dcm` relative
-to the image root.
-
 ## Extra metadata columns
 
 Carried through to the harmonized DataFrame so studies can be filtered or
@@ -50,36 +38,6 @@ stratified without re-scanning the tree:
 | `sex` | DICOM `PatientSex` |
 | `age` | DICOM `PatientAge` |
 | `manufacturer` | DICOM `Manufacturer` |
-
-## Harmonizer
-
-```python
-from radharmony.harmonizer import EmoryCHORUSHarmonizer
-
-h = EmoryCHORUSHarmonizer(
-    base_image_dir="/path/to/Emory_CHORUS/images_dicom_xray",
-    csv_path="/path/to/Emory_CHORUS/chorus_xray_manifest.csv",  # scan cache
-    chest_only=True,
-)
-df = h.harmonize()
-# df columns: patient_id, study_id, image_path,
-#             series_id, view_position,
-#             body_part, study_date, sex, age, manufacturer
-```
-
-## Dataset (MONAI)
-
-```python
-from radharmony.dataset import EmoryCHORUSDataset
-
-ds = EmoryCHORUSDataset(
-    base_image_dir="/path/to/Emory_CHORUS/images_dicom_xray",
-    manifest_csv_path="/path/to/Emory_CHORUS/chorus_xray_manifest.csv",
-    cache_dir="./cache",
-)
-sample = ds[0]
-# sample["img"] → image tensor (C, H, W); image-only, no other keys
-```
 
 ## Constructor arguments
 
@@ -107,7 +65,37 @@ sample = ds[0]
 
 *Required unless `harmonizer_path`, `harmonized_df`, or `harmonizer` is provided.
 
-## Notes
+## Dataset constructor
+
+```python
+from radharmony.dataset import EmoryCHORUSDataset
+
+ds = EmoryCHORUSDataset(
+    base_image_dir="/path/to/Emory_CHORUS/images_dicom_xray",
+    manifest_csv_path="/path/to/Emory_CHORUS/chorus_xray_manifest.csv",
+    cache_dir="./cache",
+)
+sample = ds[0]
+# sample["img"] → image tensor (C, H, W); image-only, no other keys
+```
+
+## Harmonizer
+
+```python
+from radharmony.harmonizer import EmoryCHORUSHarmonizer
+
+h = EmoryCHORUSHarmonizer(
+    base_image_dir="/path/to/Emory_CHORUS/images_dicom_xray",
+    csv_path="/path/to/Emory_CHORUS/chorus_xray_manifest.csv",  # scan cache
+    chest_only=True,
+)
+df = h.harmonize()
+# df columns: patient_id, study_id, image_path,
+#             series_id, view_position,
+#             body_part, study_date, sex, age, manufacturer
+```
+
+## Harmonizer notes
 
 - **No metadata CSV.** The harmonizer scans DICOM headers to build the study /
   series / image table. Pass `manifest_csv_path` (dataset) / `csv_path`
@@ -118,3 +106,15 @@ sample = ds[0]
   chest+abdomen and rib studies whose description mentions the chest.
 - **Image-only.** No labels, masks, bounding boxes, or reports in this release,
   so only the `img` key is produced.
+
+## Example paths
+
+| Resource | Path |
+|---|---|
+| Images (DICOM) | `/path/to/Emory_CHORUS/images_dicom_xray/` |
+| Manifest CSV (scan cache) | user-chosen; written on first harmonize |
+| OMOP-CDM tables | `/path/to/Emory_CHORUS/tables/` (not used by this release) |
+
+Image paths follow the structure
+`<person_id>/Images/<StudyInstanceUID>/<SeriesInstanceUID>/<sop>.dcm` relative
+to the image root.

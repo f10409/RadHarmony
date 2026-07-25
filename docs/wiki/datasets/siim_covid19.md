@@ -10,7 +10,7 @@ The SIIM-FISABIO-RSNA COVID-19 Detection dataset from the 2021 Kaggle challenge 
 
 Available on [Kaggle: SIIM COVID-19 Detection](https://www.kaggle.com/c/siim-covid19-detection). Requires Kaggle account.
 
-Expected layout:
+## Expected layout
 
 ```
 siim-covid19-detection/
@@ -84,7 +84,7 @@ ds = SIIMCOVID19TestDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import SIIMCOVID19TrainHarmonizer

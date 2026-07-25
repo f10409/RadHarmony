@@ -10,7 +10,7 @@ The RSNA Pneumonia Detection Challenge Kaggle Stage 2 dataset contains 26,684 ch
 
 Available on [Kaggle: RSNA Pneumonia Detection Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge). Requires Kaggle account.
 
-Expected layout:
+## Expected layout
 
 ```
 rsna-pneumonia-detection-challenge/
@@ -76,7 +76,7 @@ ds_test = RSNAPneumoniaKaggleTestDataset(
 )
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import RSNAPneumoniaKaggleHarmonizer

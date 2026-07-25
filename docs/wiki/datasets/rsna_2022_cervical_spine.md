@@ -12,7 +12,7 @@ A subset of 87 studies ships with whole-volume NIfTI segmentation masks. A separ
 
 Available at [Kaggle — RSNA 2022 Cervical Spine Fracture Detection](https://www.kaggle.com/competitions/rsna-2022-cervical-spine-fracture-detection).
 
-Expected layout:
+## Expected layout
 
 ```
 rsna-2022-cervical-spine-fracture-detection/

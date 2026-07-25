@@ -15,7 +15,9 @@ Both DICOM and PNG variants ship in the same download. RadHarmony provides two d
 
 Available at [PhysioNet: BRAX](https://physionet.org/content/brax/). Requires credentialed access and a signed DUA.
 
-Expected layout:
+`base_image_dir` should point at the BRAX root (the directory containing `master_spreadsheet.csv` and both image subdirectories).
+
+## Expected layout
 
 ```
 brax/1.1.0/
@@ -25,8 +27,6 @@ brax/1.1.0/
   images/
     id_<PatientID>/Study_<UID>/Series_<UID>/image-<UID>.png
 ```
-
-`base_image_dir` should point at the BRAX root (the directory containing `master_spreadsheet.csv` and both image subdirectories).
 
 ## Label columns
 
@@ -105,7 +105,7 @@ ds = BRAXPNGDataset(
 train_ds, val_ds = ds.get_datasets(n_splits=10)
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import BRAXHarmonizer

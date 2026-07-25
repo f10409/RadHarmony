@@ -12,17 +12,6 @@ EmoryCXR v2 is an internal Emory de-identified chest radiography dataset contain
 
 Labels and reports are stored at the accession (study) level and are automatically broadcast to all images within each study by the harmonizer.
 
-## Data paths
-
-| Resource | Path |
-|---|---|
-| Images (PNG) | `/path/to/EmoryCXRv2/DEID_PNG/` |
-| Metadata CSV | `/path/to/EmoryCXRv2/TABLES/metadata.csv` |
-| Label CSV | `/path/to/EmoryCXRv2/TABLES/finding_labels.csv` |
-| Report CSV | `/path/to/EmoryCXRv2/TABLES/reports.csv` |
-
-Image paths follow the structure: `<empi_anon>/<AccessionNumber_anon>/<SOP>.png` relative to the PNG root.
-
 ## Label columns
 
 14 CheXpert-aligned findings (binary 0/1/NaN, no `-1` uncertain):
@@ -43,44 +32,6 @@ The following demographic and acquisition columns are passed through to the harm
 | `frontal` | Whether the view is frontal (bool) |
 | `institution` | De-identified institution name |
 | `study_date` | De-identified study date |
-
-## Harmonizer
-
-```python
-from radharmony.harmonizer import EmoryCXRHarmonizer
-
-h = EmoryCXRHarmonizer(
-    csv_path="/path/to/EmoryCXRv2/TABLES/metadata.csv",
-    base_image_dir="/path/to/EmoryCXRv2/DEID_PNG",
-    label_csv_path="/path/to/EmoryCXRv2/TABLES/finding_labels.csv",
-    report_csv_path="/path/to/EmoryCXRv2/TABLES/reports.csv",
-)
-df = h.harmonize()
-# df columns: patient_id, study_id, image_path,
-#             view_position, report,
-#             atelectasis, cardiomegaly, ..., support_devices,
-#             sex, age, bmi, race, ethnicity, frontal, institution, study_date
-```
-
-## Dataset (MONAI)
-
-```python
-from radharmony.dataset import EmoryCXRDataset
-
-ds = EmoryCXRDataset(
-    base_image_dir="/path/to/EmoryCXRv2/DEID_PNG",
-    csv_path="/path/to/EmoryCXRv2/TABLES/metadata.csv",
-    label_csv_path="/path/to/EmoryCXRv2/TABLES/finding_labels.csv",
-    report_csv_path="/path/to/EmoryCXRv2/TABLES/reports.csv",
-    output_cls=True,
-    output_report=True,
-    cache_dir="./cache",
-)
-sample = ds[0]
-# sample["img"]    → image tensor (C, H, W)
-# sample["cls"]    → 14-class label tensor
-# sample["report"] → de-identified report string
-```
 
 ## Constructor arguments
 
@@ -108,8 +59,57 @@ sample = ds[0]
 
 *Required unless `harmonizer_path`, `harmonized_df`, or `harmonizer` is provided.
 
-## Notes
+## Dataset constructor
+
+```python
+from radharmony.dataset import EmoryCXRDataset
+
+ds = EmoryCXRDataset(
+    base_image_dir="/path/to/EmoryCXRv2/DEID_PNG",
+    csv_path="/path/to/EmoryCXRv2/TABLES/metadata.csv",
+    label_csv_path="/path/to/EmoryCXRv2/TABLES/finding_labels.csv",
+    report_csv_path="/path/to/EmoryCXRv2/TABLES/reports.csv",
+    output_cls=True,
+    output_report=True,
+    cache_dir="./cache",
+)
+sample = ds[0]
+# sample["img"]    → image tensor (C, H, W)
+# sample["cls"]    → 14-class label tensor
+# sample["report"] → de-identified report string
+```
+
+## Harmonizer
+
+```python
+from radharmony.harmonizer import EmoryCXRHarmonizer
+
+h = EmoryCXRHarmonizer(
+    csv_path="/path/to/EmoryCXRv2/TABLES/metadata.csv",
+    base_image_dir="/path/to/EmoryCXRv2/DEID_PNG",
+    label_csv_path="/path/to/EmoryCXRv2/TABLES/finding_labels.csv",
+    report_csv_path="/path/to/EmoryCXRv2/TABLES/reports.csv",
+)
+df = h.harmonize()
+# df columns: patient_id, study_id, image_path,
+#             view_position, report,
+#             atelectasis, cardiomegaly, ..., support_devices,
+#             sex, age, bmi, race, ethnicity, frontal, institution, study_date
+```
+
+## Harmonizer notes
 
 - Labels are at study level; they are broadcast to all SOP images in the same accession via a left merge. Images whose accession has no label entry will have `NaN` for all label columns.
 - Reports are stored as inline text in the report CSV (not as file paths). The `report` column in the harmonized DataFrame contains the de-identified text directly.
 - Masks and bounding boxes are not available in this release.
+
+## Example paths
+
+| Resource | Path |
+|---|---|
+| Images (PNG) | `/path/to/EmoryCXRv2/DEID_PNG/` |
+| Metadata CSV | `/path/to/EmoryCXRv2/TABLES/metadata.csv` |
+| Label CSV | `/path/to/EmoryCXRv2/TABLES/finding_labels.csv` |
+| Report CSV | `/path/to/EmoryCXRv2/TABLES/reports.csv` |
+
+Image paths follow the structure: `<empi_anon>/<AccessionNumber_anon>/<SOP>.png` relative to the PNG root.

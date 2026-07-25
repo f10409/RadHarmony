@@ -13,7 +13,7 @@ Zenodo record hosts an initial release of ~3,630 volumes (~10% of the dataset) a
 the full `CT_Scan_Metadata_Complete_35747.csv` metadata; obtaining all 35,747 scans
 requires the separate data-use agreement described on the record page.
 
-Expected layout:
+## Expected layout
 
 ```
 RAD-ChestCT/
@@ -67,7 +67,7 @@ ds = RadChestCTDataset(
 train_ds, val_ds = ds.get_datasets(n_splits=5)
 ```
 
-## Harmonizer: instantiate and inspect
+## Harmonizer
 
 ```python
 from radharmony.harmonizer import RadChestCTHarmonizer
