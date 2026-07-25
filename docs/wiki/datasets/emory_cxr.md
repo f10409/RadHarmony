@@ -86,7 +86,7 @@ sample = ds[0]
 
 | Argument | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `base_image_dir` | `str` | Yes* | — | PNG root (contains patient sub-folders) |
+| `base_image_dir` | `str` | Yes* | `None` | PNG root (contains patient sub-folders) |
 | `csv_path` | `str` | No | auto | Path to metadata CSV |
 | `label_csv_path` | `str` | No | `None` | Path to finding label CSV; required for `output_cls=True` |
 | `report_csv_path` | `str` | No | `None` | Path to report CSV; required for `output_report=True` |
@@ -97,6 +97,9 @@ sample = ds[0]
 | `transform` | `Compose` | No | 2D default | MONAI transform pipeline |
 | `cache_dir` | `str` | No | `./cache` | PersistentDataset cache root; `None` disables caching |
 | `dtype` | `torch.dtype` | No | `bfloat16` | Image tensor dtype |
+| `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
+| `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
+| `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
 
 *Required unless `harmonizer_path`, `harmonized_df`, or `harmonizer` is provided.
 

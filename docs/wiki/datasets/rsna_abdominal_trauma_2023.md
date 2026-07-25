@@ -50,7 +50,7 @@ The `cls` tensor has 14 values in alphabetical order.
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | — | `train_images/` (or `test_images/` for the test split) — direct parent of `<patient_id>/<series_id>/` DICOM dirs (e.g. `~/datasets/external/rsna-2023-abdominal-trauma-detection/train_images/`) |
+| `base_image_dir` | `str` | Yes* | `None` | `train_images/` (or `test_images/` for the test split) — direct parent of `<patient_id>/<series_id>/` DICOM dirs (e.g. `~/datasets/external/rsna-2023-abdominal-trauma-detection/train_images/`) |
 | `csv_path` | `str` | No | auto | `train_2024.csv`; auto-discovered in parent of `base_image_dir` |
 | `series_meta_csv_path` | `str` | No | auto | `train_series_meta.csv`; auto-discovered |
 | `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |

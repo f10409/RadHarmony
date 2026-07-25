@@ -85,7 +85,7 @@ sample = ds[0]
 
 | Argument | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `base_image_dir` | `str` | Yes* | — | DICOM root (`images_dicom_xray`, contains per-patient folders) |
+| `base_image_dir` | `str` | Yes* | `None` | DICOM root (`images_dicom_xray`, contains per-patient folders) |
 | `manifest_csv_path` | `str` | No | `None` | Manifest scan cache; read if present, else scanned and written here |
 | `chest_only` | `bool` | No | `True` | Keep only chest radiographs (`DX`/`CR` with `CHEST` in body-part/description) |
 | `num_workers` | `int` | No | `12` | Parallel worker processes for the header scan |
@@ -96,6 +96,9 @@ sample = ds[0]
 | `transform` | `Compose` | No | 2D default | MONAI transform pipeline (DICOM VOI-LUT / MONOCHROME handled) |
 | `cache_dir` | `str` | No | `./cache` | PersistentDataset cache root; `None` disables caching |
 | `dtype` | `torch.dtype` | No | `bfloat16` | Image tensor dtype |
+| `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
+| `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
+| `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
 
 *Required unless `harmonizer_path`, `harmonized_df`, or `harmonizer` is provided.
 

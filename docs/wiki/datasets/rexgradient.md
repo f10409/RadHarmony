@@ -115,7 +115,7 @@ reports (e.g. via CheXbert) is left to the user.
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | Root of the extracted PNG tree, e.g. `/data/ReXGradient-160K/deid_png/`. Immediate children are `<PatientID>/` directories. |
+| `base_image_dir` | `str` | Yes | `None` | Root of the extracted PNG tree, e.g. `/data/ReXGradient-160K/deid_png/`. Immediate children are `<PatientID>/` directories. |
 | `csv_path` | `str` | No | auto | Path to `<split>_metadata_view_position.json`. **Must be the JSON, not the CSV.** Auto-discovered near sibling/ancestor `metadata/` directories. |
 | `output_report` | `bool` | No | `False` | Include `"report"` (4-section concatenated text) in the data dict |
 | `output_cls` | `bool` | No | `False` | **Not supported** — dataset has no structured labels |
@@ -126,6 +126,7 @@ reports (e.g. via CheXbert) is left to the user.
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to a saved harmonizer pickle |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor: train
 

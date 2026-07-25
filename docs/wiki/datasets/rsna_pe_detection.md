@@ -44,7 +44,7 @@ rsna_pe_dataset/
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `train/` (or `test/` for the test split) — direct parent of `<StudyInstanceUID>/<SeriesInstanceUID>/` (e.g. `/data/rsna_pe_dataset/train/`) |
+| `base_image_dir` | `str` | Yes | `None` | `train/` (or `test/` for the test split) — direct parent of `<StudyInstanceUID>/<SeriesInstanceUID>/` (e.g. `/data/rsna_pe_dataset/train/`) |
 | `csv_path` | `str` | No | auto | `train.csv`; auto-discovered |
 | `hu_window` | `tuple[float,float]\|None` | No | `(-1000, 1000)` | HU clip range for CT intensity normalisation |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -56,6 +56,7 @@ rsna_pe_dataset/
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

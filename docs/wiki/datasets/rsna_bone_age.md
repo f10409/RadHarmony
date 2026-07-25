@@ -42,7 +42,7 @@ This dataset uses `REG_COLS` instead of `LABEL_COLS`:
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | Split-specific image directory. Train: `boneage-training-dataset/` (flat dir of `<id>.png` files). Val: `Bone Age Validation Set/` (contains `Validation Dataset.csv` plus the two `boneage-validation-dataset-{1,2}/` sub-subdirs — val is a structural exception with multi-sibling sub-subdirs). Train and val are separate downloads and may live anywhere on disk |
+| `base_image_dir` | `str` | Yes | `None` | Split-specific image directory. Train: `boneage-training-dataset/` (flat dir of `<id>.png` files). Val: `Bone Age Validation Set/` (contains `Validation Dataset.csv` plus the two `boneage-validation-dataset-{1,2}/` sub-subdirs — val is a structural exception with multi-sibling sub-subdirs). Train and val are separate downloads and may live anywhere on disk |
 | `csv_path` | `str` | No | auto | `train.csv` or `Validation Dataset.csv`; auto-discovered |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict (no label cols — unused) |
 | `output_mask` | `bool` | No | `False` | Include `"mask"` in data dict |
@@ -54,6 +54,8 @@ This dataset uses `REG_COLS` instead of `LABEL_COLS`:
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `split` | `str` | No | `'train'` | Which split to load |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

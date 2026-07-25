@@ -35,7 +35,7 @@ unlike the flat Kaggle layout.
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | Root directory whose immediate subdirs are `<StudyInstanceUID>/` (e.g. `~/Downloads/rsna/`) |
+| `base_image_dir` | `str` | Yes | `None` | Root directory whose immediate subdirs are `<StudyInstanceUID>/` (e.g. `~/Downloads/rsna/`) |
 | `csv_path` | `str` | No | auto | Adjudicated JSON annotation file; auto-discovered |
 | `label_group` | `str` | No | `"Calculated"` | Which label group to use from the JSON annotations |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -47,6 +47,7 @@ unlike the flat Kaggle layout.
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

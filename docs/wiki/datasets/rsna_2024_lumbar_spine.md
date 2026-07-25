@@ -39,7 +39,7 @@ Example: `spinal_canal_stenosis_l1_l2_normal_mild`, `spinal_canal_stenosis_l1_l2
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `train_images/` (or `test_images/` for the test split) — direct parent of `<study_id>/<series_id>/` (e.g. `~/datasets/competitions/rsna-2024-lumbar-spine-degenerative-classification/train_images/`) |
+| `base_image_dir` | `str` | Yes | `None` | `train_images/` (or `test_images/` for the test split) — direct parent of `<study_id>/<series_id>/` (e.g. `~/datasets/competitions/rsna-2024-lumbar-spine-degenerative-classification/train_images/`) |
 | `csv_path` | `str` | No | auto | `train.csv`; auto-discovered |
 | `series_description_csv_path` | `str` | No | auto | `train_series_descriptions.csv` |
 | `coord_csv_path` | `str` | No | auto | `train_label_coordinates.csv` for point bbox annotations |
@@ -53,6 +53,7 @@ Example: `spinal_canal_stenosis_l1_l2_normal_mild`, `spinal_canal_stenosis_l1_l2
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

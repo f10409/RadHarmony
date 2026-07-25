@@ -74,8 +74,8 @@ MS_CXR_T_temporal_image_classification_v1.0.0.csv   ← csv_path
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | — | MIMIC-CXR-JPG 2.0.0 root (contains `files/`) |
-| `csv_path` | `str` | Yes* | — | Path to `MS_CXR_T_temporal_image_classification_v1.0.0.csv` |
+| `base_image_dir` | `str` | Yes* | `None` | MIMIC-CXR-JPG 2.0.0 root (contains `files/`) |
+| `csv_path` | `str` | Yes* | `None` | Path to `MS_CXR_T_temporal_image_classification_v1.0.0.csv` |
 | `output_previous` | `bool` | No | `False` | Include prior-visit image under `"previous_img"` |
 | `transform` | Compose | No | standard 2-D 224 px | MONAI Compose transform |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory. `None` disables |
@@ -83,6 +83,10 @@ MS_CXR_T_temporal_image_classification_v1.0.0.csv   ← csv_path
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonizer pickle |
+| `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
+| `output_cls` | `bool` | No | `False` | Include `"cls"` tensor in data dict |
+| `output_mask` | `bool` | No | `False` | Include `"mask"` in data dict |
+| `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 

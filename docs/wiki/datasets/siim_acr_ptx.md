@@ -38,7 +38,7 @@ three path components (`<study>/<series>/<image>.dcm`) as `image_path`.
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `dicom-images-train/` (or `dicom-images-test/` for the test split) — root of the DICOM tree (passed internally to the harmonizer as `dicom_dir`) |
+| `base_image_dir` | `str` | Yes | `None` | `dicom-images-train/` (or `dicom-images-test/` for the test split) — root of the DICOM tree (passed internally to the harmonizer as `dicom_dir`) |
 | `csv_path` | `str` | No | auto | `train-rle.csv`; auto-discovered |
 | `mask_output_dir` | `str` | No | `None` | Directory to save decoded PNG masks; required for `output_mask=True` |
 | `mask_num_cores` | `int` | No | `1` | Parallel workers for RLE mask decoding |
@@ -51,6 +51,7 @@ three path components (`<study>/<series>/<image>.dcm`) as `image_path`.
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

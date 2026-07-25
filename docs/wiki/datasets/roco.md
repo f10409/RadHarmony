@@ -51,7 +51,7 @@ The `scripts/fetch.py --subdir <name>` argument controls the image subfolder nam
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_dir` | `str` | Yes* | — | Root of the roco-dataset tree (the directory containing `data/`) |
+| `base_dir` | `str` | Yes* | `None` | Root of the roco-dataset tree (the directory containing `data/`) |
 | `splits` | `list[str]` | No | all 3 | Any subset of `["train", "validation", "test"]` |
 | `radiology_only` | `bool` | No | `True` | When `False`, also include `non-radiology/` samples |
 | `image_subdir` | `str` | No | `"images"` | Image subdirectory name; must match the `--subdir` value passed to `scripts/fetch.py` |

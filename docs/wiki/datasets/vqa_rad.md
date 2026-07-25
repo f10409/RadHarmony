@@ -45,7 +45,7 @@ VQA-RAD/
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | — | `VQA_RAD Image Folder/` directory (flat, direct parent of the 315 JPEGs) |
+| `base_image_dir` | `str` | Yes* | `None` | `VQA_RAD Image Folder/` directory (flat, direct parent of the 315 JPEGs) |
 | `json_path` | `str` | No | auto | Path to `VQA_RAD Dataset Public.json`; auto-discovered in the parent of `base_image_dir` when omitted |
 | `transform` | MONAI Compose | No | 2D VQA pipeline | Custom MONAI transform (must not use `SelectItemsD`, or `question`/`answer` get dropped) |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |

@@ -34,8 +34,8 @@ qa.zip                          # per-study QA JSON files
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | — | MIMIC-CXR `files/` subtree root (e.g. `/data/mimic-cxr/2.1.0/files/`) — direct parent of `p10/`, `p11/`, … patient prefix dirs. Image path resolves to `<patient_id[:3]>/<patient_id>/<study_id>/<image_id>.dcm` relative to this |
-| `metadata_dir` | `str` | Yes** | — | Directory containing the parquet metadata files |
+| `base_image_dir` | `str` | Yes* | `None` | MIMIC-CXR `files/` subtree root (e.g. `/data/mimic-cxr/2.1.0/files/`) — direct parent of `p10/`, `p11/`, … patient prefix dirs. Image path resolves to `<patient_id[:3]>/<patient_id>/<study_id>/<image_id>.dcm` relative to this |
+| `metadata_dir` | `str` | Yes** | `None` | Directory containing the parquet metadata files |
 | `qa_zip_path` | `str` | No | `None` | Path to `qa.zip`; when `None`, `question` and `answer` are empty strings |
 | `image_ext` | `str` | No | `".dcm"` | `".dcm"` for MIMIC-CXR DICOM or `".jpg"` for MIMIC-CXR-JPG |
 | `max_studies` | `int` or `None` | No | `None` | Cap on studies to process; useful during development |

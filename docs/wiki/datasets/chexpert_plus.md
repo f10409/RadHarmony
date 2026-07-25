@@ -45,7 +45,7 @@ Same 14 labels as CheXpert:
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | Direct parent of `train/` and `valid/` (the `path_to_dcm` column starts with `train/...` or `valid/...`). For the canonical DICOM release: `/data/chexpertplus/DICOM/Uncompressed/` |
+| `base_image_dir` | `str` | Yes | `None` | Direct parent of `train/` and `valid/` (the `path_to_dcm` column starts with `train/...` or `valid/...`). For the canonical DICOM release: `/data/chexpertplus/DICOM/Uncompressed/` |
 | `csv_path` | `str` | No | auto | `df_chexpert_plus_240401.csv`; auto-discovered |
 | `label_json_path` | `str` | No | auto | `report_fixed.json`; auto-discovered near `base_image_dir` |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -56,6 +56,9 @@ Same 14 labels as CheXpert:
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `output_bbox` | `bool` | No | `False` | Not supported; ignored |
+| `output_mask` | `bool` | No | `False` | Not supported; ignored |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

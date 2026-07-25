@@ -51,7 +51,7 @@ The `cls` tensor has values in sorted (alphabetical) order: `c1, c2, c3, c4, c5,
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | — | `train_images/` (or `test_images/` for the test split) — direct parent of `<StudyInstanceUID>/` DICOM dirs (e.g. `~/datasets/external/rsna-2022-cervical-spine-fracture-detection/train_images/`) |
+| `base_image_dir` | `str` | Yes* | `None` | `train_images/` (or `test_images/` for the test split) — direct parent of `<StudyInstanceUID>/` DICOM dirs (e.g. `~/datasets/external/rsna-2022-cervical-spine-fracture-detection/train_images/`) |
 | `csv_path` | `str` | No | auto | `train.csv`; auto-discovered in parent of `base_image_dir` |
 | `segmentation_dir` | `str` | No | auto | Directory of `<StudyUID>.nii` masks; auto-discovered as `../segmentations/` |
 | `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |
@@ -162,7 +162,7 @@ ds = RSNA2022CervicalSpineTrainDataset(
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | — | `train_images/` directory — direct parent of `<StudyInstanceUID>/` DICOM dirs (e.g. `~/datasets/external/rsna-2022-cervical-spine-fracture-detection/train_images/`) |
+| `base_image_dir` | `str` | Yes* | `None` | `train_images/` directory — direct parent of `<StudyInstanceUID>/` DICOM dirs (e.g. `~/datasets/external/rsna-2022-cervical-spine-fracture-detection/train_images/`) |
 | `csv_path` | `str` | No | auto | `train.csv`; auto-discovered |
 | `bbox_csv_path` | `str` | No | auto | `train_bounding_boxes.csv`; auto-discovered |
 | `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |

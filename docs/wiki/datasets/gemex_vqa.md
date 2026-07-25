@@ -45,8 +45,8 @@ MIMIC-CXR-JPG is separate (obtain it via [PhysioNet](https://physionet.org/conte
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `data_dir` | `str` | Yes* | — | Directory containing the 4 JSONL files |
-| `base_image_dir` | `str` | Yes* | — | MIMIC-CXR-JPG `files/` root |
+| `data_dir` | `str` | Yes* | `None` | Directory containing the 4 JSONL files |
+| `base_image_dir` | `str` | Yes* | `None` | MIMIC-CXR-JPG `files/` root |
 | `question_subtypes` | `list[str]` | No | all 4 | Any subset of `["open_ended", "closed_ended", "single_choice", "multi_choice"]` |
 | `transform` | MONAI Compose | No | 2D VQA pipeline | Custom MONAI transform (must not drop `question` / `answer` / `question_id`) |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |

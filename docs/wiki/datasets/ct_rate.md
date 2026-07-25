@@ -48,7 +48,7 @@ CT-RATE/dataset/
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `train_fixed/` (or `validation_fixed/`) — root containing the two-level volume hierarchy `<train_X>/<train_X_Y>/<volume>.nii.gz` (e.g. `/data/CT-RATE/dataset/train_fixed/`) |
+| `base_image_dir` | `str` | Yes | `None` | `train_fixed/` (or `validation_fixed/`) — root containing the two-level volume hierarchy `<train_X>/<train_X_Y>/<volume>.nii.gz` (e.g. `/data/CT-RATE/dataset/train_fixed/`) |
 | `csv_path` | `str` | No | auto | `train_predicted_labels.csv`; auto-discovered |
 | `view_position_csv_path` | `str` | No | auto | `train_metadata.csv`; auto-discovered |
 | `hu_window` | `tuple[float,float]\|None` | No | `(-1000, 1000)` | HU clip range |
@@ -61,6 +61,7 @@ CT-RATE/dataset/
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

@@ -50,7 +50,7 @@ Both `TAIXRay512Dataset` (512px) and `TAIXRayDataset` (original resolution) shar
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `images/` directory — flat dir of `<UID>.png` files (e.g. `/data/TAIX-Ray/data_512/images/` for the 512-px variant, or `data_original/images/` for the original-resolution variant) |
+| `base_image_dir` | `str` | Yes | `None` | `images/` directory — flat dir of `<UID>.png` files (e.g. `/data/TAIX-Ray/data_512/images/` for the 512-px variant, or `data_original/images/` for the original-resolution variant) |
 | `csv_path` | `str` | No | auto | `annotation.csv`; auto-discovered |
 | `label_mode` | `str` | No | `"binary"` | `"binary"` or `"ordinal"` |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -62,6 +62,7 @@ Both `TAIXRay512Dataset` (512px) and `TAIXRayDataset` (original resolution) shar
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

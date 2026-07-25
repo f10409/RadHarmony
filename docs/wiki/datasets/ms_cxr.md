@@ -70,8 +70,8 @@ MS_CXR_Local_Alignment_v1.1.0.csv   ← csv_path
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | — | MIMIC-CXR-JPG 2.0.0 root (contains `files/`) |
-| `csv_path` | `str` | Yes* | — | Path to `MS_CXR_Local_Alignment_v1.1.0.csv` |
+| `base_image_dir` | `str` | Yes* | `None` | MIMIC-CXR-JPG 2.0.0 root (contains `files/`) |
+| `csv_path` | `str` | Yes* | `None` | Path to `MS_CXR_Local_Alignment_v1.1.0.csv` |
 | `output_cls` | `bool` | No | `False` | Include 8 binary finding labels under `"cls"` |
 | `output_bbox` | `bool` | No | `False` | Include phrase-grounding boxes under `"bbox"` / `"bbox_labels"` |
 | `transform` | Compose | No | standard 2-D 224 px | MONAI Compose transform |
@@ -80,6 +80,8 @@ MS_CXR_Local_Alignment_v1.1.0.csv   ← csv_path
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonizer pickle |
+| `output_mask` | `bool` | No | `False` | Include `"mask"` in data dict |
+| `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 

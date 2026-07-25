@@ -35,7 +35,7 @@ Both `VinDrCXRTrainDataset` and `VinDrCXRTestDataset` share the same signature:
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | Split-specific dir — `train/` or `test/` — flat directory of `<image_id>.dicom` files (e.g. `/data/VinDr-CXR/vindr-cxr/1.0.0/train/`) |
+| `base_image_dir` | `str` | Yes | `None` | Split-specific dir — `train/` or `test/` — flat directory of `<image_id>.dicom` files (e.g. `/data/VinDr-CXR/vindr-cxr/1.0.0/train/`) |
 | `csv_path` | `str` | No | auto | Image-level labels CSV — `image_labels_train.csv` (train) / `image_labels_test.csv` (test); auto-discovered under `base_image_dir`, then sibling dirs |
 | `bbox_csv_path` | `str` | No | auto | Bounding box annotations CSV; auto-discovered |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -47,6 +47,7 @@ Both `VinDrCXRTrainDataset` and `VinDrCXRTestDataset` share the same signature:
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

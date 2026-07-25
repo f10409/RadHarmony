@@ -56,7 +56,7 @@ chexlocalize/
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `CheXpert/test/` directory — direct parent of `patient.../study.../view*.jpg` (e.g. `/data/chexlocalize/CheXpert/test/`) |
+| `base_image_dir` | `str` | Yes | `None` | `CheXpert/test/` directory — direct parent of `patient.../study.../view*.jpg` (e.g. `/data/chexlocalize/CheXpert/test/`) |
 | `csv_path` | `str` | No | auto | Path to `test_labels.csv`; auto-discovered near `base_image_dir` if omitted |
 | `mask_json_path` | `str` | No | auto | Path to `gt_segmentations_test.json`; auto-discovered (searches sibling `CheXlocalize/` dir) if omitted. Only loaded when `output_mask=True` |
 | `mask_output_dir` | `str` | No | `None` | Directory for decoded, unioned mask PNGs; required for `output_mask=True` |
@@ -68,6 +68,7 @@ chexlocalize/
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

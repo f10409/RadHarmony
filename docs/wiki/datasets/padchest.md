@@ -90,7 +90,7 @@ totals (after the 103 NaN-Labels rows are removed).
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | The `images/` directory containing `0/`, …, `50/`, `54/` sibling subdirs (e.g. `/data/PadChest/images/`) |
+| `base_image_dir` | `str` | Yes | `None` | The `images/` directory containing `0/`, …, `50/`, `54/` sibling subdirs (e.g. `/data/PadChest/images/`) |
 | `csv_path` | `str` | No | auto | `PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz` (or `.csv`); auto-discovered |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_report` | `bool` | No | `False` | Include `"report"` (Spanish text) in data dict |
@@ -102,6 +102,7 @@ totals (after the 103 NaN-Labels rows are removed).
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonizer pickle |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

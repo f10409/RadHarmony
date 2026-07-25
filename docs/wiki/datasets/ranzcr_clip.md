@@ -54,7 +54,7 @@ Test split rows have `NaN` for all label columns (no public labels released).
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | Kaggle download root (contains `train/`, `test/`, and CSVs) |
+| `base_image_dir` | `str` | Yes | `None` | Kaggle download root (contains `train/`, `test/`, and CSVs) |
 | `csv_path` | `str` | No | auto | Path to `train.csv`; auto-discovered |
 | `annotations_csv_path` | `str` | No | auto | Path to `train_annotations.csv`; required only for `output_mask=True` |
 | `mask_output_dir` | `str` | No | `None` | Directory for rasterized polyline PNGs; required for `output_mask=True` |
@@ -67,6 +67,10 @@ Test split rows have `NaN` for all label columns (no public labels released).
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `mask_num_cores` | `int` | No | `1` | Worker threads for mask pre-decoding |
+| `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
+| `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

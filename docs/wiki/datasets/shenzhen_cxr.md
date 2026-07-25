@@ -116,7 +116,7 @@ Values are counts of annotated regions (0 = absent, ≥1 = present).
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | — | The `CXR_png/` images directory itself |
+| `base_image_dir` | `str` | Yes* | `None` | The `CXR_png/` images directory itself |
 | `output_cls` | `bool` | No | `False` | Yield TB label under `"cls"` |
 | `output_report` | `bool` | No | `False` | Yield clinical reading text under `"report"` |
 | `output_mask` | `bool` | No | `False` | Yield fused per-finding "TB region" mask under `"mask"`; requires `mask_output_dir` |
@@ -128,6 +128,7 @@ Values are counts of annotated regions (0 = absent, ≥1 = present).
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to a saved harmonized pickle |
+| `output_bbox` | `bool` | No | `False` | Not supported; ignored |
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 

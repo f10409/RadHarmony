@@ -37,7 +37,7 @@ Same 14 labels as CheXpert:
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `files/` subtree root (e.g. `/data/mimic-cxr-jpg/2.0.0/files/`) — direct parent of the `p10/`, `p11/`, … patient prefix dirs |
+| `base_image_dir` | `str` | Yes | `None` | `files/` subtree root (e.g. `/data/mimic-cxr-jpg/2.0.0/files/`) — direct parent of the `p10/`, `p11/`, … patient prefix dirs |
 | `csv_path` | `str` | No | auto | `mimic-cxr-2.0.0-metadata.csv.gz`; auto-discovered |
 | `label_csv_path` | `str` | No | auto | `mimic-cxr-2.0.0-chexpert.csv` |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -50,6 +50,7 @@ Same 14 labels as CheXpert:
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

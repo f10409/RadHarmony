@@ -32,7 +32,7 @@ RAD-ChestCT/
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `images/` directory — flat dir of `<NoteAcc_DEID>.npz` files (e.g. `/data/RAD-ChestCT/images/`). Note: the harmonizer constructor parameter is named `image_base_dir` (not `base_image_dir`) for legacy reasons |
+| `base_image_dir` | `str` | Yes | `None` | `images/` directory — flat dir of `<NoteAcc_DEID>.npz` files (e.g. `/data/RAD-ChestCT/images/`). Note: the harmonizer constructor parameter is named `image_base_dir` (not `base_image_dir`) for legacy reasons |
 | `csv_path` | `str` | No | auto | `CT_Scan_Metadata_Complete_35747.csv`; auto-discovered |
 | `label_csv_path` | `str` | No | auto | Abnormality labels CSV; auto-discovered |
 | `bbox_csv_path` | `str` | No | auto | Location labels CSV for bounding boxes |
@@ -45,6 +45,7 @@ RAD-ChestCT/
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

@@ -35,7 +35,7 @@ siim-covid19-detection/
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `train/` (or `test/` for the test split) — root walked for `<study>/<series>/<sop>.dcm` files (e.g. `~/datasets/competitions/siim-covid19-detection/train/`) |
+| `base_image_dir` | `str` | Yes | `None` | `train/` (or `test/` for the test split) — root walked for `<study>/<series>/<sop>.dcm` files (e.g. `~/datasets/competitions/siim-covid19-detection/train/`) |
 | `csv_path` | `str` | No | auto | `train_study_level.csv`; auto-discovered |
 | `image_csv_path` | `str` | No | auto | `train_image_level.csv` for bbox annotations |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -47,6 +47,7 @@ siim-covid19-detection/
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

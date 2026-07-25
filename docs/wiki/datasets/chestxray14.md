@@ -62,7 +62,7 @@ All three classes (`ChestXray14TrainDataset`, `ChestXray14TestDataset`, `ChestXr
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | CXR14 root containing `images_001/` … `images_012/` sibling dirs (e.g. `/data/NIH_CXR/CXR14/`) |
+| `base_image_dir` | `str` | Yes | `None` | CXR14 root containing `images_001/` … `images_012/` sibling dirs (e.g. `/data/NIH_CXR/CXR14/`) |
 | `csv_path` | `str` | No | auto | `Data_Entry_2017.csv`; auto-discovered |
 | `bbox_csv_path` | `str` | No | auto | `BBox_List_2017.csv`; required for BBox variant |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -74,6 +74,7 @@ All three classes (`ChestXray14TrainDataset`, `ChestXray14TestDataset`, `ChestXr
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

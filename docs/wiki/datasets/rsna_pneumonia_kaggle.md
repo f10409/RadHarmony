@@ -32,7 +32,7 @@ rsna-pneumonia-detection-challenge/
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes | — | `stage_2_train_images/` (or `stage_2_test_images/` for the test split) — flat dir of `<patientId>.dcm` files |
+| `base_image_dir` | `str` | Yes | `None` | `stage_2_train_images/` (or `stage_2_test_images/` for the test split) — flat dir of `<patientId>.dcm` files |
 | `csv_path` | `str` | No | auto | `stage_2_detailed_class_info.csv`; auto-discovered |
 | `bbox_csv_path` | `str` | No | auto | `stage_2_train_labels.csv`; required for bounding boxes |
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
@@ -44,6 +44,7 @@ rsna-pneumonia-detection-challenge/
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 
