@@ -18,7 +18,7 @@ from sklearn.model_selection import GroupKFold
 from radharmony.evaluator.language._report_parser import parse_report_section
 
 
-def show_predictions(probe, probe_ds, montgomery_dir, *, label="tb", n_splits=5):
+def show_predictions(probe, probe_ds, montgomery_dir, *, label="tuberculosis", n_splits=5):
     """Classification: read P(label) off the probe for a few held-out images.
 
     Reuses the embeddings ``probe.evaluate()`` already cached, does one honest

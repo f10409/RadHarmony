@@ -25,7 +25,7 @@ from ..base import BaseRadiologicalDataset
 from ..transforms import RadiologyTransform2D
 
 
-_LABEL_COLS = ["tb"]
+_LABEL_COLS = ["tuberculosis"]
 
 
 @register_dataset("montgomery_cxr")

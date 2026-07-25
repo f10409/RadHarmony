@@ -58,7 +58,7 @@ If the zip URL redirects or is unavailable, visit the index page and follow the 
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `tb` | int (0/1) | Tuberculosis status — 0 = normal, 1 = TB-positive |
+| `tuberculosis` | int (0/1) | Tuberculosis status — 0 = normal, 1 = TB-positive |
 
 ## Extra columns
 
@@ -119,7 +119,7 @@ from radharmony.dataset import MontgomeryCXRDataset
 h = MontgomeryCXRHarmonizer(base_dir="/data/MontgomerySet/CXR_png/")
 df = h.harmonize()
 print(df.shape)                       # (138, ...)
-print(df["tb"].value_counts())        # 0: 80, 1: 58
+print(df["tuberculosis"].value_counts())   # 0: 80, 1: 58
 print(df.columns.tolist())
 
 # Dataset flow with classification + lung mask output
@@ -134,7 +134,7 @@ ds = MontgomeryCXRDataset(
 ## Notes
 
 - The filename suffix (`_0` / `_1`) encodes TB status; this is the
-  authoritative source of the `tb` label.
+  authoritative source of the `tuberculosis` label.
 - Lung masks are optional — `mask_path_left` and `mask_path_right` are
   `NaN` if `ManualMask/` is absent. In that case `output_mask=True` rows
   will be dropped from the data stream.

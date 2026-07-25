@@ -47,7 +47,7 @@ common folder containing every image. ``ClinicalReadings/`` and
   ``_1`` filename suffix = TB-positive.
 
 **Harmonized columns produced:**
-  ``patient_id``, ``study_id``, ``image_path``, ``tb`` (0/1 Int64),
+  ``patient_id``, ``study_id``, ``image_path``, ``tuberculosis`` (0/1 Int64),
   ``sex``, ``age`` (int years), ``report`` (str),
   ``mask_path_left``, ``mask_path_right``
 """
@@ -101,7 +101,7 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
             the sibling tree.
     """
 
-    LABEL_COLS = ["tb"]
+    LABEL_COLS = ["tuberculosis"]
 
     LABEL_JOIN_COLS = None
     VIEW_POSITION_SOURCE_COL = None
@@ -138,7 +138,7 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
         self.df["image_path"] = self.df["_stem"] + ".png"
 
     def _build_labels(self) -> None:
-        self.df["tb"] = (
+        self.df["tuberculosis"] = (
             self.df["_stem"]
             .str.extract(r"_([01])$")[0]
             .astype("Int64")
