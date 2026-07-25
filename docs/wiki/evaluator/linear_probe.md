@@ -38,9 +38,7 @@ df = ev.evaluate()
 
 ## Constructor arguments
 
-These arguments are specific to `LinearProbeEvaluator`. For the full set of
-shared arguments (`device`, `batch_size`, `n_seeds`, `n_bootstrap`, etc.) see
-[Common constructor arguments](index.md#common-constructor-arguments).
+Specific to `LinearProbeEvaluator`:
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -58,6 +56,28 @@ Default `probe_kwargs` when `None`:
 
 Override any key via `probe_kwargs={"C": 0.1, "max_iter": 5000}` — the dict is
 merged with the defaults, so unspecified keys keep their values.
+
+### Shared arguments (inherited from `BaseClsEvaluator`)
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `image_encoder` | `nn.Module` / callable | — | `forward(imgs) → Tensor[B, D]` |
+| `dataset` | dataset | `None` | k-fold mode (mutually exclusive with `train_dataset`/`test_dataset`) |
+| `train_dataset` | dataset | `None` | Fixed-split mode train pool |
+| `test_dataset` | dataset | `None` | Fixed-split mode test set |
+| `labels` | `list[str]` | `None` | Subset of `LABEL_COLS` to evaluate; default = all |
+| `device` | `str` | `"cuda"` | `"cuda"`, `"cuda:N"`, or `"cpu"` |
+| `batch_size` | `int` | `64` | Inference DataLoader batch size |
+| `num_workers` | `int` | `4` | Inference DataLoader workers |
+| `autocast_dtype` | `torch.dtype` | `torch.bfloat16` | Inference autocast dtype; `None` disables |
+| `embedding_cache` | `str` | `None` | Path prefix to pickle cached embeddings (caches store **raw** features; normalization is reapplied after load) |
+| `l2_normalize` | `bool` | `False` | L2-normalize features at the cache boundary. `KNNProbeEvaluator` and `SVMProbeEvaluator` force this to `True` by default |
+| `output_dir` | `str` | `None` | Directory for CSV output |
+| `n_seeds` | `int` | `1` | Fixed-split only: train-subsample replicates |
+| `base_seed` | `int` | `0` | RNG seed base |
+| `n_bootstrap` | `int` | `0` | Fixed-split only: test-row bootstrap resamples |
+| `bootstrap_seed` | `int` | `0` | RNG seed base for test-row resampling |
+| `threshold_strategy` | `str` | `"youden"` | `"youden"`, `"f1"`, or `"fixed:<float>"` |
 
 ---
 

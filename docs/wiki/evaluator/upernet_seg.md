@@ -67,19 +67,48 @@ ev.save_results(df)
 
 ## Constructor arguments
 
-`UPerNetSegEvaluator` inherits every argument from
-[`LinearProbeSegEvaluator`](linear_probe_seg.md) (`n_folds`,
-`n_train_samples`, `epochs`, `lr`, `weight_decay`, `class_weights`,
-`save_predictions`, `early_stop_metric`, `early_stop_patience`,
-`val_fraction`, `store_final_model`) and `BaseSegEvaluator` (`dataset`,
-`train_dataset`, `test_dataset`, `num_classes`, `device`, `batch_size`,
-`num_workers`, `autocast_dtype`, `output_dir`, `n_seeds`, `base_seed`,
-`n_bootstrap`, `bootstrap_seed`, `threshold_strategy`). Extra knobs:
+Specific to `UPerNetSegEvaluator`:
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
 | `upernet_hidden_size` | `int` | `256` | UPerNet fuse channels |
 | `upernet_pool_scales` | `tuple[int, ...]` | `(1, 2, 3, 6)` | PSP pool grid scales |
+
+### Training arguments (shared with `LinearProbeSegEvaluator`)
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `n_folds` | `int` | `5` | Number of folds in k-fold mode; ignored in fixed-split mode |
+| `n_train_samples` | `list[int]` \| `None` | `None` | Training-set size sweep; `None` = full train pool as a single point |
+| `epochs` | `int` | `20` | Number of training epochs for the segmentation head |
+| `lr` | `float` | `1e-3` | AdamW learning rate |
+| `weight_decay` | `float` | `0.05` | AdamW weight decay |
+| `class_weights` | `list[float]` \| `None` | `None` | Per-class weights for `nn.CrossEntropyLoss` — useful for class-imbalanced foreground (e.g. small lesions) |
+| `save_predictions` | `bool` | `False` | Write per-image GT / Pred / Prob PNGs under `<output_dir>/{GT,Pred,Prob}/<run-id>/` |
+| `early_stop_metric` | `str` | `"dice"` | Per-epoch val metric tracked for early stopping — any key in the seg metric panel; macro-averaged over the foreground classes |
+| `early_stop_patience` | `int` | `5` | Stop training after this many epochs without improvement; best-epoch head state is restored |
+| `val_fraction` | `float` | `0.1` | Fraction of the train subsample carved off as an inner val set for early stopping; `0.0` disables |
+| `store_final_model` | `bool` | `False` | After `evaluate()`, also train a deployment head on all data → `final_head_` |
+
+### Shared arguments (inherited from `BaseSegEvaluator`)
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `image_encoder` | `nn.Module` / callable | — | Frozen encoder; segmentation mode returns `Tensor[B, D, H, W]` |
+| `dataset` | dataset | `None` | k-fold mode (mutually exclusive with `train_dataset`/`test_dataset`) |
+| `train_dataset` | dataset | `None` | Fixed-split mode train pool |
+| `test_dataset` | dataset | `None` | Fixed-split mode test set |
+| `num_classes` | `int` | `2` | Number of segmentation classes, including background |
+| `device` | `str` | `"cuda"` | `"cuda"`, `"cuda:N"`, or `"cpu"` |
+| `batch_size` | `int` | `8` | DataLoader batch size (use `>= 2`; see Caveats) |
+| `num_workers` | `int` | `4` | DataLoader workers |
+| `autocast_dtype` | `torch.dtype` | `torch.bfloat16` | Encoder-forward autocast dtype; `None` disables |
+| `output_dir` | `str` | `None` | Directory for CSV output |
+| `n_seeds` | `int` | `1` | Fixed-split only: train-subsample replicates |
+| `base_seed` | `int` | `0` | RNG seed base |
+| `n_bootstrap` | `int` | `0` | Fixed-split only: test-image bootstrap resamples |
+| `bootstrap_seed` | `int` | `0` | RNG seed base for test-image resampling |
+| `threshold_strategy` | `str` | `"youden"` | Threshold selection strategy for binary metrics |
 
 ---
 

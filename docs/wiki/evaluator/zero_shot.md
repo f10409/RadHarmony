@@ -71,8 +71,7 @@ ev = ZeroShotEvaluator(
 
 ## Constructor arguments
 
-`ZeroShotEvaluator` takes the same shared arguments as other evaluators (see
-[Common constructor arguments](index.md#common-constructor-arguments)) plus:
+Specific to `ZeroShotEvaluator`:
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -80,6 +79,28 @@ ev = ZeroShotEvaluator(
 | `prompts` | `dict[str, list[str]]` | — | Maps each label name to one or more positive prompt strings |
 | `negative_prompts` | `dict[str, list[str]]` \| `None` | `None` | Optional negative prompts per label |
 | `tokenizer` | callable \| `None` | `None` | Tokenizer forwarded to `text_encoder` when provided |
+
+### Shared arguments (inherited from `BaseClsEvaluator`)
+
+Zero-shot uses only a test set, so `train_dataset`, `n_seeds`, and the
+train-subsample knobs are ignored (see Notes). The remaining shared arguments
+apply:
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `image_encoder` | `nn.Module` / callable | — | `forward(imgs) → Tensor[B, D]` |
+| `dataset` | dataset | `None` | Test set in k-fold-style slot; `test_dataset=` is routed here |
+| `test_dataset` | dataset | `None` | Fixed-split mode test set (train side is dropped) |
+| `device` | `str` | `"cuda"` | `"cuda"`, `"cuda:N"`, or `"cpu"` |
+| `batch_size` | `int` | `64` | Inference DataLoader batch size |
+| `num_workers` | `int` | `4` | Inference DataLoader workers |
+| `autocast_dtype` | `torch.dtype` | `torch.bfloat16` | Inference autocast dtype; `None` disables |
+| `embedding_cache` | `str` | `None` | Path prefix to pickle cached embeddings (caches store **raw** features; normalization is reapplied after load) |
+| `l2_normalize` | `bool` | `False` | L2-normalize features at the cache boundary |
+| `output_dir` | `str` | `None` | Directory for CSV output |
+| `n_bootstrap` | `int` | `0` | Test-row bootstrap resamples for confidence intervals |
+| `bootstrap_seed` | `int` | `0` | RNG seed base for test-row resampling |
+| `threshold_strategy` | `str` | `"youden"` | `"youden"`, `"f1"`, or `"fixed:<float>"` |
 
 ---
 

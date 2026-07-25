@@ -96,7 +96,7 @@ sample = ds[0]
 | `output_bbox` | `bool` | No | `False` | Not supported; silently ignored |
 | `transform` | `Compose` | No | 2D default | MONAI transform pipeline |
 | `cache_dir` | `str` | No | `./cache` | PersistentDataset cache root; `None` disables caching |
-| `dtype` | `torch.dtype` | No | `bfloat16` | Image tensor dtype |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Image tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |

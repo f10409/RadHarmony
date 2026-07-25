@@ -81,11 +81,7 @@ df = ev.evaluate()
 
 ## Constructor arguments
 
-These arguments are specific to `LinearProbeSegEvaluator`. The full set of
-shared arguments (`dataset`, `train_dataset`, `test_dataset`,
-`num_classes`, `device`, `batch_size`, `num_workers`, `autocast_dtype`,
-`output_dir`, `n_seeds`, `base_seed`, `n_bootstrap`, `bootstrap_seed`,
-`threshold_strategy`) comes from `BaseSegEvaluator`.
+Specific to `LinearProbeSegEvaluator`:
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -101,8 +97,25 @@ shared arguments (`dataset`, `train_dataset`, `test_dataset`,
 | `val_fraction` | `float` | `0.1` | Fraction of the train subsample carved off as an inner val set for early stopping. Set to `0.0` to disable. |
 | `store_final_model` | `bool` | `False` | After `evaluate()`, also train a deployment head on all data → `final_head_` (see [Saving and reuse](#saving-and-reuse)) |
 
-Shared `BaseSegEvaluator` defaults worth noting: `num_classes=2`,
-`batch_size=8`, `num_workers=4`, `autocast_dtype=torch.bfloat16`.
+### Shared arguments (inherited from `BaseSegEvaluator`)
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `image_encoder` | `nn.Module` / callable | — | Frozen encoder; segmentation mode returns `Tensor[B, D, H, W]` |
+| `dataset` | dataset | `None` | k-fold mode (mutually exclusive with `train_dataset`/`test_dataset`) |
+| `train_dataset` | dataset | `None` | Fixed-split mode train pool |
+| `test_dataset` | dataset | `None` | Fixed-split mode test set |
+| `num_classes` | `int` | `2` | Number of segmentation classes, including background |
+| `device` | `str` | `"cuda"` | `"cuda"`, `"cuda:N"`, or `"cpu"` |
+| `batch_size` | `int` | `8` | DataLoader batch size |
+| `num_workers` | `int` | `4` | DataLoader workers |
+| `autocast_dtype` | `torch.dtype` | `torch.bfloat16` | Encoder-forward autocast dtype; `None` disables |
+| `output_dir` | `str` | `None` | Directory for CSV output |
+| `n_seeds` | `int` | `1` | Fixed-split only: train-subsample replicates |
+| `base_seed` | `int` | `0` | RNG seed base |
+| `n_bootstrap` | `int` | `0` | Fixed-split only: test-image bootstrap resamples |
+| `bootstrap_seed` | `int` | `0` | RNG seed base for test-image resampling |
+| `threshold_strategy` | `str` | `"youden"` | Threshold selection strategy for binary metrics |
 
 ---
 
