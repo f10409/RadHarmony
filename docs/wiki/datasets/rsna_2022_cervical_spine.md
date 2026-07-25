@@ -54,17 +54,22 @@ The `cls` tensor has values in sorted (alphabetical) order: `c1, c2, c3, c4, c5,
 | `base_image_dir` | `str` | Yes* | `None` | `train_images/` (or `test_images/` for the test split) — direct parent of `<StudyInstanceUID>/` DICOM dirs (e.g. `~/datasets/external/rsna-2022-cervical-spine-fracture-detection/train_images/`) |
 | `csv_path` | `str` | No | auto | `train.csv`; auto-discovered in parent of `base_image_dir` |
 | `segmentation_dir` | `str` | No | auto | Directory of `<StudyUID>.nii` masks; auto-discovered as `../segmentations/` |
-| `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |
-| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
 | `hu_window` | `tuple` or `None` | No | `(-200, 1800)` | HU clipping window (bone-centric default) |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Include `"mask"`; restricts dataset to 87 studies with NIfTI masks |
 | `output_report` | `bool` | No | `False` | Not supported; silently ignored |
 | `output_bbox` | `bool` | No | `False` | Not supported; use `RSNA2022CervicalSpineBboxDataset` for bboxes |
+| `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |
+| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
 
 *`base_image_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 
@@ -165,16 +170,21 @@ ds = RSNA2022CervicalSpineTrainDataset(
 | `base_image_dir` | `str` | Yes* | `None` | `train_images/` directory — direct parent of `<StudyInstanceUID>/` DICOM dirs (e.g. `~/datasets/external/rsna-2022-cervical-spine-fracture-detection/train_images/`) |
 | `csv_path` | `str` | No | auto | `train.csv`; auto-discovered |
 | `bbox_csv_path` | `str` | No | auto | `train_bounding_boxes.csv`; auto-discovered |
-| `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |
-| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include study-level `"cls"` (8-D) in data dict |
-| `output_bbox` | `bool` | No | `False` | Include per-volume `"bbox"` and `"bbox_labels"` |
 | `output_mask` | `bool` | No | `False` | Not supported; silently ignored |
 | `output_report` | `bool` | No | `False` | Not supported; silently ignored |
+| `output_bbox` | `bool` | No | `False` | Include per-volume `"bbox"` and `"bbox_labels"` |
+| `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |
+| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
 
 *`base_image_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 

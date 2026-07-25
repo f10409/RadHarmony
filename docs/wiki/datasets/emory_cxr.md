@@ -90,9 +90,14 @@ sample = ds[0]
 | `csv_path` | `str` | No | auto | Path to metadata CSV |
 | `label_csv_path` | `str` | No | `None` | Path to finding label CSV; required for `output_cls=True` |
 | `report_csv_path` | `str` | No | `None` | Path to report CSV; required for `output_report=True` |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|---|---|---|---|---|
 | `output_cls` | `bool` | No | `False` | Yield 14-class label tensor under `cls` |
-| `output_report` | `bool` | No | `False` | Yield de-identified report text under `report` |
 | `output_mask` | `bool` | No | `False` | Not supported; silently ignored |
+| `output_report` | `bool` | No | `False` | Yield de-identified report text under `report` |
 | `output_bbox` | `bool` | No | `False` | Not supported; silently ignored |
 | `transform` | `Compose` | No | 2D default | MONAI transform pipeline |
 | `cache_dir` | `str` | No | `./cache` | PersistentDataset cache root; `None` disables caching |

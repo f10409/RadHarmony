@@ -53,17 +53,22 @@ The `cls` tensor has 14 values in alphabetical order.
 | `base_image_dir` | `str` | Yes* | `None` | `train_images/` (or `test_images/` for the test split) — direct parent of `<patient_id>/<series_id>/` DICOM dirs (e.g. `~/datasets/external/rsna-2023-abdominal-trauma-detection/train_images/`) |
 | `csv_path` | `str` | No | auto | `train_2024.csv`; auto-discovered in parent of `base_image_dir` |
 | `series_meta_csv_path` | `str` | No | auto | `train_series_meta.csv`; auto-discovered |
-| `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |
-| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
 | `hu_window` | `tuple` or `None` | No | `(-150, 250)` | HU clipping window (soft-tissue / contrast abdomen) |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Not supported in this release; silently ignored |
 | `output_report` | `bool` | No | `False` | Not supported; silently ignored |
 | `output_bbox` | `bool` | No | `False` | Not supported in this release; silently ignored |
+| `transform` | MONAI Compose | No | 3D pipeline | Custom MONAI transform |
+| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
 
 *`base_image_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 

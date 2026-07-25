@@ -47,14 +47,19 @@ VQA-RAD/
 |----------|------|----------|---------|-------------|
 | `base_image_dir` | `str` | Yes* | `None` | `VQA_RAD Image Folder/` directory (flat, direct parent of the 315 JPEGs) |
 | `json_path` | `str` | No | auto | Path to `VQA_RAD Dataset Public.json`; auto-discovered in the parent of `base_image_dir` when omitted |
-| `transform` | MONAI Compose | No | 2D VQA pipeline | Custom MONAI transform (must not use `SelectItemsD`, or `question`/`answer` get dropped) |
-| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+
+### Shared arguments (inherited from `BaseVQADataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_struct` | `bool` | No | `False` | Include `"answer_struct"` in data dict — unset for VQA-RAD, whose answers are plain strings, not structured (no `answer_struct` column is populated) |
 | `output_question_type` | `bool` | No | `False` | Include `"question_type"` string (e.g. `PRES`, `ABN`, `MODALITY`, …) in data dict |
+| `transform` | MONAI Compose | No | 2D VQA pipeline | Custom MONAI transform (must not use `SelectItemsD`, or `question`/`answer` get dropped) |
+| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype for `"img"`; use `torch.float32` on CPU |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype for `"img"`; use `torch.float32` on CPU |
 
 *`base_image_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 

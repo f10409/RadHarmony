@@ -90,7 +90,14 @@ VINDR-PCXR/                     ← base_image_dir points here
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
 | `base_image_dir` | `str` | Yes* | `None` | Dataset root (contains `train/`, `test/`, CSV files) |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` tensor (15 labels) in data dict |
+| `output_mask` | `bool` | No | `False` | Not supported; ignored |
+| `output_report` | `bool` | No | `False` | Not supported; ignored |
 | `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
 | `transform` | Compose | No | standard 2-D 224 px | MONAI Compose transform |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory. `None` disables |
@@ -98,8 +105,6 @@ VINDR-PCXR/                     ← base_image_dir points here
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonizer pickle |
-| `output_mask` | `bool` | No | `False` | Not supported; ignored |
-| `output_report` | `bool` | No | `False` | Not supported; ignored |
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 

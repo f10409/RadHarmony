@@ -42,16 +42,21 @@ three path components (`<study>/<series>/<image>.dcm`) as `image_path`.
 | `csv_path` | `str` | No | auto | `train-rle.csv`; auto-discovered |
 | `mask_output_dir` | `str` | No | `None` | Directory to save decoded PNG masks; required for `output_mask=True` |
 | `mask_num_cores` | `int` | No | `1` | Parallel workers for RLE mask decoding |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Include `"mask"` in data dict |
 | `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
 | `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

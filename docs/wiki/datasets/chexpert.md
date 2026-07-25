@@ -50,14 +50,19 @@ CheXpert-v1.0/
 |----------|------|----------|---------|-------------|
 | `base_image_dir` | `str` | Yes | `None` | `train/` (or `valid/`) directory — direct parent of `patient.../study.../view*.jpg` (e.g. `/data/CheXpert-v1.0/train/`). Use `CheXpertValidDataset` for the valid split |
 | `csv_path` | `str` | No | auto | Path to `train.csv`; auto-discovered if omitted |
-| `output_cls` | `bool` | No | `False` | Include `"cls"` tensor in data dict |
 | `drop_uncertain` | `bool` | No | `True` | Drop rows with uncertain (-1) labels |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `output_cls` | `bool` | No | `False` | Include `"cls"` tensor in data dict |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory; `None` = no cache |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

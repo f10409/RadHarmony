@@ -55,14 +55,19 @@ The `scripts/fetch.py --subdir <name>` argument controls the image subfolder nam
 | `splits` | `list[str]` | No | all 3 | Any subset of `["train", "validation", "test"]` |
 | `radiology_only` | `bool` | No | `True` | When `False`, also include `non-radiology/` samples |
 | `image_subdir` | `str` | No | `"images"` | Image subdirectory name; must match the `--subdir` value passed to `scripts/fetch.py` |
-| `transform` | MONAI Compose | No | 2D VQA pipeline | Custom MONAI transform |
-| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+
+### Shared arguments (inherited from `BaseVQADataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_struct` | `bool` | No | `False` | Include `"answer_struct"` in data dict (unused for ROCO; kept for schema parity) |
 | `output_question_type` | `bool` | No | `False` | Include `"question_type"` (unused for ROCO) |
+| `transform` | MONAI Compose | No | 2D VQA pipeline | Custom MONAI transform |
+| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype for `"img"` |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonizer state |
-| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype for `"img"` |
 
 \* `base_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 

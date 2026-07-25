@@ -117,16 +117,21 @@ reports (e.g. via CheXbert) is left to the user.
 |----------|------|----------|---------|-------------|
 | `base_image_dir` | `str` | Yes | `None` | Root of the extracted PNG tree, e.g. `/data/ReXGradient-160K/deid_png/`. Immediate children are `<PatientID>/` directories. |
 | `csv_path` | `str` | No | auto | Path to `<split>_metadata_view_position.json`. **Must be the JSON, not the CSV.** Auto-discovered near sibling/ancestor `metadata/` directories. |
-| `output_report` | `bool` | No | `False` | Include `"report"` (4-section concatenated text) in the data dict |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | **Not supported** — dataset has no structured labels |
 | `output_mask` | `bool` | No | `False` | **Not supported** |
+| `output_report` | `bool` | No | `False` | Include `"report"` (4-section concatenated text) in the data dict |
 | `output_bbox` | `bool` | No | `False` | **Not supported** by this dataset class (a separate interstitial-pattern bbox JSON exists for ~398 examples but is out of scope here) |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to a saved harmonizer pickle |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor: train
 

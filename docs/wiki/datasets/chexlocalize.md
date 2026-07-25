@@ -61,14 +61,19 @@ chexlocalize/
 | `mask_json_path` | `str` | No | auto | Path to `gt_segmentations_test.json`; auto-discovered (searches sibling `CheXlocalize/` dir) if omitted. Only loaded when `output_mask=True` |
 | `mask_output_dir` | `str` | No | `None` | Directory for decoded, unioned mask PNGs; required for `output_mask=True` |
 | `mask_num_cores` | `int` | No | `1` | Parallel worker threads for mask decoding |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` tensor in data dict |
 | `output_mask` | `bool` | No | `False` | Include unioned segmentation mask under `"mask"` |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory; `None` = no cache |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

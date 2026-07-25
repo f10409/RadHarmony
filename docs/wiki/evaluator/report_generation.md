@@ -55,14 +55,21 @@ ev.save_results(df)
 
 ## Constructor arguments
 
+Specific to `ReportGenerationEvaluator`:
+
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
 | `report_generator` | callable | — | `(imgs) -> list[str]` of length `len(imgs)` |
-| `dataset` | dataset | — | RadHarmony dataset constructed with `output_report=True` |
 | `metrics` | `tuple[str, ...]` | `FULL_METRICS` (16 metrics) | RadEval metric names. See [Metric suite](#metric-suite) below |
 | `ref_section` | `str` | `"findings"` | One of `"findings"`, `"impression"`, `"both"`, or `"full"` |
 | `use_indication` | `bool` | `False` | Parse the indication section from each report and pass it to the generator as per-sample context (indication-conditioned reporting) |
 | `indication_section` | `str` | `"indication"` | Section name handed to the parser for the indication text |
+
+### Shared arguments (inherited from `GenerativeEvaluator`)
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `dataset` | dataset | — | RadHarmony dataset constructed with `output_report=True` |
 | `device` | `str` | `"cuda"` | Currently unused (the generator owns its device); kept for symmetry with other evaluators |
 | `batch_size` | `int` | `8` | Inference DataLoader batch size |
 | `num_workers` | `int` | `4` | Inference DataLoader workers |

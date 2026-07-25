@@ -92,17 +92,22 @@ totals (after the 103 NaN-Labels rows are removed).
 |----------|------|----------|---------|-------------|
 | `base_image_dir` | `str` | Yes | `None` | The `images/` directory containing `0/`, …, `50/`, `54/` sibling subdirs (e.g. `/data/PadChest/images/`) |
 | `csv_path` | `str` | No | auto | `PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz` (or `.csv`); auto-discovered |
-| `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
-| `output_report` | `bool` | No | `False` | Include `"report"` (Spanish text) in data dict |
-| `output_mask` | `bool` | No | `False` | **Not supported** — warns and is ignored |
-| `output_bbox` | `bool` | No | `False` | **Not supported** — warns and is ignored |
 | `drop_uncertain` | `bool` | No | `True` | Drop ~3,151 rows flagged with `exclude=1` or `suboptimal_study=1`. Set to `False` to train on the full noisy distribution. |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
+| `output_mask` | `bool` | No | `False` | **Not supported** — warns and is ignored |
+| `output_report` | `bool` | No | `False` | Include `"report"` (Spanish text) in data dict |
+| `output_bbox` | `bool` | No | `False` | **Not supported** — warns and is ignored |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonizer pickle |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

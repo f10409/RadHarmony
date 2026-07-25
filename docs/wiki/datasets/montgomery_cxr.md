@@ -83,18 +83,23 @@ If the zip URL redirects or is unavailable, visit the index page and follow the 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
 | `base_image_dir` | `str` | `None` | The `CXR_png/` images directory |
-| `transform` | MONAI Compose | standard 224 px 2-D | Default 2-D pipeline; `output_keys` extended with `mask` when `output_mask=True` |
-| `cache_dir` | `str` | `"./cache"` | MONAI `PersistentDataset` cache; `None` disables |
 | `mask_output_dir` | `str` | `None` | Required when `output_mask=True` — directory the fused left+right lung-mask PNGs are written to |
 | `mask_num_cores` | `int` | `1` | Reserved for signature parity with SIIM-ACR PTX; currently unused (fusion loop is small) |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
 | `output_cls` | `bool` | `False` | Yield TB label under the `"cls"` key |
 | `output_mask` | `bool` | `False` | Yield fused lung mask under the `"mask"` key; requires `mask_output_dir` |
 | `output_report` | `bool` | `False` | Yield clinical reading text under the `"report"` key |
+| `output_bbox` | `bool` | `False` | Not supported; ignored |
+| `transform` | MONAI Compose | standard 224 px 2-D | Default 2-D pipeline; `output_keys` extended with `mask` when `output_mask=True` |
+| `cache_dir` | `str` | `"./cache"` | MONAI `PersistentDataset` cache; `None` disables |
 | `dtype` | `torch.dtype` | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | `None` | Path to saved harmonized CSV |
-| `output_bbox` | `bool` | `False` | Not supported; ignored |
 
 ## Mask output
 

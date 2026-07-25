@@ -33,7 +33,7 @@ executes doc code (it parses with `ast`); it only imports the package.
 - After a batch of API changes (new/renamed constructor args, changed defaults, new
   registry keys, new pip extras) when you want to catch every doc that fell behind.
 
-## What this audits (five checks)
+## What this audits (six checks)
 
 | User's check | Mechanized as | Finding type(s) |
 |---|---|---|
@@ -41,17 +41,29 @@ executes doc code (it parses with `ast`); it only imports the package.
 | 2 + 4. Every argument is documented (table completeness) | the arg table lists every constructor parameter; no phantom rows | `missing-arg-row`, `phantom-arg-row` |
 | 3. Descriptions are accurate | registry key is registered; documented default matches code; verbatim default-kwargs dicts match | `registry-key-mismatch`, `default-mismatch`, `default-dict-mismatch` |
 | 5. Defaults are documented | every parameter that carries a default has a non-empty `Default` cell | `missing-default` |
+| 6. Layout is consistent (house style) | inherited/base-class args live under a `### Shared arguments` subsection, not mixed into the class-specific table nor hidden behind a cross-link to a central table | `shared-arg-not-grouped`, `missing-shared-subsection` |
 | (bash) install/CLI correctness | `pip install -e ".[<extra>]"` extras exist in pyproject | `unknown-extra`, `unknown-command` |
 
-Two structural facts the helper already handles — keep them in mind when reading results:
+Structural facts the helper handles — keep them in mind when reading results:
 
-- **Evaluator `**base_kwargs` split.** Evaluator classes forward shared kwargs via
-  `**base_kwargs` to a base class (`BaseClsEvaluator` etc.). The helper walks the
-  forwarding chain, so the *accepted* parameter set is the union across the chain. The
-  docs mirror this: leaf-specific args live on the per-evaluator page, shared args in the
-  **Common constructor arguments** table on `docs/wiki/evaluator/index.md`. The helper
-  loads that central table and treats those args as documented — so leaf pages are **not**
-  flagged for shared args documented centrally.
+- **House style: self-contained pages with a `### Shared arguments` subsection.** Every
+  evaluator and dataset page's `## Constructor arguments` section is split into a
+  class-specific table followed by a `### Shared arguments (inherited from <BaseClass>)`
+  subsection (`BaseClsEvaluator` / `BaseSegEvaluator` / `GenerativeEvaluator` for
+  evaluators; `BaseRadiologicalDataset` for image datasets; `BaseVQADataset` for the VQA
+  datasets, a separate hierarchy whose shared block adds `output_struct` /
+  `output_question_type`). No page cross-links to a central
+  common-args table. Check 6 enforces this: a base-class arg sitting in the specific table
+  is `shared-arg-not-grouped`; an evaluator that inherits shared args but has no subsection
+  (the old cross-link pattern) is `missing-shared-subsection`. `docs/wiki/evaluator/index.md`
+  keeps its **Common constructor arguments** table as an at-a-glance overview only.
+- **Section grouping.** The helper unions all tables in one constructor section — the
+  specific table plus its `### Shared arguments` / `### Training arguments` subtables — by
+  heading depth *and* subsection heading (rsna_2022 uses `###` for both), so symbol-matching
+  sees the section's combined arg set and the split halves don't map to different sibling
+  symbols (e.g. a dataset vs its harmonizer). Only actual dataset (`BaseRadiologicalDataset`
+  or `BaseVQADataset`) and evaluator symbols are layout-checked; transforms and backbone
+  factories are exempt.
 - **Closed vs open signatures.** A dataset leaf that declares all its args explicitly
   (no `**kwargs`) contributes only its own signature — base-only params are *not* demanded
   in its table. `unknown-kwarg` is only emitted for a *closed* signature (the forwarding
@@ -100,6 +112,11 @@ each type by hand before acting. Known nuances to apply judgment on:
 - **Unmapped tables** (a harmonizer table on a page that doesn't import the harmonizer) are
   silently skipped, not falsely mapped to the dataset. If you expect a table to be checked
   and it isn't, make sure the symbol is imported in a code block on that page.
+- **Layout findings (check 6)** are `warning`-severity house-style nudges. `shared-arg-not-grouped`
+  means a base-class arg sits in the class-specific table — move it under the section's
+  `### Shared arguments` subsection. `missing-shared-subsection` means an evaluator inherits
+  shared args but the page inlines none (usually a leftover cross-link) — add the subsection.
+  Both are gated to dataset/evaluator symbols; transforms and backbone factories never trip them.
 
 ### 3. Prose spot-check (the non-mechanized part of check 3)
 
@@ -122,7 +139,9 @@ present them to the user. Wait for approval before touching any doc.
 
 Fix the **doc to match the code**, never the reverse (same rule as `update-docs`). Typical
 fixes: add a missing arg row (with the real default), remove/rename a phantom row, fill an
-empty `Default` cell, correct a stale registry key, remove an invalid kwarg from an example.
+empty `Default` cell, correct a stale registry key, remove an invalid kwarg from an example,
+move inherited args out of the class-specific table into a `### Shared arguments (inherited
+from <BaseClass>)` subsection (check 6).
 After editing, re-run the helper (whole wiki, or `--page` for the touched files) and confirm
 the targeted findings are gone and no new ones appeared.
 
@@ -131,9 +150,11 @@ the targeted findings are gone and no new ones appeared.
 - **Do not execute doc code** to test it — the helper uses `ast`; keep it that way.
 - **Do not fix the code to match the docs.** Docs follow the source.
 - **Do not rewrite accurate prose.** Only change what a finding identifies.
-- **Do not flag centrally-documented shared evaluator args** as missing — the helper
-  already unions in `evaluator/index.md`'s common-args table; if you edit that behavior,
-  keep the union.
+- **Do not centralize shared args to silence check 6.** The house style inlines them on
+  each page under `### Shared arguments`; do not "fix" a layout finding by moving args to a
+  central table and cross-linking. (The helper still unions `evaluator/index.md`'s common-args
+  table into the *documented* set so it stays an allowed overview; keep that union if you edit
+  the behavior.)
 - **Do not "fix" a generic-API-page phantom** without confirming the class really lacks the
   arg — it usually documents the base API on purpose.
 - **Do not delete or rename source symbols** to silence a finding.

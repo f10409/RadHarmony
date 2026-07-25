@@ -59,11 +59,18 @@ ev.save_results(df)
 
 ## Constructor arguments
 
+Specific to `VQAEvaluator`:
+
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
 | `vqa_answerer` | callable | — | `(imgs, questions) -> list[str]` |
-| `dataset` | dataset | — | A VQA dataset (`VQARadDataset`, `MIMICExtCXRQBADataset`) |
 | `is_closed` | callable | `is_yes_no_answer` | `(reference) -> bool` marking the closed (yes/no) subset |
+
+### Shared arguments (inherited from `GenerativeEvaluator`)
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `dataset` | dataset | — | A VQA dataset (`VQARadDataset`, `MIMICExtCXRQBADataset`) |
 | `device` | `str` | `"cuda"` | Kept for symmetry; the answerer owns its device |
 | `batch_size` | `int` | `8` | Inference DataLoader batch size |
 | `num_workers` | `int` | `4` | Inference DataLoader workers |

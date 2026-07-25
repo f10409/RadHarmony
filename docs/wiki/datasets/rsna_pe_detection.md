@@ -47,16 +47,21 @@ rsna_pe_dataset/
 | `base_image_dir` | `str` | Yes | `None` | `train/` (or `test/` for the test split) — direct parent of `<StudyInstanceUID>/<SeriesInstanceUID>/` (e.g. `/data/rsna_pe_dataset/train/`) |
 | `csv_path` | `str` | No | auto | `train.csv`; auto-discovered |
 | `hu_window` | `tuple[float,float]\|None` | No | `(-1000, 1000)` | HU clip range for CT intensity normalisation |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Not supported; silently ignored with a warning |
 | `output_report` | `bool` | No | `False` | Not supported; silently ignored with a warning |
 | `output_bbox` | `bool` | No | `False` | Not supported; silently ignored with a warning |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype; use `torch.float32` on CPU |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

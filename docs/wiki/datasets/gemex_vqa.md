@@ -48,14 +48,19 @@ MIMIC-CXR-JPG is separate (obtain it via [PhysioNet](https://physionet.org/conte
 | `data_dir` | `str` | Yes* | `None` | Directory containing the 4 JSONL files |
 | `base_image_dir` | `str` | Yes* | `None` | MIMIC-CXR-JPG `files/` root |
 | `question_subtypes` | `list[str]` | No | all 4 | Any subset of `["open_ended", "closed_ended", "single_choice", "multi_choice"]` |
-| `transform` | MONAI Compose | No | 2D VQA pipeline | Custom MONAI transform (must not drop `question` / `answer` / `question_id`) |
-| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+
+### Shared arguments (inherited from `BaseVQADataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_struct` | `bool` | No | `False` | Include `"answer_struct"` (dict with `reason`, `visual_regions`, `visual_locations`, `ori_report`, `choices`) in data dict |
 | `output_question_type` | `bool` | No | `False` | Include `"question_type"` string (e.g. `disease`, `abnormality`, `finding`, `size`, `location`, `severity`) in data dict |
+| `transform` | MONAI Compose | No | 2D VQA pipeline | Custom MONAI transform (must not drop `question` / `answer` / `question_id`) |
+| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype for `"img"` |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonizer state |
-| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype for `"img"` |
 
 \* `data_dir` and `base_image_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 

@@ -89,6 +89,11 @@ sample = ds[0]
 | `manifest_csv_path` | `str` | No | `None` | Manifest scan cache; read if present, else scanned and written here |
 | `chest_only` | `bool` | No | `True` | Keep only chest radiographs (`DX`/`CR` with `CHEST` in body-part/description) |
 | `num_workers` | `int` | No | `12` | Parallel worker processes for the header scan |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|---|---|---|---|---|
 | `output_cls` | `bool` | No | `False` | Not supported (no labels); silently ignored |
 | `output_mask` | `bool` | No | `False` | Not supported; silently ignored |
 | `output_report` | `bool` | No | `False` | Not supported; silently ignored |

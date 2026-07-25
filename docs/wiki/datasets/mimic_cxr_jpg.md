@@ -40,17 +40,22 @@ Same 14 labels as CheXpert:
 | `base_image_dir` | `str` | Yes | `None` | `files/` subtree root (e.g. `/data/mimic-cxr-jpg/2.0.0/files/`) — direct parent of the `p10/`, `p11/`, … patient prefix dirs |
 | `csv_path` | `str` | No | auto | `mimic-cxr-2.0.0-metadata.csv.gz`; auto-discovered |
 | `label_csv_path` | `str` | No | auto | `mimic-cxr-2.0.0-chexpert.csv` |
+| `drop_uncertain` | `bool` | No | `True` | Drop rows with uncertain labels |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Not supported — warns "no effect" if `True` |
 | `output_report` | `bool` | No | `False` | Not supported (JPG dataset has no report text) — warns "no effect" if `True`. Use [MIMIC-CXR (DICOM)](mimic_cxr.md) for reports |
 | `output_bbox` | `bool` | No | `False` | Not supported — warns "no effect" if `True` |
-| `drop_uncertain` | `bool` | No | `True` | Drop rows with uncertain labels |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

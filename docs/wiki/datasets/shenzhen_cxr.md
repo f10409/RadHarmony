@@ -117,18 +117,23 @@ Values are counts of annotated regions (0 = absent, ≥1 = present).
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
 | `base_image_dir` | `str` | Yes* | `None` | The `CXR_png/` images directory itself |
-| `output_cls` | `bool` | No | `False` | Yield TB label under `"cls"` |
-| `output_report` | `bool` | No | `False` | Yield clinical reading text under `"report"` |
-| `output_mask` | `bool` | No | `False` | Yield fused per-finding "TB region" mask under `"mask"`; requires `mask_output_dir` |
 | `mask_output_dir` | `str` | No | `None` | Required when `output_mask=True` — directory the unioned TB-region PNGs are written to |
 | `mask_num_cores` | `int` | No | `1` | Reserved for signature parity with SIIM-ACR PTX; currently unused |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `output_cls` | `bool` | No | `False` | Yield TB label under `"cls"` |
+| `output_mask` | `bool` | No | `False` | Yield fused per-finding "TB region" mask under `"mask"`; requires `mask_output_dir` |
+| `output_report` | `bool` | No | `False` | Yield clinical reading text under `"report"` |
+| `output_bbox` | `bool` | No | `False` | Not supported; ignored |
 | `transform` | Compose | No | standard 2-D 224 px | MONAI Compose transform; `output_keys` extended with `mask` when `output_mask=True` |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory; `None` disables |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to a saved harmonized pickle |
-| `output_bbox` | `bool` | No | `False` | Not supported; ignored |
 
 \* Required unless `harmonizer_path` or `harmonized_df` is provided.
 

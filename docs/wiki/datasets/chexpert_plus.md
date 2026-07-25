@@ -48,17 +48,22 @@ Same 14 labels as CheXpert:
 | `base_image_dir` | `str` | Yes | `None` | Direct parent of `train/` and `valid/` (the `path_to_dcm` column starts with `train/...` or `valid/...`). For the canonical DICOM release: `/data/chexpertplus/DICOM/Uncompressed/` |
 | `csv_path` | `str` | No | auto | `df_chexpert_plus_240401.csv`; auto-discovered |
 | `label_json_path` | `str` | No | auto | `report_fixed.json`; auto-discovered near `base_image_dir` |
-| `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
-| `output_report` | `bool` | No | `False` | Include `"report"` (text) in data dict |
 | `drop_uncertain` | `bool` | No | `True` | Drop rows with uncertain labels |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
+| `output_mask` | `bool` | No | `False` | Not supported; ignored |
+| `output_report` | `bool` | No | `False` | Include `"report"` (text) in data dict |
+| `output_bbox` | `bool` | No | `False` | Not supported; ignored |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `output_bbox` | `bool` | No | `False` | Not supported; ignored |
-| `output_mask` | `bool` | No | `False` | Not supported; ignored |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

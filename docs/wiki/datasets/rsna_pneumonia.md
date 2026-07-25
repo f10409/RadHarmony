@@ -38,16 +38,21 @@ unlike the flat Kaggle layout.
 | `base_image_dir` | `str` | Yes | `None` | Root directory whose immediate subdirs are `<StudyInstanceUID>/` (e.g. `~/Downloads/rsna/`) |
 | `csv_path` | `str` | No | auto | Adjudicated JSON annotation file; auto-discovered |
 | `label_group` | `str` | No | `"Calculated"` | Which label group to use from the JSON annotations |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Include `"mask"` in data dict |
 | `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
 | `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

@@ -60,17 +60,22 @@ Test split rows have `NaN` for all label columns (no public labels released).
 | `mask_output_dir` | `str` | No | `None` | Directory for rasterized polyline PNGs; required for `output_mask=True` |
 | `mask_line_thickness` | `int` | No | `15` | Pixel width for `cv2.polylines` when rasterizing |
 | `include_test_split` | `bool` | No | `True` | Include test rows (NaN labels) in harmonized DataFrame |
+| `mask_num_cores` | `int` | No | `1` | Worker threads for mask pre-decoding |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Include rasterized polyline mask under `"mask"` |
+| `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
+| `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `mask_num_cores` | `int` | No | `1` | Worker threads for mask pre-decoding |
-| `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
-| `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

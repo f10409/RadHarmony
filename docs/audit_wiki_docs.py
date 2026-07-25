@@ -80,6 +80,12 @@ class TruthModel:
     resolve_dataset: object = None
     resolve_evaluator: object = None
     common_eval_args: set[str] = field(default_factory=set)  # from evaluator/index.md
+    # base-class argument NAMES, for the layout check (inherited args belong
+    # under a "### Shared arguments" subsection, not the class-specific table)
+    base_eval_args: set[str] = field(default_factory=set)
+    base_dataset_args: set[str] = field(default_factory=set)
+    base_vqa_args: set[str] = field(default_factory=set)  # BaseVQADataset hierarchy
+    base_classes: set = field(default_factory=set)  # base objects to exempt
 
 
 def build_truth(wiki_root: Path) -> TruthModel:
@@ -109,6 +115,48 @@ def build_truth(wiki_root: Path) -> TruthModel:
     if idx.is_file():
         for tbl in find_arg_tables(idx.read_text(encoding="utf-8"), heading="Common constructor arguments"):
             tm.common_eval_args |= {r.arg for r in tbl.rows}
+
+    # base-class arg NAMES for the layout check. Collect each base __init__'s
+    # own parameters (not the MRO walk) so we know which names are "inherited
+    # plumbing" that the house style groups under a "### Shared arguments"
+    # subsection. Base classes themselves are exempted from the check.
+    def _own_params(cls) -> set[str]:
+        try:
+            return {
+                n for n, p in inspect.signature(cls.__init__).parameters.items()
+                if n != "self" and p.kind not in
+                (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+            }
+        except (TypeError, ValueError):
+            return set()
+
+    try:
+        from radharmony.dataset.base import BaseRadiologicalDataset
+        # base_image_dir stays in the class-specific table by convention;
+        # dtype is subclass-added but conventionally part of the shared block.
+        tm.base_dataset_args = (_own_params(BaseRadiologicalDataset) - {"base_image_dir"}) | {"dtype"}
+        tm.base_classes.add(BaseRadiologicalDataset)
+    except Exception as e:  # pragma: no cover
+        print(f"[warn] could not load dataset base class: {e}", file=sys.stderr)
+    try:
+        from radharmony.dataset.base_vqa import BaseVQADataset
+        # VQA datasets are a separate hierarchy; base_image_dir stays specific.
+        tm.base_vqa_args = _own_params(BaseVQADataset) - {"base_image_dir"}
+        tm.base_classes.add(BaseVQADataset)
+    except Exception as e:  # pragma: no cover
+        print(f"[warn] could not load VQA dataset base class: {e}", file=sys.stderr)
+    for mod, cname in (
+        ("radharmony.evaluator.base", "BaseEvaluator"),
+        ("radharmony.evaluator.classification.base", "BaseClsEvaluator"),
+        ("radharmony.evaluator.segmentation.base", "BaseSegEvaluator"),
+        ("radharmony.evaluator.language.base_generative", "GenerativeEvaluator"),
+    ):
+        try:
+            base = getattr(importlib.import_module(mod), cname)
+            tm.base_eval_args |= _own_params(base)
+            tm.base_classes.add(base)
+        except Exception:
+            pass
     return tm
 
 
@@ -268,6 +316,7 @@ class ArgTable:
     heading: str
     rows: list[ArgRow]
     columns: list[str]
+    level: int = 0  # heading depth (# count) the table sits under
 
 
 def _split_row(line: str) -> list[str]:
@@ -293,12 +342,14 @@ def find_arg_tables(text: str, heading: str | None = None) -> list[ArgTable]:
     lines = text.splitlines()
     tables: list[ArgTable] = []
     cur_heading = ""
+    cur_level = 0
     i = 0
     while i < len(lines):
         line = lines[i]
-        hm = re.match(r"^#{1,6}\s+(.*)$", line)
+        hm = re.match(r"^(#{1,6})\s+(.*)$", line)
         if hm:
-            cur_heading = hm.group(1).strip()
+            cur_level = len(hm.group(1))
+            cur_heading = hm.group(2).strip()
             i += 1
             continue
         # table header?
@@ -330,7 +381,7 @@ def find_arg_tables(text: str, heading: str | None = None) -> list[ArgTable]:
                             line=j + 1,
                         ))
                         j += 1
-                    tables.append(ArgTable(heading=cur_heading, rows=rows, columns=cols))
+                    tables.append(ArgTable(heading=cur_heading, rows=rows, columns=cols, level=cur_level))
                     i = j
                     continue
         i += 1
@@ -495,9 +546,8 @@ def audit_page(path: Path, wiki_root: Path, tm: TruthModel) -> list[Finding]:
         except Exception:
             pass
 
-    def match_symbol(table: ArgTable):
-        """Best-overlap symbol for a table, or None if nothing maps well."""
-        args = {r.arg for r in table.rows}
+    def match_symbol(args: set):
+        """Best-overlap symbol for an arg set, or None if nothing maps well."""
         best_obj, best_sig, best_ov = None, None, 0
         for obj in candidates.values():
             sig = get_sig(obj)
@@ -506,19 +556,49 @@ def audit_page(path: Path, wiki_root: Path, tm: TruthModel) -> list[Finding]:
             ov = len(args & set(sig.params))
             if ov > best_ov:
                 best_obj, best_sig, best_ov = obj, sig, ov
-        # require the symbol to cover a majority of the table's rows, so a
-        # harmonizer table doesn't get mapped to the dataset on one stray name.
+        # require the symbol to cover a majority of the args, so a harmonizer
+        # table doesn't get mapped to the dataset on one stray name.
         if best_obj is None or best_ov < max(1, (len(args) + 1) // 2):
             return None, None
         return best_obj, best_sig
 
-    # group tables by resolved symbol so completeness unions its tables
-    by_symbol: dict[int, tuple[object, SigModel, list[ArgTable]]] = {}
+    # A constructor section is one heading and all deeper (###) subtables under
+    # it -- e.g. a "## Constructor arguments" table plus its "### Shared
+    # arguments" / "### Training arguments" subtables. Group by heading depth so
+    # symbol-matching sees the section's *combined* arg set; otherwise the split
+    # halves can map to different sibling symbols on a multi-class page (e.g. a
+    # dataset's specific rows overlap its harmonizer equally) and the inherited
+    # rows stop being unioned into the leaf symbol.
+    # _shared_sub: the narrow "### Shared arguments" subsection (used by the
+    #   layout check to tell inherited-arg tables from class-specific ones).
+    # _sub_heading: any subsection that continues a constructor section (also
+    #   "### Training arguments (shared with ...)"), used only for grouping.
+    _shared_sub = re.compile(r"shared arguments|inherited from", re.I)
+    _sub_heading = re.compile(r"shared arguments|inherited from|training arguments|shared with", re.I)
+    groups: list[list[ArgTable]] = []
+    open_level = None
     for t in tables:
-        obj, sig = match_symbol(t)
+        # A table continues the current section if it is an explicit sub-heading
+        # (shared/training) OR sits at a deeper heading level than the section's
+        # opening heading. Sibling sub-headings (e.g. rsna_2022 uses ### for both
+        # "Constructor arguments" and "Shared arguments") merge on the former.
+        is_sub = bool(_sub_heading.search(t.heading))
+        if groups and (is_sub or (open_level is not None and t.level > open_level)):
+            groups[-1].append(t)
+        else:
+            groups.append([t])
+            open_level = t.level
+
+    # group tables by resolved symbol so completeness unions its tables
+    group_matches: list[tuple[object, SigModel, list[ArgTable]]] = []
+    by_symbol: dict[int, tuple[object, SigModel, list[ArgTable]]] = {}
+    for grp in groups:
+        combined = {r.arg for t in grp for r in t.rows}
+        obj, sig = match_symbol(combined)
         if obj is None:
-            continue  # unmappable table (symbol not imported on the page) -> skip
-        by_symbol.setdefault(id(obj), (obj, sig, []))[2].append(t)
+            continue  # unmappable section (symbol not imported on the page) -> skip
+        group_matches.append((obj, sig, grp))
+        by_symbol.setdefault(id(obj), (obj, sig, []))[2].extend(grp)
 
     for obj, sig, tbls in by_symbol.values():
         name_of = getattr(obj, "__name__", str(obj))
@@ -573,6 +653,49 @@ def audit_page(path: Path, wiki_root: Path, tm: TruthModel) -> list[Finding]:
                         f"`{r.arg}` documented default `{r.default}` vs code `{_pretty_default(p.default)}`",
                         f"Verify; set to `{_pretty_default(p.default)}` if stale."))
 
+    # --- layout consistency: inherited/shared args must live under a
+    #     "### Shared arguments (inherited from <Base>)" subsection, not mixed
+    #     into the class-specific table, and must be inlined (not cross-linked).
+    #     Enforces the house style across evaluator + dataset pages. ---
+    for obj, sig, grp in group_matches:
+        if obj in tm.base_classes:
+            continue  # a page documenting a base class itself (e.g. api.md)
+        is_eval = _is_evaluator(obj)
+        mro_names = [b.__name__ for b in getattr(obj, "__mro__", [])] if inspect.isclass(obj) else []
+        is_dataset = "BaseRadiologicalDataset" in mro_names
+        is_vqa = "BaseVQADataset" in mro_names
+        if is_eval:
+            shared_set = tm.base_eval_args
+        elif is_vqa:
+            shared_set = tm.base_vqa_args
+        elif is_dataset:
+            shared_set = tm.base_dataset_args
+        else:
+            continue  # transforms, backbone factories, etc. have no shared-arg convention
+        shared_in_sig = shared_set & set(sig.params)
+        if not shared_in_sig:
+            continue
+        name_of = getattr(obj, "__name__", str(obj))
+        base_hint = _base_name(obj, is_eval)
+        spec_tables = [t for t in grp if not _shared_sub.search(t.heading)]
+        sub_tables = [t for t in grp if _shared_sub.search(t.heading)]
+        misplaced = [r for t in spec_tables for r in t.rows if r.arg in shared_in_sig]
+        if misplaced:
+            names = ", ".join(f"`{r.arg}`" for r in misplaced)
+            findings.append(Finding(
+                rel, misplaced[0].line, "shared-arg-not-grouped", "warning", name_of,
+                f"Inherited arg(s) {names} appear in the class-specific table",
+                f"Move them under a `### Shared arguments (inherited from {base_hint})` subsection."))
+        elif is_eval and not sub_tables:
+            # shared args exist in the signature but are inlined nowhere on the
+            # page -- the old cross-link-to-central-table pattern. (For datasets
+            # a missing shared arg is already a hard `missing-arg-row`.)
+            findings.append(Finding(
+                rel, grp[0].rows[0].line if grp[0].rows else 1,
+                "missing-shared-subsection", "warning", name_of,
+                f"`{name_of}` inherits shared args but the page has no `### Shared arguments` subsection",
+                f"Inline them under `### Shared arguments (inherited from {base_hint})` rather than linking to a central table."))
+
     # --- pass 6: bash blocks ---
     for blk in blocks:
         if blk.lang not in ("bash", "sh", "shell", "console"):
@@ -594,6 +717,17 @@ def _is_evaluator(obj) -> bool:
         return inspect.isclass(obj) and any("Evaluator" in b.__name__ for b in obj.__mro__)
     except Exception:
         return False
+
+
+def _base_name(obj, is_eval: bool) -> str:
+    """Name of the base class whose args belong in the shared subsection."""
+    names = [b.__name__ for b in getattr(obj, "__mro__", [])]
+    if not is_eval:
+        return "BaseVQADataset" if "BaseVQADataset" in names else "BaseRadiologicalDataset"
+    for cand in ("GenerativeEvaluator", "BaseSegEvaluator", "BaseClsEvaluator"):
+        if cand in names:
+            return cand
+    return "BaseEvaluator"
 
 
 def _pretty_default(val) -> str:

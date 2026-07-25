@@ -38,16 +38,21 @@ Both `VinDrCXRTrainDataset` and `VinDrCXRTestDataset` share the same signature:
 | `base_image_dir` | `str` | Yes | `None` | Split-specific dir — `train/` or `test/` — flat directory of `<image_id>.dicom` files (e.g. `/data/VinDr-CXR/vindr-cxr/1.0.0/train/`) |
 | `csv_path` | `str` | No | auto | Image-level labels CSV — `image_labels_train.csv` (train) / `image_labels_test.csv` (test); auto-discovered under `base_image_dir`, then sibling dirs |
 | `bbox_csv_path` | `str` | No | auto | Bounding box annotations CSV; auto-discovered |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Include `"mask"` in data dict |
 | `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
 | `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

@@ -65,16 +65,21 @@ All three classes (`ChestXray14TrainDataset`, `ChestXray14TestDataset`, `ChestXr
 | `base_image_dir` | `str` | Yes | `None` | CXR14 root containing `images_001/` … `images_012/` sibling dirs (e.g. `/data/NIH_CXR/CXR14/`) |
 | `csv_path` | `str` | No | auto | `Data_Entry_2017.csv`; auto-discovered |
 | `bbox_csv_path` | `str` | No | auto | `BBox_List_2017.csv`; required for BBox variant |
+
+### Shared arguments (inherited from `BaseRadiologicalDataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_cls` | `bool` | No | `False` | Include `"cls"` in data dict |
 | `output_mask` | `bool` | No | `False` | Include `"mask"` in data dict |
 | `output_report` | `bool` | No | `False` | Include `"report"` in data dict |
 | `output_bbox` | `bool` | No | `False` | Include `"bbox"` and `"bbox_labels"` in data dict |
+| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 | `cache_dir` | `str` | No | `"./cache"` | MONAI cache directory |
 | `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `transform` | MONAI transform | No | `None` | MONAI Compose transform; `None` uses the default pipeline |
 
 ## Dataset constructor
 

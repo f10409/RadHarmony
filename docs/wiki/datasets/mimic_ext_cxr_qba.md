@@ -39,14 +39,19 @@ qa.zip                          # per-study QA JSON files
 | `qa_zip_path` | `str` | No | `None` | Path to `qa.zip`; when `None`, `question` and `answer` are empty strings |
 | `image_ext` | `str` | No | `".dcm"` | `".dcm"` for MIMIC-CXR DICOM or `".jpg"` for MIMIC-CXR-JPG |
 | `max_studies` | `int` or `None` | No | `None` | Cap on studies to process; useful during development |
-| `transform` | MONAI Compose | No | 2D pipeline | Custom MONAI transform (must not use `SelectItemsD`) |
-| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+
+### Shared arguments (inherited from `BaseVQADataset`)
+
+| Argument | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
 | `output_struct` | `bool` | No | `False` | Include `"answer_struct"` (raw answer list) in data dict |
 | `output_question_type` | `bool` | No | `False` | Include `"question_type"` string in data dict |
+| `transform` | MONAI Compose | No | 2D pipeline | Custom MONAI transform (must not use `SelectItemsD`) |
+| `cache_dir` | `str` | No | `"./cache"` | MONAI PersistentDataset cache; `None` disables caching |
+| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype for `"img"`; use `torch.float32` on CPU |
 | `harmonized_df` | `pd.DataFrame` | No | `None` | Pre-built harmonized DataFrame |
 | `harmonizer` | harmonizer | No | `None` | Pre-instantiated harmonizer |
 | `harmonizer_path` | `str` | No | `None` | Path to saved harmonized CSV |
-| `dtype` | `torch.dtype` | No | `torch.bfloat16` | Output tensor dtype for `"img"`; use `torch.float32` on CPU |
 
 *`base_image_dir` can be omitted when `harmonizer_path`, `harmonizer`, or `harmonized_df` is provided.
 
