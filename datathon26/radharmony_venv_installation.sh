@@ -32,7 +32,9 @@ for name in "${!envs[@]}"; do
 
   if [[ "${name}" == "medgemma" ]]; then
     echo "=== ${name}: installing extras [radeval] ==="
+    uv pip install -e ".[raddino]" --python "${py}" --torch-backend="${TORCH_BACKEND}"
     uv pip install -e ".[radeval]" --python "${py}" --torch-backend="${TORCH_BACKEND}"
+    uv pip install -e ".[biomed]" --python "${py}" --torch-backend="${TORCH_BACKEND}"
   fi
 
   echo "=== ${name}: installing ipykernel ==="
