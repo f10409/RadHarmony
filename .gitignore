@@ -84,3 +84,6 @@ radharmony/dataset/my_montgomery/
 radharmony/dataset/my_mimic/
 
 preextract.log
+
+# Datathon solution notebooks temporarily hidden from the public repo
+datathon26/solutions/
