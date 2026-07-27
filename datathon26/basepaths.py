@@ -1,6 +1,6 @@
 import os
 
-_ROOT = "/mnt/NAS4/datasets/external"  # "/mnt/efs/cxr"
+_ROOT = "/mnt/efs/cxr" # "/mnt/NAS4/datasets/external"  # "/mnt/efs/cxr"
 
 MONTGOMERY_DIR = f"{_ROOT}/Montgomery-CXR/MontgomerySet/CXR_png/"
 
