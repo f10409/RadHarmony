@@ -228,8 +228,8 @@ import radharmony.datathon26  # noqa: F401
 from radharmony.datathon26 import ReportBenchClient, DatathonEmbeddingDataset
 
 client = ReportBenchClient(
-    rbclient_path="/mnt/NAS4/projects/bkhosra/sharing/datathon/skill/rbclient.py",
-    data_dir="/mnt/NAS4/projects/bkhosra/sharing/datathon/data_deposition/<team_id>",
+    rbclient_path="/path/to/datathon/skill/rbclient.py",
+    data_dir="/path/to/datathon/data_deposition/<team_id>",
     api_key="rb_...",                    # from your team INSTRUCTIONS.md
 )
 

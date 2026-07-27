@@ -91,12 +91,12 @@ but can still surface an intentional doc simplification like `auto`).
 
 ### 1. Run the helper
 
-Always use the full venv (Python 3.12) — `import radharmony.evaluator` pulls torch/MONAI
+Always run with the Python env where `radharmony` is installed (Python 3.12) — `import radharmony.evaluator` pulls torch/MONAI
 (~6s one-time warmup):
 
 ```bash
-/home/fli40/RadHarmony/.venv/bin/python \
-  /home/fli40/.claude/skills/audit-wiki-docs/audit_wiki_docs.py \
+python \
+  docs/audit_wiki_docs.py \
   --json <scratchpad>/audit.json
 ```
 
@@ -145,7 +145,7 @@ e.g. `MIMICCXRDataset`, `make_raddino`) and flag descriptions that are wrong or 
 Inspect a signature directly when unsure:
 
 ```bash
-/home/fli40/RadHarmony/.venv/bin/python -c \
+python -c \
   "import inspect; from radharmony.dataset import MIMICCXRDataset as C; print(inspect.signature(C.__init__)); print(inspect.getdoc(C))"
 ```
 

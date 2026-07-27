@@ -218,13 +218,13 @@ order is alphabetical.
 
 ```bash
 # Smoke import — confirms exports are wired
-.venv/bin/python -c "from radharmony.evaluator.backbones import make_<name>; print(make_<name>)"
+python -c "from radharmony.evaluator.backbones import make_<name>; print(make_<name>)"
 ```
 
 If the user has the extra installed and can spare a few seconds:
 
 ```bash
-.venv/bin/python <<'EOF'
+python <<'EOF'
 import torch
 from radharmony.evaluator.backbones import make_<name>
 transform, encoder = make_<name>(device="cpu")
@@ -243,7 +243,7 @@ considering the work done.
 Only run this if segmentation mode is in scope.
 
 ```bash
-.venv/bin/python <<'EOF'
+python <<'EOF'
 import torch
 from radharmony.evaluator.backbones import make_<name>
 transform, encoder = make_<name>(device="cpu", output_keys={"img", "mask"})
