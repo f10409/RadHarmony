@@ -39,12 +39,12 @@ a new dataset or backbone — defer to `add-dataset` / `add-backbone`. "Use a da
 Resolve facts in this order; never fetch the web when a local copy is present:
 
 1. **Local wiki** (`docs/wiki/*.md`) — the authoritative user-facing reference that ships with
-   the checkout. Key pages: [quickstart](../../RadHarmony/docs/wiki/quickstart.md),
-   [Dataset API](../../RadHarmony/docs/wiki/api.md),
-   [transforms](../../RadHarmony/docs/wiki/transforms.md),
-   [Evaluator index](../../RadHarmony/docs/wiki/evaluator/index.md) + per-evaluator pages,
-   [Backbones](../../RadHarmony/docs/wiki/backbones/index.md),
-   [App](../../RadHarmony/docs/wiki/app.md), [Datathon26](../../RadHarmony/docs/wiki/datathon26.md).
+   the checkout. Key pages: [quickstart](docs/wiki/quickstart.md),
+   [Dataset API](docs/wiki/api.md),
+   [transforms](docs/wiki/transforms.md),
+   [Evaluator index](docs/wiki/evaluator/index.md) + per-evaluator pages,
+   [Backbones](docs/wiki/backbones/index.md),
+   [App](docs/wiki/app.md), [Datathon26](docs/wiki/datathon26.md).
    (Paths are relative to the repo root — read whatever exists under `docs/wiki/`.)
 2. **Local source** (`radharmony/**/*.py`) — drop into the code when a wiki page is thin or an
    exact constructor signature, default, `LABEL_COLS`, or registry key must be confirmed. The
@@ -119,7 +119,7 @@ sample = train_ds[0]          # dict: {"img": Tensor[1,224,224], "cls": Tensor[1
 
 Leaf classes (`CheXpertTrainDataset`, `VinDrCXRTrainDataset`, ...) supply their own default
 `transform` and auto-discover the CSV; the base `__init__` requires `transform` explicitly.
-See [Dataset API](../../RadHarmony/docs/wiki/api.md) and the per-dataset page under
+See [Dataset API](docs/wiki/api.md) and the per-dataset page under
 `docs/wiki/datasets/`.
 
 ### 2. Harmonize / combine multiple datasets
@@ -135,7 +135,7 @@ VinDrCXRTrainDataset.LABEL_COLS = ["pneumothorax"]
 # each dataset now emits a 1-d `cls` for the same finding; concat with torch.utils.data.ConcatDataset
 ```
 
-Read [Dataset API](../../RadHarmony/docs/wiki/api.md) for the harmonizer/`harmonized_df` flow;
+Read [Dataset API](docs/wiki/api.md) for the harmonizer/`harmonized_df` flow;
 the datathon `1_radharmony_hands_on` notebook is a worked example.
 
 ### 3. Classification probe with a backbone (linear / k-NN / SVM / prototype)
@@ -157,7 +157,7 @@ df = ev.evaluate(); ev.save_results(df)
 ```
 
 `KNNProbeEvaluator` / `SVMProbeEvaluator` / `PrototypeProbeEvaluator` share the same call shape —
-swap the class. See [Evaluator index](../../RadHarmony/docs/wiki/evaluator/index.md) and the
+swap the class. See [Evaluator index](docs/wiki/evaluator/index.md) and the
 per-probe pages. All frozen-feature probes L2-normalize features internally.
 
 ### 4. Zero-shot with a vision-language backbone
@@ -174,12 +174,12 @@ ev = ZeroShotEvaluator(img_enc, text_enc, prompts, tokenizer=tokenizer, test_dat
 df = ev.evaluate()
 ```
 
-See [zero_shot](../../RadHarmony/docs/wiki/evaluator/zero_shot.md).
+See [zero_shot](docs/wiki/evaluator/zero_shot.md).
 
 ### 5. Fine-tune and segmentation
 
 - **Fine-tune:** `FinetuneEvaluator(encoder, train_dataset=..., test_dataset=..., epochs=20, lr=1e-4, ...)` —
-  single-GPU end-to-end. See [finetune](../../RadHarmony/docs/wiki/evaluator/finetune.md).
+  single-GPU end-to-end. See [finetune](docs/wiki/evaluator/finetune.md).
 - **Segmentation:** switch the recipe to segmentation mode
   (`make_raddino(device=device, output_keys={"img", "mask"})` → dense `Tensor[B, D, H, W]`),
   build the dataset with `output_mask=True`, and pair with `LinearProbeSegEvaluator` /
@@ -190,7 +190,7 @@ See [zero_shot](../../RadHarmony/docs/wiki/evaluator/zero_shot.md).
 `RadiologyTransform2D` / `RadiologyTransform3D` are fluent builders
 (`.with_flip()`, `.with_rotate()`, ...) producing the MONAI transform a dataset consumes. For an
 evaluator, use the recipe's transform instead so preprocessing matches the backbone. See
-[transforms](../../RadHarmony/docs/wiki/transforms.md).
+[transforms](docs/wiki/transforms.md).
 
 ### 7. The Gradio app
 
@@ -199,11 +199,11 @@ python app.py       # then open http://localhost:7860
 ```
 
 Datasets are grouped by modality (CXR / CT / MRI / Radiograph). For SSH-tunnel remote access see
-[App](../../RadHarmony/docs/wiki/app.md).
+[App](docs/wiki/app.md).
 
 ## Datathon26 participants
 
-Grounded in [Datathon26](../../RadHarmony/docs/wiki/datathon26.md) and the `datathon26/` notebooks.
+Grounded in [Datathon26](docs/wiki/datathon26.md) and the `datathon26/` notebooks.
 
 - **Notebook order:** `datathon26/0_setup … 8_build_your_own` — work through them in sequence;
   `demo_datathon_evaluators.ipynb` is the self-contained end-to-end walkthrough.
