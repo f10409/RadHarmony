@@ -1,10 +1,10 @@
 import os
 
-_ROOT = "/mnt/efs/cxr"
+_ROOT = "/mnt/NAS4/datasets/external"  # "/mnt/efs/cxr"
 
 MONTGOMERY_DIR = f"{_ROOT}/Montgomery-CXR/MontgomerySet/CXR_png/"
 
-VINDR_ROOT = f"{_ROOT}/vindr-cxr/1.0.0"
+VINDR_ROOT = f"{_ROOT}/VinDr-CXR/1.0.0"
 VINDR_DIR = VINDR_ROOT + "/test/"
 VINDR_CSV = VINDR_ROOT + "/annotations/image_labels_test.csv"
 VINDR_BBOX = VINDR_ROOT + "/annotations/annotations_test.csv"
