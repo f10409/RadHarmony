@@ -52,14 +52,17 @@ Resolve facts in this order; never fetch the web when a local copy is present:
 3. **Live site** `https://f10409.github.io/RadHarmony` via `WebFetch` — **only** when there is no
    local repo. It can lag the user's installed version, so prefer local whenever it exists.
 
-**Names are discovered, never hardcoded from memory** — the catalog changes over time. Note the
-dataset registry only fills once `radharmony.dataset` is imported (the `@register_dataset`
-decorators run on import), so import it *before* calling `list_datasets()`:
+**Names are discovered, never hardcoded from memory** — the catalog changes over time. Run these
+with the Python interpreter where `radharmony` is installed — plain `python` if it's on the
+active environment, otherwise that env's interpreter (e.g. `<env>/bin/python`, or
+`.venv/bin/python` if the project uses a `.venv`). Note the dataset registry only fills once
+`radharmony.dataset` is imported (the `@register_dataset` decorators run on import), so import it
+*before* calling `list_datasets()`:
 
 ```bash
-.venv/bin/python -c "import radharmony.dataset; from radharmony.registry import list_datasets; print(len(list_datasets())); print(list_datasets())"
-.venv/bin/python -c "from radharmony.evaluator import list_evaluators; print(list_evaluators())"
-.venv/bin/python -c "import radharmony.evaluator.backbones as b; print([n for n in b.__all__ if n.startswith('make_')])"
+python -c "import radharmony.dataset; from radharmony.registry import list_datasets; print(len(list_datasets())); print(list_datasets())"
+python -c "from radharmony.evaluator import list_evaluators; print(list_evaluators())"
+python -c "import radharmony.evaluator.backbones as b; print([n for n in b.__all__ if n.startswith('make_')])"
 ```
 
 `resolve_dataset(name)` / `resolve_evaluator(name)` map a registry key to its class.
@@ -83,8 +86,9 @@ decorators run on import), so import it *before* calling `list_datasets()`:
 
 ## Task playbooks
 
-Give the user the smallest correct snippet, then the wiki page to read for options. Fill real
-paths from the [NAS paths](../../RadHarmony/docs/wiki/nas_paths.md) page or ask the user.
+Give the user the smallest correct snippet, then the wiki page to read for options. Point
+`base_image_dir` at wherever the dataset lives on the user's own machine (the folder of images);
+ask the user for the path if you don't have it. The `/data/...` paths below are placeholders.
 
 **Pick the device, don't hardcode `"cuda"`.** Backbone recipes and evaluators default to
 `device="cuda"`; on a CPU-only box that errors, and on a shared box whose GPU is already occupied
@@ -206,7 +210,8 @@ Grounded in [Datathon26](../../RadHarmony/docs/wiki/datathon26.md) and the `data
 - **Paths:** participant notebooks run **from `datathon26/`** and do `from basepaths import *`
   directly — a bare import, **no** `import sys` / `sys.path.insert(0, os.path.abspath(".."))`.
   `basepaths.py` exposes `SESSION_DATA`, `MIMIC_DIR`, `MONTGOMERY_DIR`, `VINDR_*`, `SIIM_*`,
-  etc., all keyed off a single `_ROOT` so one line flips between the NAS and the datathon cloud.
+  etc., all keyed off a single `_ROOT` so one line flips between the local data root and the
+  datathon cloud.
 - **Scoring flow (reportbench):** studies are submitted to an external service that returns
   embeddings / reports; `DatathonEmbeddingDataset` / `DatathonReportDataset` +
   `ReportBenchClient` stage, submit, and return scored datasets for the classification /
@@ -217,12 +222,13 @@ Grounded in [Datathon26](../../RadHarmony/docs/wiki/datathon26.md) and the `data
 ## Verify before you hand it over
 
 Cheap, fast, no training and no weight downloads. Confirm imports resolve, kwargs exist in the
-signature, and any registry key is real, using the repo venv (`import radharmony.evaluator` pulls
+signature, and any registry key is real, using the interpreter where `radharmony` is installed
+(see the discovery block above for which `python` to use; `import radharmony.evaluator` pulls
 torch/MONAI — a one-time ~6s warmup):
 
 ```bash
-.venv/bin/python -c "import inspect; from radharmony.evaluator import LinearProbeEvaluator as C; print(inspect.signature(C.__init__))"
-.venv/bin/python -c "from radharmony.dataset import CheXpertTrainDataset; from radharmony.registry import list_datasets; print('chexpert_train' in list_datasets())"
+python -c "import inspect; from radharmony.evaluator import LinearProbeEvaluator as C; print(inspect.signature(C.__init__))"
+python -c "from radharmony.dataset import CheXpertTrainDataset; from radharmony.registry import list_datasets; print('chexpert_train' in list_datasets())"
 ```
 
 If a kwarg you used isn't in the signature (directly or via `**base_kwargs` on the base class),
