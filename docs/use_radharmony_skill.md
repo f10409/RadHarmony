@@ -78,7 +78,8 @@ python -c "import radharmony.evaluator.backbones as b; print([n for n in b.__all
 - `dataset.get_datasets(n_splits=k)` returns **split PyTorch datasets** (k-fold); each is a plain
   `torch.utils.data.Dataset` you drop into a `DataLoader`.
 - An **evaluator** pairs a backbone `encoder` (from a `make_*` recipe) with train/test datasets
-  and returns a metrics **`DataFrame`** (AUROC, AUPRC, F1, ...). The encoder contract is
+  and returns a **per-row** metrics **`DataFrame`** (one row per fold or bootstrap; AUROC, AUPRC,
+  F1, ...) — aggregate it to `mean [ci_lo, ci_hi]` per playbook 8. The encoder contract is
   `encoder(imgs: Tensor[B, ...]) -> Tensor[B, D]`; zero-shot also needs
   `text_encoder(list[str]) -> Tensor[T, D]`.
 - The dataset's `transform` must be the one the backbone recipe returns, so pixel preprocessing
@@ -201,12 +202,117 @@ python app.py       # then open http://localhost:7860
 Datasets are grouped by modality (CXR / CT / MRI / Radiograph). For SSH-tunnel remote access see
 [App](docs/wiki/app.md).
 
+### 8. Confidence intervals on the metrics
+
+Every classification / segmentation evaluator returns a **per-row** DataFrame
+(`label, n_train, fold, seed, bootstrap, <metrics>`; point-estimate rows carry `bootstrap == -1`).
+There are two ways to attach a 95% CI, matched to how the evaluator was run — quote CIs, not bare
+point estimates:
+
+- **k-fold cross-validation → Student-t interval across the folds.** With `n_folds=k` you get one
+  point-estimate row per fold, so the CI is the small-sample t-interval over the `k` fold values:
+  `mean ± t(0.975, k-1) · s / sqrt(k)`. This is the correct estimator for a 5-fold run; prefer it
+  over the built-in `save_results()` summary, whose `_ci_lo/_ci_hi` are a *percentile* CI that is
+  coarse over only 5 points.
+
+  ```python
+  import numpy as np, pandas as pd
+  from scipy import stats
+
+  def kfold_ci(df, metrics=("auroc", "auprc", "f1"), alpha=0.05):
+      """Per-label 95% CI from the t-distribution across fold rows."""
+      folds = df[df["bootstrap"] == -1]           # one point estimate per fold
+      out = []
+      for label, sub in folds.groupby("label"):
+          row = {"label": label}
+          for m in metrics:
+              v = sub[m].dropna().to_numpy()
+              n = len(v)
+              mean = v.mean() if n else np.nan
+              if n > 1:
+                  sem = v.std(ddof=1) / np.sqrt(n)
+                  h = stats.t.ppf(1 - alpha / 2, n - 1) * sem
+              else:
+                  h = np.nan
+              row[f"{m}_mean"], row[f"{m}_ci_lo"], row[f"{m}_ci_hi"] = mean, mean - h, mean + h
+          out.append(row)
+      return pd.DataFrame(out)
+  ```
+
+- **Fixed train/test split → bootstrap interval.** Build the evaluator with `train_dataset=` /
+  `test_dataset=` (not k-fold) and `n_bootstrap=1000` (optionally `n_seeds>1`). The evaluator then
+  emits bootstrap rows, and `save_results()` writes `<metric>_ci_lo/_ci_hi` (2.5 / 97.5 percentile)
+  into `results_summary.csv`. **`n_bootstrap` is ignored in k-fold mode** (it warns), so choose one
+  mode: k-fold + t-interval, *or* fixed-split + bootstrap — you can't get both from one run.
+
+Present each metric as `mean [lo, hi]`.
+
+### 9. Visualizing the results
+
+Produce **two figures per run**, saved as PNG (`fig.savefig(path, dpi=150, bbox_inches="tight")`) —
+**never `plt.show()`**, which is a no-op off-notebook:
+
+**(a) Results plot — `outputs/<task>/results.png`.** Plot the aggregated per-label metrics with
+their 95% CI as error bars (a bar or point plot). Feed it the `mean [lo, hi]` table from playbook 8:
+
+```python
+import matplotlib.pyplot as plt
+summary = kfold_ci(df)                       # or the bootstrap _ci_lo/_ci_hi summary
+m = "auroc"                                   # one panel per metric, or subplots
+lo = summary[f"{m}_mean"] - summary[f"{m}_ci_lo"]
+hi = summary[f"{m}_ci_hi"] - summary[f"{m}_mean"]
+fig, ax = plt.subplots(figsize=(max(4, 0.5 * len(summary)), 4))
+ax.bar(summary["label"], summary[f"{m}_mean"], yerr=[lo, hi], capsize=4)
+ax.set_ylabel(m); ax.set_ylim(0, 1); ax.tick_params(axis="x", rotation=45)
+fig.savefig("outputs/<task>/results.png", dpi=150, bbox_inches="tight")
+```
+
+**(b) Sample predictions overlaid on the input image — `outputs/<task>/samples.png`.** Pair a few
+held-out samples with what the model produced and overlay it on the source image. The datathon ships
+ready-made helpers in [datathon26/viz_helpers.py](datathon26/viz_helpers.py) — reuse them, then save
+the current figure (`plt.gcf().savefig("outputs/<task>/samples.png", dpi=150, bbox_inches="tight")`).
+
+| Task | Helper | Overlay it draws |
+|---|---|---|
+| classification probe | `show_predictions(probe, ds, image_dir)` | held-out images titled `P(label)`, predicted vs true |
+| segmentation probe   | `show_masks(seg_probe, ds)` | image, ground-truth mask, predicted mask (colored overlay) |
+| VQA                  | `show_answers(vqa_ds, answerer)` | image + question + reference vs model answer |
+| report generation    | `show_reports(gen_ds, generator)` | image beside reference vs generated findings |
+
+Underlying pattern when you're **not** in the datathon (write the few lines yourself, save to disk):
+
+- **Segmentation** exposes it cleanly: `seg_probe.fit(ds)`; `idx = seg_probe.inner_val_indices(ds)[:4]`;
+  `panels = seg_probe.predict(ds, indices=idx, return_images=True)` → each panel is a dict with
+  `image`, `y_true`, `y_pred`; overlay with `plt.imshow(img, cmap="gray")` +
+  `plt.imshow(np.ma.masked_where(mask == 0, mask), cmap="autumn", alpha=0.5)`.
+- **VQA / report:** `td = ds.get_datasets(n_splits=None)`; `samples = [td[i] for i in range(n)]`;
+  `preds = answerer([s["img"] for s in samples], [s["question"] for s in samples])` (report gen:
+  `generator([s["img"] for s in samples], [None] * n)`); each `s["img"]` is a PNG path.
+- **Classification:** read `predict_proba` off the head fitted on one held-out fold's cached
+  embeddings, then title each image with `P(label)` vs its true label.
+
 ## Datathon26 participants
 
 Grounded in [Datathon26](docs/wiki/datathon26.md) and the `datathon26/` notebooks.
 
 - **Notebook order:** `datathon26/0_setup … 8_build_your_own` — work through them in sequence;
   `demo_datathon_evaluators.ipynb` is the self-contained end-to-end walkthrough.
+- **Three environments (one per model family).** `datathon26/radharmony_venv_installation.sh`
+  builds three separate venvs, each registered as a Jupyter kernel, because CheXagent-2 and MAIRA-2
+  pin an **old `transformers`** that conflicts with the newer one RadEval (RadGraph scoring) needs.
+  Pick the kernel that holds your model; use its interpreter (`.venv-<name>/bin/python`) for the
+  discovery / verify commands too:
+
+  | venv / kernel | display name | models it holds | RadGraph (`radeval`)? |
+  |---|---|---|:--:|
+  | `.venv-medgemma` / `medgemma`   | `RadHarmony-(medgemma)`  | MedSigLIP, MedGemma (VQA + report), RAD-DINO, BiomedCLIP | ✅ |
+  | `.venv-chexagent` / `chexagent` | `RadHarmony-(chexagent)` | CheXagent-2 (VQA + report) | ❌ |
+  | `.venv-maira2` / `maira2`       | `RadHarmony-(maira2)`    | MAIRA-2 (report) | ❌ |
+
+  Only `.venv-medgemma` has `radeval`, so **RadGraph scoring runs only there.** Consequence for
+  report generation: MedGemma generates *and* scores inline in one `evaluate()`; CheXagent-2 /
+  MAIRA-2 must use the **two-stage split** — `ev.generate_only("pairs.parquet")` in their own
+  kernel, then `compute_report_metrics(...)` on the parquet in the `medgemma` kernel.
 - **Paths:** participant notebooks run **from `datathon26/`** and do `from basepaths import *`
   directly — a bare import, **no** `import sys` / `sys.path.insert(0, os.path.abspath(".."))`.
   `basepaths.py` exposes `SESSION_DATA`, `MIMIC_DIR`, `MONTGOMERY_DIR`, `VINDR_*`, `SIIM_*`,
@@ -243,6 +349,10 @@ fix the snippet — don't present code that would raise `TypeError`.
 - **Don't run training, `.evaluate()`, or download model weights** just to "check" a snippet;
   a signature/import smoke check is enough.
 - **Don't mismatch transform and backbone** — build the dataset with the recipe's `transform`.
+- **Don't report bare point estimates, and don't cross wires on CIs** — quote `mean [lo, hi]`;
+  use the t-interval across folds for k-fold (playbook 8), bootstrap `_ci_lo/_ci_hi` for a fixed
+  split, and don't set `n_bootstrap` in k-fold mode (it's ignored).
+- **Don't call the helper's `plt.show()` in a headless agent** — save the figure to `outputs/`.
 - **Don't hardcode `device="cuda"`** — select it from `torch.cuda.is_available()` and pass the
   same `device` to the recipe and the evaluator; fall back to `"cpu"` if the GPU is occupied.
 - **Don't commit MIMIC-derived data or a real datathon API key.**

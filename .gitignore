@@ -87,3 +87,6 @@ preextract.log
 
 # Datathon solution notebooks temporarily hidden from the public repo
 datathon26/solutions/
+
+# Local draw.io argument diagrams (not part of the published docs)
+docs/diagrams/
