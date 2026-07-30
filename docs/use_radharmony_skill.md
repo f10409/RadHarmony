@@ -318,10 +318,13 @@ Grounded in [Datathon26](docs/wiki/datathon26.md) and the `datathon26/` notebook
   `basepaths.py` exposes `SESSION_DATA`, `MIMIC_DIR`, `MONTGOMERY_DIR`, `VINDR_*`, `SIIM_*`,
   etc., all keyed off a single `_ROOT` so one line flips between the local data root and the
   datathon cloud.
-- **Scoring flow (reportbench):** studies are submitted to an external service that returns
-  embeddings / reports; `DatathonEmbeddingDataset` / `DatathonReportDataset` +
-  `ReportBenchClient` stage, submit, and return scored datasets for the classification /
-  segmentation / report-generation tasks.
+- **Scoring flow (reportbench) → the `use-datathon26` skill.** Studies are submitted to an external
+  service that returns embeddings / reports, and the `radharmony.datathon26` API
+  (`EmbeddingResultsDataset` / `PatchSegResultsDataset` / `ReportResultsDataset`, the `Datathon*`
+  evaluators, and `ReportBenchClient`) scores them. For anything about *using that API* — pointing a
+  dataset at a `_reportbench_out` run, the three scoring tasks, the `.npz` `global`/`patches` layout,
+  submitting or re-scoring a run — use the dedicated **`use-datathon26`** skill; it is the canonical
+  reference. This section stays focused on participant onboarding.
 - **Security:** **never** put a real reportbench API key into a committed notebook, and never
   commit MIMIC-derived data (report text, DICOM-derived images) — it is under the PhysioNet DUA.
 
