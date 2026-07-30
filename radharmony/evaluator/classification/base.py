@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import pickle
+import warnings
 from contextlib import nullcontext
 
 import numpy as np
@@ -199,6 +200,14 @@ class BaseClsEvaluator(BaseEvaluator):
                     cache_path = cache_path + ".pkl"
 
         if cache_path is not None and os.path.exists(cache_path):
+            warnings.warn(
+                f"Reusing cached embeddings from {cache_path!r}. The cache is keyed "
+                "only on this path, not on the encoder, transform, or dataset "
+                "content, so it is NOT invalidated automatically. Delete the file "
+                "(or point embedding_cache at a new path) after changing the "
+                "encoder, labels, preprocessing, or underlying images.",
+                stacklevel=2,
+            )
             with open(cache_path, "rb") as f:
                 payload = pickle.load(f)
             self._active_labels = payload["labels_names"]
