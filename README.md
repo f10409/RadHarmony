@@ -4,7 +4,7 @@
 
 [![Tests](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml/badge.svg)](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml)
 
-**RadHarmony** is a Python library for loading and harmonizing radiological datasets with a unified API. It wraps [MONAI](https://monai.io/) to deliver ready-to-use **PyTorch `Dataset`** objects — drop them straight into a `DataLoader` for training and evaluation with minimal configuration. Chest X-ray is the primary, fully-supported modality; CT, MRI, and non-chest radiographs are available as <sup>beta</sup> and still under testing.
+**RadHarmony** is a Python library for loading and harmonizing radiological datasets with a unified API. It wraps [MONAI](https://project-monai.github.io/) to deliver ready-to-use **PyTorch `Dataset`** objects — drop them straight into a `DataLoader` for training and evaluation with minimal configuration. Chest X-ray is the primary, fully-supported modality; CT, MRI, and non-chest radiographs are available as <sup>beta</sup> and still under testing.
 
 **Harmonize datasets** — load and unify multiple sources into one format:
 
