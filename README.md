@@ -195,3 +195,18 @@ RadHarmony is developed and maintained by the [HITI Lab](https://www.hitilab.com
 - **Reza Chavoshi**
 - **Theo Dapamede** ([@theodapamede](https://github.com/theodapamede))
 - and other members of the HITI Lab, Emory University.
+
+## Citation
+
+If you use RadHarmony in your research, please cite:
+
+> Li, F., Khosravi, B., Chavoshi, M., Dapamede, T., Jeon, Y., Newsome, J., Trivedi, H., & Gichoya, J. (2026). *RadHarmony: Radiological Data Handling in the Era of Agentic AI*. arXiv:2607.27235. https://arxiv.org/abs/2607.27235
+
+```bibtex
+@article{li2026radharmony,
+  title   = {RadHarmony: Radiological Data Handling in the Era of Agentic AI},
+  author  = {Li, Frank and Khosravi, Bardia and Chavoshi, Mohammadreza and Dapamede, Theo and Jeon, YoungSeok and Newsome, Janice and Trivedi, Hari and Gichoya, Judy},
+  journal = {arXiv preprint arXiv:2607.27235},
+  year    = {2026},
+}
+```
