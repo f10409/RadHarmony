@@ -83,6 +83,8 @@ from radharmony.dataset import (
     EmoryCXRDataset,
     MSCXRDataset,
     MSCXRTDataset,
+    ChestImaGenomeGoldDataset,
+    ChestImaGenomeSilverDataset,
 )
 from radharmony.dataset.transforms import RadiologyTransform2D, RadiologyTransform3D
 from radharmony.utils.data_utils import get_data_dict
@@ -643,6 +645,46 @@ def _build_vindr_cxr_train(
             output_mask=False,
             output_report=False,
             output_bbox=flags.get("output_bbox", False),
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_chest_imagenome_gold(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    # base_dir = MIMIC-CXR DICOM files/ root; extra_field = Chest ImaGenome root.
+    annotation_dir = extra_field or None
+    if not annotation_dir:
+        return None, "Annotation dir (Chest ImaGenome release root) is required."
+    return (
+        ChestImaGenomeGoldDataset(
+            base_image_dir=base_dir,
+            annotation_dir=annotation_dir,
+            cache_dir=cache_dir or None,
+            output_bbox=flags.get("output_bbox", True),
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_chest_imagenome_silver(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    # base_dir = MIMIC-CXR DICOM files/ root; extra_field = Chest ImaGenome root.
+    annotation_dir = extra_field or None
+    if not annotation_dir:
+        return None, "Annotation dir (Chest ImaGenome release root) is required."
+    split = flags.get("split") or "all"
+    return (
+        ChestImaGenomeSilverDataset(
+            base_image_dir=base_dir,
+            annotation_dir=annotation_dir,
+            split=split,
+            cache_dir=cache_dir or None,
+            output_bbox=flags.get("output_bbox", True),
             dtype=_APP_DTYPE,
         ),
         None,
@@ -1836,6 +1878,28 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/",
         csv_placeholder="e.g. /data/ms-cxr-t/MS_CXR_T_temporal_image_classification_v1.0.0.csv",
     ),
+    "── Chest ImaGenome ──": _header("CXR"),
+    "Chest ImaGenome (Gold)": DatasetConfig(
+        False,
+        "Annotation dir (Chest ImaGenome root)",
+        _build_chest_imagenome_gold,
+        modality="CXR",
+        base_dir_placeholder="MIMIC-CXR DICOM files/ root, e.g. /data/MIMIC-CXR-V2-AWS/files/",
+        csv_label="(not used - annotations come from the annotation dir)",
+        extra_placeholder="e.g. /data/CHEST-IMAGENOME/",
+    ),
+    "Chest ImaGenome (Silver)": DatasetConfig(
+        False,
+        "Annotation dir (Chest ImaGenome root)",
+        _build_chest_imagenome_silver,
+        modality="CXR",
+        base_dir_placeholder="MIMIC-CXR DICOM files/ root, e.g. /data/MIMIC-CXR-V2-AWS/files/",
+        csv_label="(not used - annotations come from the annotation dir)",
+        extra_placeholder="e.g. /data/CHEST-IMAGENOME/",
+        extra_dropdown_label="Split",
+        extra_dropdown_choices=("all", "train", "valid", "test"),
+        extra_dropdown_kwarg="split",
+    ),
     "── RSNA Pneumonia ──": _header("CXR"),
     "RSNA Pneumonia": DatasetConfig(
         False,
@@ -2257,8 +2321,60 @@ _BBOX_FOCUS_FIRST_DATASETS: frozenset = frozenset(
         "RSNA 2022 Cervical Spine (BBox)",
         "RSNA 2024 Lumbar Spine (Train)",
         "RSNA 2024 Lumbar Spine (Test)",
+        "Chest ImaGenome (Gold)",
+        "Chest ImaGenome (Silver)",
     }
 )
+
+
+def _parse_str_list(v):
+    """Parse a JSON-string per-box list into a Python list (pass lists through)."""
+    if isinstance(v, str):
+        import json as _j
+        try:
+            return _j.loads(v)
+        except (ValueError, TypeError):
+            return None
+    return v
+
+
+def _to_box_list(bbox):
+    """Normalize a bbox value (tensor / JSON string / list) to a list of boxes."""
+    try:
+        import torch
+        if isinstance(bbox, torch.Tensor):
+            bbox = bbox.tolist()
+    except ImportError:
+        pass
+    bbox = _parse_str_list(bbox)
+    if not bbox:
+        return []
+    try:
+        first = bbox[0]
+    except (IndexError, TypeError):
+        return []
+    if isinstance(first, (list, tuple)):
+        return [list(b) for b in bbox]
+    return [list(bbox)]
+
+
+def _combine_bbox_display_labels(labels, findings):
+    """Combine per-box anatomy + findings into overlay strings.
+
+    ``"right lung"`` with findings ``"pneumonia|effusion"`` becomes
+    ``"right lung: pneumonia|effusion"``; a finding-free box stays just the
+    anatomy.  Returns ``labels`` unchanged when there are no findings (e.g.
+    every other bbox dataset), so this is a no-op outside Chest ImaGenome.
+    """
+    labels = _parse_str_list(labels)
+    findings = _parse_str_list(findings)
+    if not labels or not findings:
+        return labels
+    out = []
+    for i, a in enumerate(labels):
+        f = findings[i] if i < len(findings) else ""
+        out.append(f"{a}: {f}" if f else str(a))
+    return out
 
 
 def _sample_to_rgb(
@@ -2315,7 +2431,9 @@ def _sample_to_rgb(
         # one annotation rather than projecting every bbox onto every panel.
         slice_idx = [d // 2, h // 2, w // 2]
         bbox_for_overlay = sample.get("bbox") if show_bbox else None
-        labels_for_overlay = sample.get("bbox_labels")
+        labels_for_overlay = _combine_bbox_display_labels(
+            sample.get("bbox_labels"), sample.get("bbox_findings")
+        )
         if bbox_focus_first and show_bbox and "bbox" in sample:
             try:
                 bb = sample["bbox"]
@@ -2392,16 +2510,23 @@ def _sample_to_rgb(
         if show_mask and "mask" in sample:
             rgb = _overlay_mask(rgb, sample["mask"])
         if show_bbox and "bbox" in sample:
-            import json as _json_app
-            _lbl = sample.get("bbox_labels")
-            if isinstance(_lbl, str):
-                try:
-                    _lbl = _json_app.loads(_lbl)
-                except (ValueError, TypeError):
-                    _lbl = None
+            # Anatomy + per-box findings (Chest ImaGenome) as overlay text.
+            _lbl = _combine_bbox_display_labels(
+                sample.get("bbox_labels"), sample.get("bbox_findings")
+            )
+            _bbox_for_overlay = sample["bbox"]
+            # Focus-first (dense multi-box CXR): show one box + its label at a
+            # time, cycled by the "Next bbox →" button.
+            if bbox_focus_first:
+                _bb_list = _to_box_list(sample["bbox"])
+                if _bb_list and isinstance(_bb_list[0], (list, tuple)):
+                    _pick = int(bbox_idx) % len(_bb_list)
+                    _bbox_for_overlay = [_bb_list[_pick]]
+                    if _lbl and _pick < len(_lbl):
+                        _lbl = [_lbl[_pick]]
             rgb = _overlay_bbox(
                 rgb,
-                sample["bbox"],
+                _bbox_for_overlay,
                 raw.shape[-2:],
                 labels=_lbl,
             )
@@ -2682,7 +2807,7 @@ def load_dataset(
 
         available_keys = {"img"}
         if data_dicts:
-            for k in ["cls", "mask", "report", "qa_text", "bbox", "bbox_labels", "reg"]:
+            for k in ["cls", "mask", "report", "qa_text", "bbox", "bbox_labels", "bbox_findings", "reg"]:
                 if k in data_dicts[0]:
                     available_keys.add(k)
 
@@ -3095,7 +3220,7 @@ def _run(
     # check downstream falsely picks up None values).
     def _subset(s: dict) -> dict:
         out = {"img": s["img"]}
-        for k in ("mask", "bbox", "bbox_labels"):
+        for k in ("mask", "bbox", "bbox_labels", "bbox_findings"):
             if k in s and s[k] is not None:
                 out[k] = s[k]
         return out
@@ -3176,6 +3301,29 @@ def _run(
             ", ".join(f"{reg_cols[i]}={v:.3f}" for i, v in enumerate(vals))
         )
     labels_text = "\n".join(label_parts)
+
+    # bbox-only datasets (no cls) — surface per-box labels in the Labels panel.
+    # Chest ImaGenome: "anatomy: findings" per annotated region; other bbox sets
+    # (no findings column) fall back to the list of box class labels.
+    if not labels_text and "bbox_labels" in base_sample:
+        _blabels = _parse_str_list(base_sample.get("bbox_labels")) or []
+        _bfind = _parse_str_list(base_sample.get("bbox_findings"))
+        if _bfind is not None:
+            _lines, _n_plain = [], 0
+            for _i, _a in enumerate(_blabels):
+                _f = _bfind[_i] if _i < len(_bfind) else ""
+                if _f:
+                    _lines.append(f"{_a}: {_f}")
+                else:
+                    _n_plain += 1
+            if _lines:
+                labels_text = "\n".join(_lines)
+                if _n_plain:
+                    labels_text += f"\n(+{_n_plain} regions with no finding)"
+            elif _blabels:
+                labels_text = f"No findings ({len(_blabels)} regions)"
+        elif _blabels:
+            labels_text = ", ".join(dict.fromkeys(str(x) for x in _blabels))
 
     report_text = ""
     if "report" in base_sample:

@@ -80,6 +80,7 @@ Every evaluator shares the same constructor surface (`dataset=` for k-fold, `tra
 | PadChest | CXR | [padchest.md](datasets/padchest.md) |
 | ReXGradient-160K | CXR | [rexgradient.md](datasets/rexgradient.md) |
 | VinDr-CXR | CXR | [vindr_cxr.md](datasets/vindr_cxr.md) |
+| Chest ImaGenome | CXR | [chest_imagenome.md](datasets/chest_imagenome.md) |
 | SIIM-ACR Pneumothorax | CXR | [siim_acr_ptx.md](datasets/siim_acr_ptx.md) |
 | SIIM COVID-19 | CXR | [siim_covid19.md](datasets/siim_covid19.md) |
 | RSNA Pneumonia | CXR | [rsna_pneumonia.md](datasets/rsna_pneumonia.md) |

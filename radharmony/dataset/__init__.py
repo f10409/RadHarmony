@@ -85,6 +85,10 @@ from .vindr_pcxr import VinDrPCXRDataset
 from .emory_cxr import EmoryCXRDataset
 from .emory_chorus import EmoryCHORUSDataset
 from .ms_cxr import MSCXRDataset, MSCXRTDataset
+from .chest_imagenome import (
+    ChestImaGenomeGoldDataset,
+    ChestImaGenomeSilverDataset,
+)
 
 __all__ = [
     "BaseRadiologicalDataset",
@@ -153,6 +157,8 @@ __all__ = [
     "EmoryCHORUSDataset",
     "MSCXRDataset",
     "MSCXRTDataset",
+    "ChestImaGenomeGoldDataset",
+    "ChestImaGenomeSilverDataset",
     "RadiologyTransform2D",
     "RadiologyTransform3D",
 ]

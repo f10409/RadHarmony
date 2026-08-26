@@ -1,0 +1,92 @@
+{
+  "_comment": "Chest ImaGenome GOLD set: 1,000 manually verified chest X-rays with merged ground-truth anatomical bounding boxes and per-region findings. An annotation layer over MIMIC-CXR (PhysioNet, credentialed access + DUA); ships no pixels. Images are read from the MIMIC-CXR DICOM tree, keyed by dicom_id. Source: https://physionet.org/content/chest-imagenome/1.0.0/",
+
+  "dataset_name": "Chest ImaGenome (Gold)",
+  "registry_key": "chest_imagenome_gold",
+  "modality": "2D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "MIMIC-CXR DICOM files/ root (children are p10/, p11/, ...), e.g. /data/MIMIC-CXR-V2-AWS/files/",
+
+  "primary_csv": {
+    "_comment": "Not a single CSV; the harmonizer reads annotation files under annotation_dir. Boxes: gold_dataset/gold_bbox_coordinate_annotations_1000images.csv (one row per image+region).",
+    "path": "<annotation_dir>/gold_dataset/gold_bbox_coordinate_annotations_1000images.csv",
+    "filename_variants": []
+  },
+
+  "patient_id": {
+    "_comment": "Resolved from utils/cxr-record-list_view.csv by joining on dicom_id.",
+    "column": "subject_id",
+    "derivation": "join dicom_id (image_id minus '.dcm') to cxr-record-list_view.csv"
+  },
+  "study_id": {
+    "_comment": "Resolved from utils/cxr-record-list_view.csv by joining on dicom_id.",
+    "column": "study_id",
+    "derivation": "join dicom_id to cxr-record-list_view.csv"
+  },
+  "image_path": {
+    "_comment": "From the record-list 'path' column; 'files/' stripped so it is relative to base_image_dir (the DICOM files/ root). Ends in .dcm.",
+    "column": "path",
+    "derivation": "record-list path -> p10/pXXXXXXXX/sYYYYYYYY/<dicom_id>.dcm",
+    "prefix_to_strip": "files/"
+  },
+
+  "labels": {
+    "_comment": "No image-level classification vector. Findings are PER BOX (see bboxes/custom_preprocessing), not aggregated to image level.",
+    "columns": [],
+    "separate_csv": {
+      "_comment": "Per-region findings come from gold_dataset/gold_object_attribute_with_coordinates.txt (relation 'yes'); joined per (dicom_id, region).",
+      "path": "<annotation_dir>/gold_dataset/gold_object_attribute_with_coordinates.txt",
+      "filename_variants": [],
+      "join_columns": ["dicom_id", "bbox_name"]
+    },
+    "uncertain_handling": {
+      "_comment": "Only positive (relation 'yes') findings in categories anatomicalfinding/disease/tubesandlines/device are kept; nlp and technicalassessment excluded.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "AP/PA/LATERAL from the record-list view CSV.",
+    "column": "ViewPosition",
+    "source": "csv",
+    "separate_csv": {
+      "path": "<annotation_dir>/utils/cxr-record-list_view.csv",
+      "filename_variants": [],
+      "join_columns": ["dicom_id"]
+    }
+  },
+
+  "masks": {
+    "_comment": "Segmentation mask support.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "Up to 26 anatomical-region boxes per image (all regions, including finding-free ones). Stored as parallel per-box lists: bbox (normalized [y_min,y_max,x_min,x_max]), bbox_labels (anatomy region name), bbox_findings (that region's findings, '|'-joined). Coords normalized against original DICOM Rows/Columns.",
+    "supported": true,
+    "column": "original_x1, original_y1, original_x2, original_y2"
+  },
+
+  "reports": {
+    "_comment": "Radiology report support.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {"_comment": "n/a", "path": null, "filename_variants": [], "join_columns": []},
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "Constructor params beyond base_image_dir.",
+    "annotation_dir": "Chest ImaGenome release root (contains gold_dataset/, utils/), e.g. /data/CHEST-IMAGENOME/",
+    "output_bbox": "Default True; boxes are this dataset's sole annotation."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Per-box findings are carried in the harmonized 'bbox_findings' column via the harmonizer's EXTRA_OUTPUT_COLS (anatomy in bbox_labels, findings in bbox_findings) - NOT aggregated to an image-level cls vector. The dataset sets SUPPORTS_BBOX_FINDINGS=True, so with output_bbox=True all three (bbox, bbox_labels, bbox_findings) are threaded into each sample, index-aligned through augmentation; the app labels each box 'anatomy: findings'. Bbox normalization reads original DICOM dimensions (Rows=H, Columns=W) from the header, cached. MIMIC-derived, PhysioNet data: never commit the harmonized DataFrame, saved CSVs, or images."
+}

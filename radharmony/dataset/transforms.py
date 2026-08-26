@@ -57,33 +57,47 @@ class _MaskToBbox:
         n_channels = mask.shape[0]
         spatial = mask.shape[1:]
 
-        # Parse JSON-string bbox_labels (produced by harmonizers that store as JSON)
-        labels_raw = data.get("bbox_labels")
-        if isinstance(labels_raw, str):
-            import json
-            try:
-                data["bbox_labels"] = json.loads(labels_raw)
-            except (ValueError, TypeError):
-                data["bbox_labels"] = []
+        # Parse JSON-string per-box lists (some harmonizers store as JSON).
+        # bbox_findings is an optional parallel list (e.g. Chest ImaGenome).
+        import json
+
+        def _parse_list(key):
+            raw = data.get(key)
+            if isinstance(raw, str):
+                try:
+                    data[key] = json.loads(raw)
+                except (ValueError, TypeError):
+                    data[key] = []
+
+        _parse_list("bbox_labels")
+        _parse_list("bbox_findings")
         has_labels = "bbox_labels" in data and data["bbox_labels"]
+        has_findings = "bbox_findings" in data and data["bbox_findings"]
 
         if n_channels == 1:
             # Single bbox — return flat list (backwards compatible)
             coords = self._channel_to_bbox(mask[0], spatial)
             data["bbox"] = coords if coords else [0.0] * (2 * len(spatial))
         else:
-            # Multi-bbox — return list of lists, drop empty channels
+            # Multi-bbox — return list of lists, drop empty channels.  Keep any
+            # parallel per-box lists (labels, findings) index-aligned with the
+            # boxes that survive augmentation.
             boxes = []
             kept_labels = []
+            kept_findings = []
             for c in range(n_channels):
                 coords = self._channel_to_bbox(mask[c], spatial)
                 if coords is not None:
                     boxes.append(coords)
                     if has_labels and c < len(data["bbox_labels"]):
                         kept_labels.append(data["bbox_labels"][c])
+                    if has_findings and c < len(data["bbox_findings"]):
+                        kept_findings.append(data["bbox_findings"][c])
             data["bbox"] = boxes if boxes else [[0.0] * (2 * len(spatial))]
             if has_labels:
                 data["bbox_labels"] = kept_labels
+            if has_findings:
+                data["bbox_findings"] = kept_findings
 
         return data
 
@@ -957,6 +971,7 @@ class RadiologyTransform2D(_RadiologyTransformBase):
                 "report",
                 "bbox",
                 "bbox_labels",
+                "bbox_findings",
                 "bbox_mask",
             ]
             if k in out_keys
@@ -1192,6 +1207,7 @@ class RadiologyTransform3D(_RadiologyTransformBase):
                 "report",
                 "bbox",
                 "bbox_labels",
+                "bbox_findings",
                 "bbox_mask",
             ]
             if k in out_keys

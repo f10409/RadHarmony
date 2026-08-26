@@ -139,12 +139,19 @@ class BaseRadiologicalDataset:
     #: dataset) emits a ``UserWarning`` from ``__init__``.
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "mask", "bbox", "report", "reg"})
 
+    #: Whether this dataset carries a per-box ``bbox_findings`` column (parallel
+    #: to ``bbox`` / ``bbox_labels``).  When True and ``output_bbox`` is set, the
+    #: findings list is threaded into each sample alongside the boxes.  Left
+    #: False for datasets whose harmonized table has no such column.
+    SUPPORTS_BBOX_FINDINGS: bool = False
+
     # Maps dataset output key → harmonized DataFrame column
     _EXTRA_COL_MAP: dict = {
         "mask": "mask_path",
         "report": "report",
         "bbox": "bbox",
         "bbox_labels": "bbox_labels",
+        "bbox_findings": "bbox_findings",
     }
 
     def __init__(
@@ -202,6 +209,8 @@ class BaseRadiologicalDataset:
         if self.output_bbox:
             keys.add("bbox")
             keys.add("bbox_labels")
+            if self.SUPPORTS_BBOX_FINDINGS:
+                keys.add("bbox_findings")
         if self.output_reg:
             keys.add("reg")
         return keys
@@ -219,6 +228,7 @@ class BaseRadiologicalDataset:
             "report": self.output_report,
             "bbox": self.output_bbox,
             "bbox_labels": self.output_bbox,
+            "bbox_findings": self.output_bbox and self.SUPPORTS_BBOX_FINDINGS,
         }
         result.update(
             {k: self._EXTRA_COL_MAP[k] for k, enabled in flags.items() if enabled}

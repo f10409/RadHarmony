@@ -48,6 +48,7 @@ nav:
     - PadChest: datasets/padchest.md
     - ReXGradient-160K: datasets/rexgradient.md
     - VinDr-CXR: datasets/vindr_cxr.md
+    - Chest ImaGenome: datasets/chest_imagenome.md
     - VinDr-PCXR: datasets/vindr_pcxr.md
     - BRAX: datasets/brax.md
     - RANZCR CLiP: datasets/ranzcr_clip.md

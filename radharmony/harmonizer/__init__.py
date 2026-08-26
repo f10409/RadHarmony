@@ -85,6 +85,10 @@ from .emory_cxr import EmoryCXRHarmonizer
 from .emory_chorus import EmoryCHORUSHarmonizer
 from .ms_cxr import MSCXRHarmonizer
 from .ms_cxr_t import MSCXRTHarmonizer
+from .chest_imagenome import (
+    ChestImaGenomeGoldHarmonizer,
+    ChestImaGenomeSilverHarmonizer,
+)
 
 __all__ = [
     "BaseHarmonizer",
@@ -151,5 +155,7 @@ __all__ = [
     "EmoryCHORUSHarmonizer",
     "MSCXRHarmonizer",
     "MSCXRTHarmonizer",
+    "ChestImaGenomeGoldHarmonizer",
+    "ChestImaGenomeSilverHarmonizer",
 ]
 

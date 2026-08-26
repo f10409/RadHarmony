@@ -1,6 +1,6 @@
 # Datasets
 
-RadHarmony supports 44 dataset configurations across 35 underlying datasets. Click a dataset name for the full page (constructor args, harmonizer notes, label columns).
+RadHarmony supports 46 dataset configurations across 36 underlying datasets. Click a dataset name for the full page (constructor args, harmonizer notes, label columns).
 
 ## Inventory
 
@@ -21,6 +21,8 @@ RadHarmony supports 44 dataset configurations across 35 underlying datasets. Cli
 | ReXGradient-160K (Test) | CXR | 2D | none | report | [→](datasets/rexgradient.md) |
 | VinDr-CXR (Train) | CXR | 2D | 28 findings | cls, bbox | [→](datasets/vindr_cxr.md) |
 | VinDr-CXR (Test) | CXR | 2D | 28 findings | cls, bbox | [→](datasets/vindr_cxr.md) |
+| Chest ImaGenome (Gold) | CXR | 2D | per-box findings | bbox | [→](datasets/chest_imagenome.md) |
+| Chest ImaGenome (Silver) | CXR | 2D | per-box findings | bbox | [→](datasets/chest_imagenome.md) |
 | VinDr-PCXR | CXR | 2D | 15 conditions (pediatric) | cls, bbox | [→](datasets/vindr_pcxr.md) |
 | SIIM-ACR Pneumothorax | CXR | 2D | pneumothorax | cls, mask | [→](datasets/siim_acr_ptx.md) |
 | SIIM COVID-19 | CXR | 2D | 4 appearance classes | cls, bbox | [→](datasets/siim_covid19.md) |

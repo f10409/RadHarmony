@@ -1,0 +1,89 @@
+{
+  "_comment": "Chest ImaGenome SILVER set: the full auto-generated scene-graph release (~240k chest X-rays) with official train/valid/test splits, anatomical bounding boxes, and per-region findings. An annotation layer over MIMIC-CXR (PhysioNet, credentialed access + DUA); ships no pixels. Images are read from the MIMIC-CXR DICOM tree, keyed by dicom_id. Source: https://physionet.org/content/chest-imagenome/1.0.0/",
+
+  "dataset_name": "Chest ImaGenome (Silver)",
+  "registry_key": "chest_imagenome_silver",
+  "modality": "2D",
+  "image_format": "DICOM",
+
+  "base_image_dir": "MIMIC-CXR DICOM files/ root (children are p10/, p11/, ...), e.g. /data/MIMIC-CXR-V2-AWS/files/",
+
+  "primary_csv": {
+    "_comment": "Not a single CSV. The harmonizer reads silver_dataset/scene_graph.zip (one JSON per image: objects=boxes, attributes=per-region findings), filtered to the chosen split via silver_dataset/splits/<split>.csv (excluding images_to_avoid.csv).",
+    "path": "<annotation_dir>/silver_dataset/splits/<split>.csv",
+    "filename_variants": ["train.csv", "valid.csv", "test.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "Directly from the split CSV.",
+    "column": "subject_id",
+    "derivation": "split CSV subject_id"
+  },
+  "study_id": {
+    "_comment": "Directly from the split CSV.",
+    "column": "study_id",
+    "derivation": "split CSV study_id"
+  },
+  "image_path": {
+    "_comment": "From the split CSV 'path' column; 'files/' stripped so it is relative to base_image_dir. Ends in .dcm.",
+    "column": "path",
+    "derivation": "split path -> p10/pXXXXXXXX/sYYYYYYYY/<dicom_id>.dcm",
+    "prefix_to_strip": "files/"
+  },
+
+  "labels": {
+    "_comment": "No image-level classification vector. Findings are PER BOX (see bboxes/custom_preprocessing), not aggregated to image level.",
+    "columns": [],
+    "separate_csv": {
+      "_comment": "Per-region findings parsed from each scene-graph JSON's 'attributes' (relation 'yes').",
+      "path": "<annotation_dir>/silver_dataset/scene_graph.zip",
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Only positive (relation 'yes') findings in categories anatomicalfinding/disease/tubesandlines/device are kept; nlp and technicalassessment excluded.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "AP/PA/LATERAL from the split CSV.",
+    "column": "ViewPosition",
+    "source": "csv",
+    "separate_csv": {"path": null, "filename_variants": [], "join_columns": []}
+  },
+
+  "masks": {
+    "_comment": "Segmentation mask support.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "Up to ~36 anatomical-region boxes per image (all regions, including finding-free ones). Stored as parallel per-box lists: bbox (normalized [y_min,y_max,x_min,x_max]), bbox_labels (anatomy region name), bbox_findings (that region's findings, '|'-joined). Coords normalized against original DICOM Rows/Columns.",
+    "supported": true,
+    "column": "original_x1, original_y1, original_x2, original_y2 (scene-graph objects)"
+  },
+
+  "reports": {
+    "_comment": "Radiology report support.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {"_comment": "n/a", "path": null, "filename_variants": [], "join_columns": []},
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "Constructor params beyond base_image_dir.",
+    "annotation_dir": "Chest ImaGenome release root (contains silver_dataset/), e.g. /data/CHEST-IMAGENOME/",
+    "split": "One of 'all' (default), 'train', 'valid', 'test'.",
+    "output_bbox": "Default True; boxes are this dataset's sole annotation."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Per-box findings are carried in the harmonized 'bbox_findings' column via the harmonizer's EXTRA_OUTPUT_COLS (anatomy in bbox_labels, findings in bbox_findings) - NOT aggregated to an image-level cls vector. The dataset sets SUPPORTS_BBOX_FINDINGS=True, so with output_bbox=True all three (bbox, bbox_labels, bbox_findings) are threaded into each sample, index-aligned through augmentation; the app labels each box 'anatomy: findings'. Instantiating a full split parses scene_graph.zip and reads one DICOM header per image for bbox normalization (cached by the harmonizer's save()). MIMIC-derived, PhysioNet data: never commit the harmonized DataFrame, saved CSVs, or images."
+}

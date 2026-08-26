@@ -53,6 +53,8 @@ from radharmony.dataset import (
     RANZCRClipDataset,
     VinDrCXRTrainDataset,
     VinDrCXRTestDataset,
+    ChestImaGenomeGoldDataset,
+    ChestImaGenomeSilverDataset,
     SIIMACRPTXTrainDataset,
     SIIMCOVID19TrainDataset,
     RSNAPneumoniaKaggleTrainDataset,
@@ -131,6 +133,10 @@ VINDR_TRAIN_BBOX_CSV  = "/mnt/NAS4/datasets/external/VinDr-CXR/physionet.org/fil
 VINDR_CXR_TEST_BASE   = "/mnt/NAS4/datasets/external/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/test/"
 VINDR_TEST_LABEL_CSV  = "/mnt/NAS4/datasets/external/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/annotations/image_labels_test.csv"
 VINDR_TEST_BBOX_CSV   = "/mnt/NAS4/datasets/external/VinDr-CXR/physionet.org/files/vindr-cxr/1.0.0/annotations/annotations_test.csv"
+
+# Chest ImaGenome (annotation layer over MIMIC-CXR DICOM; PhysioNet-credentialed)
+CHEST_IMAGENOME_ANN   = "/mnt/NAS4/datasets/external/CHEST-IMAGENOME"
+MIMIC_CXR_DICOM_BASE  = "/mnt/NAS4/datasets/external/MIMIC-CXR-V2-AWS/files/"
 
 # SIIM-ACR Pneumothorax
 SIIM_ACR_BASE         = "/mnt/NAS3/datasets/external/SIIM_ACR_Pneumothorax/dicom-images-train/"
@@ -278,6 +284,14 @@ def get_specs() -> list[DatasetSpec]:
         S("vindr_test", VinDrCXRTestDataset, dict(
             base_image_dir=VINDR_CXR_TEST_BASE, csv_path=VINDR_TEST_LABEL_CSV,
             bbox_csv_path=VINDR_TEST_BBOX_CSV, output_cls=True, output_bbox=True)),
+        S("chest_imagenome_gold", ChestImaGenomeGoldDataset, dict(
+            base_image_dir=MIMIC_CXR_DICOM_BASE, annotation_dir=CHEST_IMAGENOME_ANN,
+            output_bbox=True)),
+        # silver = full ~240k-image release; harmonize reads one DICOM header per
+        # image, so a full run is slow. "valid" is the smallest official split.
+        S("chest_imagenome_silver", ChestImaGenomeSilverDataset, dict(
+            base_image_dir=MIMIC_CXR_DICOM_BASE, annotation_dir=CHEST_IMAGENOME_ANN,
+            split="valid", output_bbox=True)),
         S("siim_acr_ptx", SIIMACRPTXTrainDataset, dict(
             base_image_dir=SIIM_ACR_BASE, csv_path=SIIM_ACR_CSV,
             mask_output_dir=os.path.join(MASK_OUT, "siim_acr"),
