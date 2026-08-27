@@ -1,6 +1,6 @@
 # MS-CXR (Local Alignment / Phrase Grounding)
 
-**Modality:** CXR | **Format:** JPG (MIMIC-CXR-JPG) | **Dim:** 2D | **Labels:** 8 binary findings + phrase–bbox pairs
+**Modality:** CXR | **Format:** JPG or DICOM (MIMIC-CXR) | **Dim:** 2D | **Labels:** 8 binary findings + phrase–bbox pairs
 
 ## Overview
 
@@ -14,7 +14,10 @@ Phrase grounding benchmark for chest X-rays with explicit phrase-to-bounding-box
 **Source (PhysioNet — requires MIMIC credentialed access):**
 - https://physionet.org/content/ms-cxr/
 
-**Images:** MIMIC-CXR-JPG 2.0.0 — `base_image_dir` must point at the root containing `files/`.
+**Images:** MIMIC-CXR — `base_image_dir` must point at the MIMIC-CXR `files/`
+directory. This can be either the MIMIC-CXR-JPG tree (`.jpg`, as named in the
+CSV) or the MIMIC-CXR DICOM tree (`.dcm`); the on-disk extension is
+auto-detected, so no separate flag is needed.
 
 ## Download
 
@@ -24,20 +27,20 @@ wget -r -N --no-parent -np \
   https://physionet.org/content/ms-cxr/0.1/ \
   -P ./ms-cxr/
 
-# 2. You must already have MIMIC-CXR-JPG 2.0.0 downloaded.
-#    The base_image_dir is the root containing files/ (e.g. mimic-cxr-jpg/2.0.0/)
+# 2. You must already have MIMIC-CXR downloaded (JPG or DICOM).
+#    The base_image_dir is the files/ directory itself
+#    (e.g. mimic-cxr-jpg/2.0.0/files/ or MIMIC-CXR-V2-AWS/files/)
 ```
 
 ## Expected layout
 
 ```
-<base_image_dir>/           ← MIMIC-CXR-JPG 2.0.0 root
-  files/
-    p10/
-      p10233088/
-        s54276838/
-          675d792f-a3521e48-5eec8573-1e81d644-e60c34f8.jpg
-        ...
+<base_image_dir>/           ← the MIMIC-CXR files/ directory
+  p10/
+    p10233088/
+      s54276838/
+        675d792f-a3521e48-5eec8573-1e81d644-e60c34f8.dcm   (or .jpg)
+      ...
 
 MS_CXR_Local_Alignment_v1.1.0.csv   ← csv_path
 ```
@@ -70,7 +73,7 @@ MS_CXR_Local_Alignment_v1.1.0.csv   ← csv_path
 
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `base_image_dir` | `str` | Yes* | `None` | MIMIC-CXR-JPG 2.0.0 root (contains `files/`) |
+| `base_image_dir` | `str` | Yes* | `None` | MIMIC-CXR `files/` directory (JPG or DICOM tree; extension auto-detected) |
 | `csv_path` | `str` | Yes* | `None` | Path to `MS_CXR_Local_Alignment_v1.1.0.csv` |
 
 ### Shared arguments (inherited from `BaseRadiologicalDataset`)
@@ -96,7 +99,7 @@ MS_CXR_Local_Alignment_v1.1.0.csv   ← csv_path
 from radharmony.dataset import MSCXRDataset
 
 ds = MSCXRDataset(
-    base_image_dir="/data/mimic-cxr-jpg/2.0.0/",
+    base_image_dir="/data/mimic-cxr-jpg/2.0.0/files/",   # JPG tree, or a DICOM files/ tree
     csv_path="/data/ms-cxr/MS_CXR_Local_Alignment_v1.1.0.csv",
     output_cls=True,
     output_bbox=True,
@@ -104,7 +107,7 @@ ds = MSCXRDataset(
 )
 
 sample = ds.get_datasets()[0]
-print(sample["img"].shape)         # torch.Size([3, 224, 224])
+print(sample["img"].shape)         # torch.Size([1, 224, 224])
 print(sample["cls"])               # tensor([0., 0., 0., 1., ...])  — 8 binary labels
 print(sample["bbox"])              # [[y_min, y_max, x_min, x_max], ...]  — normalized [0, 1]
 print(sample["bbox_labels"])       # ["Edema", ...]
@@ -114,11 +117,10 @@ Access annotations via the harmonized DataFrame:
 
 ```python
 df = ds.get_harmonized_df()
-import json
 first = df.iloc[0]
 print(first["image_path"])
-print(json.loads(first["bbox"]))        # [[0.31, 0.62, 0.23, 0.51], ...]  — normalized [0, 1]
-print(json.loads(first["label_text"]))  # ["Fluffy bilateral opacities..."]
+print(first["bbox"])        # [[0.31, 0.62, 0.23, 0.51], ...]  — normalized [0, 1] (Python list)
+print(first["label_text"])  # ["Fluffy bilateral opacities..."]
 ```
 
 ## Harmonizer
@@ -128,20 +130,21 @@ from radharmony.harmonizer import MSCXRHarmonizer
 
 h = MSCXRHarmonizer(
     csv_path="/data/ms-cxr/MS_CXR_Local_Alignment_v1.1.0.csv",
-    mimic_base_dir="/data/mimic-cxr-jpg/2.0.0/",
+    mimic_base_dir="/data/mimic-cxr-jpg/2.0.0/files/",   # JPG or DICOM files/ tree
 )
 df = h.harmonize()
-print(df.shape)           # (1047, 18)
+print(df.shape)           # (1047, 17)
 print(df.columns.tolist())
-# ['patient_id', 'study_id', 'image_path', 'split', 'bbox', 'bbox_labels',
-#  'label_text', 'image_width', 'image_height',
+# ['patient_id', 'study_id', 'image_path', 'bbox', 'bbox_labels',
 #  'atelectasis', 'cardiomegaly', 'consolidation', 'edema',
-#  'lung_opacity', 'pleural_effusion', 'pneumonia', 'pneumothorax']
+#  'lung_opacity', 'pleural_effusion', 'pneumonia', 'pneumothorax',
+#  'split', 'label_text', 'image_width', 'image_height']
 ```
 
 ## Harmonizer notes
 
-- **One row per image** — multiple annotations per image are aggregated into JSON lists (`bbox`, `bbox_labels`, `label_text`).
+- **One row per image** — multiple annotations per image are aggregated into parallel Python lists (`bbox`, `bbox_labels`, `label_text`).
 - **Binary flags** — derived from `category_name` column via snake_case mapping (`"Lung Opacity"` → `lung_opacity`). An image with two Edema annotations gets `edema=1`.
-- **image_path** — taken directly from the `path` column in the CSV, already relative to the MIMIC-CXR-JPG root (e.g. `files/p10/p10233088/s54276838/675d792f-....jpg`).
+- **No `subject_id` / `study_id` columns** — the v1.1.0 CSV only carries a MIMIC-style `path`, so `patient_id` / `study_id` are derived from its components.
+- **image_path** — derived from the CSV `path` column with the leading `files/` stripped (so it is relative to the `files/` directory), and the extension swapped to `.dcm` when `base_image_dir` is a DICOM tree (e.g. `p10/p10233088/s54276838/675d792f-....dcm`).
 - **Bounding boxes** — stored as `[y_min, y_max, x_min, x_max]` normalized coordinates (`[0, 1]`), converted from the original CSV `[x, y, w, h]` pixel format to match the RadHarmony bbox convention expected by the transform pipeline.

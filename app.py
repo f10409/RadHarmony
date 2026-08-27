@@ -1302,7 +1302,7 @@ def _build_ms_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **fl
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
     csv_path = os.path.expanduser(csv_path) if csv_path else csv_path
     if not base_dir:
-        return None, "MIMIC-CXR-JPG root (containing files/) is required."
+        return None, "MIMIC-CXR files/ directory (JPG or DICOM tree) is required."
     if not csv_path:
         return None, "CSV path (MS-CXR local alignment CSV) is required."
     return (
@@ -1866,7 +1866,7 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         _build_ms_cxr,
         modality="CXR",
         csv_label="CSV path (required — MS-CXR local alignment CSV)",
-        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/",
+        base_dir_placeholder="MIMIC-CXR files/ root (JPG or DICOM), e.g. /data/MIMIC-CXR-V2-AWS/files/",
         csv_placeholder="e.g. /data/ms-cxr/MS_CXR_Local_Alignment_v1.1.0.csv",
     ),
     "MS-CXR-T (temporal progression)": DatasetConfig(

@@ -3,10 +3,11 @@
 1,047 chest X-rays from MIMIC-CXR-JPG with 1,448 (phrase, bounding box)
 annotations across 8 pathology categories.
 
-``base_image_dir`` must point at the MIMIC-CXR-JPG 2.0.0 root (the directory
-containing ``files/``).  ``image_path`` in the harmonized DataFrame is
-relative to this root, e.g.
-``files/p10/p10233088/s54276838/675d792f-....jpg``.
+``base_image_dir`` must point at the MIMIC-CXR ``files/`` directory — either the
+MIMIC-CXR-JPG tree (``.jpg``) or the MIMIC-CXR DICOM tree (``.dcm``); the
+extension is auto-detected.  ``image_path`` in the harmonized DataFrame is
+relative to this directory, e.g.
+``p10/p10233088/s54276838/675d792f-....dcm``.
 """
 
 import os
@@ -31,7 +32,7 @@ class MSCXRDataset(BaseRadiologicalDataset):
     """PyTorch/MONAI dataset for the MS-CXR phrase grounding benchmark.
 
     Args:
-        base_image_dir: MIMIC-CXR-JPG 2.0.0 root (contains ``files/``).
+        base_image_dir: MIMIC-CXR ``files/`` directory (JPG or DICOM tree).
             Required unless ``harmonizer_path`` or ``harmonized_df`` provided.
         csv_path: Path to ``MS_CXR_Local_Alignment_v1.1.0.csv``.
         transform: MONAI Compose transform.  Defaults to standard 2-D 224 px.
@@ -76,7 +77,7 @@ class MSCXRDataset(BaseRadiologicalDataset):
             and harmonizer is None
         ):
             raise ValueError(
-                "base_image_dir (MIMIC-CXR-JPG 2.0.0 root) is required when "
+                "base_image_dir (MIMIC-CXR files/ directory) is required when "
                 "harmonizer_path is not provided."
             )
 
@@ -86,6 +87,7 @@ class MSCXRDataset(BaseRadiologicalDataset):
                 output_keys.add("cls")
             if output_bbox:
                 output_keys.add("bbox")
+                output_keys.add("bbox_labels")
             transform = RadiologyTransform2D(
                 img_size=224,
                 output_keys=output_keys,
