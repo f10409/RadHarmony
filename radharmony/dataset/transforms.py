@@ -19,7 +19,11 @@ from __future__ import annotations
 import torch
 import monai as mn
 
-from radharmony.dataset.base import _apply_voi_lut, _convert_monochrome1_to_2
+from radharmony.dataset.base import (
+    _apply_voi_lut,
+    _convert_monochrome1_to_2,
+    _fix_missing_highbit,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +420,7 @@ def _base_load_2d(img_keys: list[str], base_transpose: bool = True) -> list:
         # ITK axis correction: not needed when loading numpy arrays directly.
         t.append(mn.transforms.Transposed(keys=img_keys, indices=[0, 2, 1]))
     t += [
+        mn.transforms.Lambdad(keys=["img"], func=_fix_missing_highbit),
         mn.transforms.Lambdad(keys=["img"], func=_apply_voi_lut),
         # mn.transforms.Lambdad(keys=["img"], func=_convert_monochrome1_to_2),
         mn.transforms.ScaleIntensityRangePercentilesD(

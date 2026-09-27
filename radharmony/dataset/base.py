@@ -27,6 +27,37 @@ _HARMONIZED_NON_LABEL_COLS = frozenset(
 )
 
 
+def _fix_missing_highbit(x):
+    """Re-read pixels with pydicom for DICOMs that have no HighBit tag.
+
+    ITKReader (GDCM) cannot decode these and returns a constant image.
+    pydicom assumes HighBit = BitsStored - 1. The result is written in the
+    same form ITK uses (rescale applied, MONOCHROME1 as s*(M - raw) + b), so
+    later steps are unchanged. No-op for non-DICOM images or files with HighBit.
+    Module-level so it is picklable for DataLoader workers.
+    """
+    path = str(x.meta.get("filename_or_obj", ""))
+    if not path.lower().endswith((".dcm", ".dicom")):
+        return x
+    if "HighBit" in pydicom.dcmread(path, stop_before_pixels=True):
+        return x
+    ds = pydicom.dcmread(path)
+    try:
+        arr = ds.pixel_array.astype("float32")
+    except Exception as e:  # e.g. compressed data with no pydicom decoder
+        warnings.warn(f"No HighBit and pydicom cannot decode {path}: {e}")
+        return x
+    s = float(ds.get("RescaleSlope", 1) or 1)
+    b = float(ds.get("RescaleIntercept", 0) or 0)
+    if getattr(ds, "PhotometricInterpretation", "") == "MONOCHROME1":
+        arr = (2 ** int(ds.BitsStored) - 1) - arr
+    arr = s * arr + b
+    if arr.shape != tuple(x.shape[1:]):
+        arr = arr.T
+    x[:] = torch.from_numpy(arr).unsqueeze(0)
+    return x
+
+
 def _apply_voi_lut(x):
     """Apply DICOM VOI LUT (WindowCenter/Width or LUT sequence) to a MetaTensor.
 
@@ -37,7 +68,25 @@ def _apply_voi_lut(x):
     if not path.lower().endswith(".dcm"):
         return x
     ds = pydicom.dcmread(path, stop_before_pixels=True)
-    arr = apply_voi_lut(x.numpy().squeeze(), ds).astype("float32")
+    arr = x.numpy().squeeze()
+    # ITKReader (GDCM) loads MONOCHROME1 as s*(M - raw) + b (flip, then
+    # rescale), but the window tags refer to s*raw + b: undo the flip,
+    # window, then flip back.
+    flip = getattr(ds, "PhotometricInterpretation", "") == "MONOCHROME1" and (
+        "WindowCenter" in ds or "VOILUTSequence" in ds
+    )
+    if flip:
+        s = float(ds.get("RescaleSlope", 1) or 1)
+        b = float(ds.get("RescaleIntercept", 0) or 0)
+        # M is 2**BitsStored - 1, except JPEG 2000 where GDCM uses
+        # 2**BitsAllocated - 1; flipped values above the first rule it out.
+        m = 2 ** int(ds.BitsStored) - 1
+        if (arr.max() - b) / s > m:
+            m = 2 ** int(ds.BitsAllocated) - 1
+        arr = (s * m + 2 * b) - arr
+    arr = apply_voi_lut(arr, ds).astype("float32")
+    if flip:
+        arr = arr.max() + arr.min() - arr
     x[:] = torch.from_numpy(arr).unsqueeze(0)
     return x
 
