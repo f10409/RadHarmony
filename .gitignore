@@ -35,10 +35,10 @@ dev/
 test_csv_output/
 docs/local/
 
-# Claude
-.claude
+# Claude (skills and CLAUDE.md are shared; local settings are not)
+.claude/*
+!.claude/skills/
 .vscode
-CLAUDE.md
 progress.md
 
 Custom_LeJEPA/
