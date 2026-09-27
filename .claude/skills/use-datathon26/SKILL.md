@@ -319,15 +319,7 @@ the snippet — don't present code that would raise `TypeError`. The `Datathon*E
 - **For extending** the package (a new dataset/backbone) use `add-dataset` / `add-backbone`; **for
   onboarding** (notebooks, the three venvs, `basepaths`) use `use-radharmony`.
 
-## After editing — sync the skill file
+## Editing this skill
 
-This skill is repo-specific, so mirror it into the public RadHarmony repo (version-controlled
-alongside the other skill mirrors):
-
-```bash
-cp ~/.claude/skills/use-datathon26/SKILL.md docs/use_datathon26_skill.md
-md5sum ~/.claude/skills/use-datathon26/SKILL.md docs/use_datathon26_skill.md
-```
-
-If the repo copy was edited instead, sync the other direction. Always confirm both copies match with
-`md5sum`.
+The copy in the repo, `.claude/skills/use-datathon26/SKILL.md`, is the one to edit and commit.
+There is no `docs/` mirror anymore.

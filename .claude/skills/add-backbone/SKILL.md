@@ -294,21 +294,10 @@ shrink the grid.
 - Inline comments: explain the *why* of non-obvious slices
   (`# CLS + register tokens`), never the *what*.
 
-## After editing — sync the skill file
+## Editing this skill
 
-After all source + doc edits are done, sync the canonical skill file:
-
-```bash
-cp ~/.claude/skills/add-backbone/SKILL.md docs/add_backbone_skill.md
-```
-
-Or in the other direction if the project copy was edited:
-
-```bash
-cp docs/add_backbone_skill.md ~/.claude/skills/add-backbone/SKILL.md
-```
-
-Always check `md5sum` of both copies after sync.
+The copy in the repo, `.claude/skills/add-backbone/SKILL.md`, is the one to edit and commit.
+There is no `docs/` mirror anymore.
 
 ## Output Format
 

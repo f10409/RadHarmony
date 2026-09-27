@@ -96,7 +96,7 @@ Always run with the Python env where `radharmony` is installed (Python 3.12) —
 
 ```bash
 python \
-  docs/audit_wiki_docs.py \
+  .claude/skills/audit-wiki-docs/audit_wiki_docs.py \
   --json <scratchpad>/audit.json
 ```
 
@@ -188,17 +188,7 @@ the targeted findings are gone and no new ones appeared.
 4. After fixes: one-line-per-file summary of what changed, and the re-run result (zero
    remaining errors on the touched pages).
 
-## After editing — sync the skill file
+## Editing this skill
 
-This skill is repo-specific, so mirror both the skill and its helper into the repo (public
-`RadHarmony`), keeping them version-controlled alongside the docs they check:
-
-```bash
-cp ~/.claude/skills/audit-wiki-docs/SKILL.md            docs/audit_wiki_docs_skill.md
-cp ~/.claude/skills/audit-wiki-docs/audit_wiki_docs.py  docs/audit_wiki_docs.py
-md5sum ~/.claude/skills/audit-wiki-docs/SKILL.md           docs/audit_wiki_docs_skill.md
-md5sum ~/.claude/skills/audit-wiki-docs/audit_wiki_docs.py docs/audit_wiki_docs.py
-```
-
-If the repo copy was edited instead, sync in the other direction. Always confirm both
-copies match with `md5sum`.
+The copy in the repo, `.claude/skills/audit-wiki-docs/SKILL.md`, is the one to edit and commit.
+There is no `docs/` mirror anymore.

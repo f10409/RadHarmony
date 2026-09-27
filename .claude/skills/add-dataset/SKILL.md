@@ -832,5 +832,5 @@ After generating all files, verify:
     - Any patterns, edge cases, or CSV quirks that future datasets might share.
     - If any of these lessons are general enough to improve this skill (e.g. a missing
       template pattern, a new checklist item, a better default), update this SKILL.md
-      and `docs/add_dataset_skill.md` accordingly. Keep the skill up-to-date as a
+      (`.claude/skills/add-dataset/SKILL.md`) accordingly. Keep the skill up-to-date as a
       living document.

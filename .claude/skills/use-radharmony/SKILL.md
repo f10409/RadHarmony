@@ -362,15 +362,7 @@ fix the snippet — don't present code that would raise `TypeError`.
 - **Don't extend the package here** — adding a dataset/backbone belongs to `add-dataset` /
   `add-backbone`.
 
-## After editing — sync the skill file
+## Editing this skill
 
-This skill is repo-specific, so mirror it into the public RadHarmony repo (version-controlled
-alongside the other skill mirrors):
-
-```bash
-cp ~/.claude/skills/use-radharmony/SKILL.md docs/use_radharmony_skill.md
-md5sum ~/.claude/skills/use-radharmony/SKILL.md docs/use_radharmony_skill.md
-```
-
-If the repo copy was edited instead, sync the other direction. Always confirm both copies match
-with `md5sum`.
+The copy in the repo, `.claude/skills/use-radharmony/SKILL.md`, is the one to edit and commit.
+There is no `docs/` mirror anymore.

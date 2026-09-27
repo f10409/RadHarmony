@@ -236,24 +236,10 @@ Group by document. Flag anything you found that needs human judgment (e.g.,
 a NAS path you cannot verify, a deprecation you are unsure about, content
 behind an auth wall).
 
-### 7. Sync this skill file
+### Editing this skill
 
-After all doc edits are done, sync the canonical skill file into the project:
-
-```bash
-cp ~/.claude/skills/update-docs/SKILL.md docs/update_docs_skill.md
-```
-
-This keeps `docs/update_docs_skill.md` in version control so the skill
-definition is committed alongside the project it serves. If the skill was
-edited in `docs/update_docs_skill.md` directly, sync in the other direction:
-
-```bash
-cp docs/update_docs_skill.md ~/.claude/skills/update-docs/SKILL.md
-```
-
-Always sync whichever copy is newer (check `git diff docs/update_docs_skill.md`
-and compare against `~/.claude/skills/update-docs/SKILL.md` with `md5sum`).
+The copy in the repo, `.claude/skills/update-docs/SKILL.md`, is the one to edit and commit.
+There is no `docs/` mirror anymore.
 
 ---
 
