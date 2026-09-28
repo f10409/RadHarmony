@@ -94,8 +94,8 @@ On the remote machine:
 
 ```bash
 cd ~/path/to/RadHarmony
-uv sync                          # only when pyproject.toml changed (no-op otherwise)
-uv run python app.py             # binds 0.0.0.0:7860
+uv pip install -e ".[all]"       # only when pyproject.toml changed
+.venv/bin/python app.py          # binds 0.0.0.0:7860
 ```
 
 On your laptop (separate terminal):
