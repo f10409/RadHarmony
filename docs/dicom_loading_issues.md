@@ -13,7 +13,7 @@ The pipeline reads DICOMs with MONAI's `ITKReader` (ITK / GDCM), then applies th
 | 2 | Window applied to flipped MONOCHROME1 pixels gives wrong contrast | CheXpert-Plus, 10 of 131 sampled MONOCHROME1 files with window tags | Fixed |
 | 3 | JPEG 2000 files are flipped with a different constant | VinDr-CXR JPEG 2000 files (would turn black) | Fixed |
 | 4 | Files with no `HighBit` tag load as a blank image | CheXpert-Plus, about 5% of files | Fixed |
-| 5 | `.dicom` files skip the window step | VinDr-CXR | Harmless, no change |
+| 5 | `.dicom` files skip the window step | VinDr-CXR, VinDr-PCXR | Fixed |
 | 6 | Leftover partial downloads named `.azDownload-*.dcm` | CheXpert-Plus, 18 of 5,436 sampled files | Open (data cleanup) |
 
 **After updating:** `PersistentDataset` caches (`cache_dir`) and embedding caches built from
@@ -87,8 +87,8 @@ control files are unchanged; `pytest tests/` passes (90 passed, 3 skipped).
 
 **Impact.** With the old code, the window (for example center 2047, width 4095) sees only values
 61440 to 65535, so every pixel saturates and the image turns **fully black**. This happens in the
-VinDr-CXR JPEG 2000 files when the window step runs on them. Today the step does not run on VinDr
-(see issue 5), so no current output is affected.
+VinDr-CXR JPEG 2000 files when the window step runs on them, which it does since issue 5 was
+fixed.
 
 **Fix.** The two cases are easy to tell apart from ITK's output: flipped 12-bit JPEG 2000 values
 are at least 61440, far above 4095. The code above picks 65535 in that case.
@@ -131,12 +131,20 @@ read of every file up front (about 220k files on the NAS) and would drop about 5
 **Verified.** All 366 sampled CheXpert-Plus files with no `HighBit` now match the pydicom reference
 (241 MONOCHROME1, 3 MONOCHROME1 with window tags, 122 MONOCHROME2). Files with `HighBit` are unchanged
 by the new step (58 of 58 across CheXpert-Plus, VinDr-CXR, SIIM-COVID). `pytest tests/`: 90 passed, 3 skipped.
-## 5. `.dicom` files skip the window step (no change needed)
 
-`_apply_voi_lut` only runs on paths ending in `.dcm`. VinDr-CXR files end in `.dicom`, so they are
-never windowed (2,941 of 3,000 test files have window tags). This is harmless: VinDr windows cover
-the full pixel range, and the output with or without windowing differs by 0.000 to 0.001 (mean abs
-diff on [-1, 1]). If this check is ever widened to `.dicom`, the issue 3 fix is required first.
+## 5. `.dicom` files skip the window step (fixed)
+
+`_apply_voi_lut` only ran on paths ending in `.dcm`. VinDr-CXR and VinDr-PCXR files end in
+`.dicom`, so they were never windowed. VinDr-CXR has `WindowCenter`/`WindowWidth` on 17,518 of
+18,000 files (no file has a `VOILUTSequence`). The window matters for some files: on 60 test files,
+11 changed by more than 0.01 (mean abs diff on [-1, 1]), up to 0.36.
+
+**Fix.** The check is now `path.lower().endswith((".dcm", ".dicom"))`, like `_fix_missing_highbit`.
+This relies on the issue 3 fix. Verified on 24 VinDr-CXR test files (MONOCHROME1 with and without
+window tags, MONOCHROME2): output matches a pydicom-only reference (correlation +1.0).
+
+**After updating:** caches and embeddings built from VinDr-CXR or VinDr-PCXR DICOMs hold the old
+images. Delete them so they are rebuilt.
 
 ## 6. `.azDownload-*` leftover files (open)
 

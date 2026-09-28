@@ -65,7 +65,7 @@ def _apply_voi_lut(x):
     Module-level so it is picklable for DataLoader workers.
     """
     path = str(x.meta.get("filename_or_obj", ""))
-    if not path.lower().endswith(".dcm"):
+    if not path.lower().endswith((".dcm", ".dicom")):
         return x
     ds = pydicom.dcmread(path, stop_before_pixels=True)
     arr = x.numpy().squeeze()
