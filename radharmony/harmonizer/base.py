@@ -1,7 +1,10 @@
 """Base harmonizer for radiological datasets."""
 
+import functools
 import os
 import pickle
+import warnings
+
 import pandas as pd
 
 
@@ -12,6 +15,51 @@ _HARMONIZED_CORE_COLS = frozenset(
 )
 
 _SAVE_VERSION = 1
+
+
+def _filter_by_ids(df: pd.DataFrame, study_ids=None, patient_ids=None) -> pd.DataFrame:
+    """Keep rows whose ``study_id`` / ``patient_id`` is in the given list (``None`` = no filter)."""
+    for col, ids in (("study_id", study_ids), ("patient_id", patient_ids)):
+        if ids is not None:
+            df = df[df[col].astype(str).isin({str(i) for i in ids})].reset_index(drop=True)
+    return df
+
+
+def _wrap_harmonize(harmonize):
+    """Wrap a subclass ``harmonize()`` so ``study_ids`` / ``patient_ids`` are never silently ignored.
+
+    The ids are taken out of the call and handed to the base ``harmonize()`` via
+    ``self._id_filter``; it filters early. If the subclass never reaches the base
+    ``harmonize()``, the result is filtered afterwards with a warning (no speedup).
+    """
+
+    @functools.wraps(harmonize)
+    def wrapper(self, *args, study_ids=None, patient_ids=None, **kwargs):
+        # No filter, or an inner call in a harmonize() chain: run as is.
+        if (study_ids is None and patient_ids is None) or getattr(self, "_id_filter", None):
+            return harmonize(self, *args, **kwargs)
+        self._id_filter = {"study_ids": study_ids, "patient_ids": patient_ids, "applied": False}
+        try:
+            df = harmonize(self, *args, **kwargs)
+            applied = self._id_filter["applied"]
+        finally:
+            self._id_filter = None
+        if applied:
+            return df
+        warnings.warn(
+            f"{type(self).__name__} has its own harmonize(), so study_ids / patient_ids "
+            "were applied after harmonizing (no speedup).",
+            stacklevel=2,
+        )
+        if self.df is not None and {"study_id", "patient_id"} <= set(self.df.columns):
+            self.df = _filter_by_ids(self.df, study_ids, patient_ids)
+        if getattr(self, "_harmonized_df_override", None) is not None:
+            self._harmonized_df_override = _filter_by_ids(
+                self._harmonized_df_override, study_ids, patient_ids
+            )
+        return _filter_by_ids(df, study_ids, patient_ids) if isinstance(df, pd.DataFrame) else df
+
+    return wrapper
 
 
 class BaseHarmonizer:
@@ -78,6 +126,13 @@ class BaseHarmonizer:
 
     REPORT_JOIN_COLS: list = []
     REPORT_PATH_COL: str = None  # column in report CSV containing the file path
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # A subclass harmonize() may never call the base one; wrap it so
+        # study_ids / patient_ids are not silently ignored.
+        if "harmonize" in cls.__dict__:
+            cls.harmonize = _wrap_harmonize(cls.__dict__["harmonize"])
 
     def __init__(
         self,
@@ -358,6 +413,10 @@ class BaseHarmonizer:
 
         report_df = pd.read_csv(self.report_csv_path, dtype=str)
         report_df = self._preprocess_report_df(report_df)
+        # Only open report files for studies still in self.df (the merge below is a
+        # left merge, so other rows would be dropped anyway).
+        keys = self.df[self.REPORT_JOIN_COLS].drop_duplicates()
+        report_df = report_df.merge(keys, on=self.REPORT_JOIN_COLS, how="inner")
 
         def _read(path: str) -> str | None:
             fp = (
@@ -580,6 +639,8 @@ class BaseHarmonizer:
         sample_n: int = None,
         mask_output_dir: str = None,
         mask_num_cores: int = 1,
+        study_ids=None,
+        patient_ids=None,
     ) -> pd.DataFrame:
         """Load the CSV, build all standardised columns, and optionally preprocess.
 
@@ -602,6 +663,14 @@ class BaseHarmonizer:
             mask_output_dir: Directory to write PNG mask files to.
                 Skip mask preprocessing if ``None``.
             mask_num_cores: Passed to :meth:`preprocess_masks` (default: 1).
+            study_ids: Keep only rows whose ``study_id`` is in this list, right
+                after the IDs are built, so labels, reports, etc. are only built
+                for these rows. Not the recommended way: normally harmonize
+                everything, then filter ``harmonized_df``. Use it only to save time
+                when you need a few studies from a large dataset (e.g. MIMIC
+                reports). Harmonizers whose own ``harmonize()`` never reaches this
+                one get their result filtered afterwards, with a warning (no speedup).
+            patient_ids: Same as ``study_ids``, for ``patient_id``.
 
         Returns:
             DataFrame with at minimum ``patient_id``, ``study_id``, ``image_path``
@@ -612,6 +681,13 @@ class BaseHarmonizer:
 
         self._build_patient_id()
         self._build_study_id()
+        # Optional early filter (see ``study_ids`` / ``patient_ids`` above). A wrapped
+        # subclass harmonize() hands the ids over via self._id_filter.
+        pending = getattr(self, "_id_filter", None)
+        if pending:
+            study_ids, patient_ids = pending["study_ids"], pending["patient_ids"]
+            pending["applied"] = True
+        self.df = _filter_by_ids(self.df, study_ids, patient_ids)
         self._build_series_id()
         self._build_image_path()
         self.LABEL_COLS = sorted(self.LABEL_COLS, key=lambda c: c.lower().replace(" ", "_"))

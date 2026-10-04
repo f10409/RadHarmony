@@ -63,6 +63,22 @@ df.to_csv("chexpert_harmonized.csv", index=False)
 
 The harmonized DataFrame always contains at minimum: `patient_id`, `study_id`, `image_path`, and one column per label in `LABEL_COLS`. Depending on the dataset it may also include `view_position`, `series_id`, `mask_path`, `bbox`, `report`, and `split`.
 
+### Filter before harmonizing (not recommended)
+
+The normal way is to harmonize the whole dataset, then filter `harmonized_df`. On very large
+datasets, building every row can be slow (for example MIMIC-CXR reads one report file per
+study). If you only need a few studies, `harmonize()` can keep just those rows right after the
+IDs are built, so labels, view positions and reports are only built for them:
+
+```python
+df = h.harmonize(study_ids=["12345678", "87654321"])   # or patient_ids=[...]
+```
+
+The rows you get are the same as filtering the full result. The speedup only applies to
+harmonizers that use the base `harmonize()` flow (e.g. MIMIC-CXR, MIMIC-CXR-JPG, CheXpert,
+CheXpert-Plus, PadChest). Harmonizers with their own `harmonize()` (e.g. ChestX-ray14, VinDr-CXR)
+still build every row, then filter, and show a warning saying there was no speedup.
+
 ---
 
 ## Skip re-harmonization: save and reuse
