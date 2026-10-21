@@ -100,6 +100,10 @@ def make_chexagent(
 
     _model = AutoModel.from_pretrained(hub).to(device).eval()
     _processor = AutoProcessor.from_pretrained(hub)
+    # Pad text to the text tower's 256 positions, not the tokenizer default (64).
+    # SigLIP pools the last position; at 64, zero-shot drops to chance
+    # (VinDr-CXR macro AUROC 0.488 at 64 vs 0.772 at 256).
+    _processor.tokenizer.model_max_length = _model.config.text_config.max_position_embeddings
 
     _loader = mt.Compose([
         mt.LoadImage(image_only=True, ensure_channel_first=True),

@@ -67,8 +67,9 @@ class ZeroShotEvaluator(BaseClsEvaluator):
             # HF joint processors (e.g. SiglipProcessor) put the first positional
             # arg into the image_processor slot; text strings must go via text=.
             if hasattr(self.tokenizer, "image_processor"):
-                # SigLIP-family models were trained with a fixed 64-token context;
-                # their contract is padding="max_length". padding=True (pad to
+                # SigLIP-family models were trained with a fixed token context
+                # (64 for most; recipes may raise it, e.g. XraySigLIP uses 256),
+                # so pad to the tokenizer's model_max_length. padding=True (pad to
                 # longest in batch) both warns and yields degraded embeddings.
                 if "Siglip" in type(self.tokenizer).__name__:
                     tokens = self.tokenizer(
