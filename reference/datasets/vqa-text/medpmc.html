@@ -1,0 +1,4572 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Unified API for public radiological datasets (CXR, CT, MRI)">
+      
+      
+      
+        <link rel="canonical" href="https://f10409.github.io/RadHarmony/reference/datasets/vqa-text/medpmc.html">
+      
+      
+        <link rel="prev" href="roco.html">
+      
+      
+        <link rel="next" href="chexinstruct_vqa.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>MedPMC - RadHarmony</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#medpmc" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../index.html" title="RadHarmony" class="md-header__button md-logo" aria-label="RadHarmony" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            RadHarmony
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              MedPMC
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/f10409/RadHarmony" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    f10409/RadHarmony
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../get-started/install.html" class="md-tabs__link">
+          
+  
+  
+  Get started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../how-to/get-the-data.html" class="md-tabs__link">
+          
+  
+  
+  How-to guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../index.html" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../design.html" class="md-tabs__link">
+          
+  
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../index.html" title="RadHarmony" class="md-nav__button md-logo" aria-label="RadHarmony" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    RadHarmony
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/f10409/RadHarmony" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    f10409/RadHarmony
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Get started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../get-started/install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../get-started/first-benchmark.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first benchmark in 10 minutes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../get-started/concepts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/get-the-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get the data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/load-a-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Load a dataset and pick outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/save-and-reuse.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save and reuse a harmonized table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/split-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Split data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/cache.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cache the samples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/run-a-probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run a probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/run-segmentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run segmentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/run-report-generation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run report generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/compare-backbones.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compare backbones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/add-a-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add a dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/add-a-backbone.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add a backbone
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../how-to/use-the-app.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use the app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets - chest X-ray, labels
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datasets - chest X-ray, labels
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/chexpert.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXpert
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/chexpert_plus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXpert-Plus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/chexphoto.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXphoto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/mimic_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIMIC-CXR (DICOM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/mimic_cxr_jpg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIMIC-CXR-JPG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/chestxray14.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChestX-ray14
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/padchest.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PadChest
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/rexgradient.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ReXGradient-160K
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/brax.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BRAX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/taix_ray.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TAIX-Ray
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/emory_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EmoryCXR v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/emory_chorus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Emory CHORUS (X-ray subset)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-labels/ms_cxr_t.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MS-CXR-T
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets - chest X-ray, boxes and masks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datasets - chest X-ray, boxes and masks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/chexlocalize.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXlocalize
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/chestxdet10.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChestX-Det10
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/node21.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NODE21
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/padchest_gr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PadChest-GR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/vindr_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VinDr-CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/chest_imagenome.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chest ImaGenome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/vindr_pcxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VinDr-PCXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/ranzcr_clip.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RANZCR CLiP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/siim_acr_ptx.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SIIM-ACR Pneumothorax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/siim_covid19.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SIIM COVID-19
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/rsna_pneumonia.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA Pneumonia (Adjudicated JSON)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/rsna_pneumonia_kaggle.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA Pneumonia (Kaggle)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/montgomery_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Montgomery County CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/shenzhen_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shenzhen Hospital CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/qata_cov19.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QaTa-COV19 v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cxr-boxes-masks/ms_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MS-CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets - CT, MRI and other
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datasets - CT, MRI and other
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ct-mri-other/rsna_pe_detection.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA PE Detection <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ct-mri-other/rsna_bone_age.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA Pediatric Bone Age <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ct-mri-other/rsna_2024_lumbar_spine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA 2024 Lumbar Spine <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ct-mri-other/ct_rate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CT-RATE <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ct-mri-other/radchestct.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAD-ChestCT <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ct-mri-other/rsna_2022_cervical_spine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA 2022 Cervical Spine <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ct-mri-other/rsna_abdominal_trauma_2023.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA 2023 Abdominal Trauma <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ct-mri-other/medseg_covid_ct.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedSeg COVID-19 CT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets - VQA, reports and text
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datasets - VQA, reports and text
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="openi_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenI IU CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vqa_rad.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VQA-RAD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="gemex_vqa.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEMeX-VQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="mimic_ext_cxr_qba.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIMIC-Ext-CXR-QBA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="roco.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ROCO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedPMC
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="medpmc.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedPMC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick use
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-is-harmonized" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it is harmonized
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#captions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Captions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#splits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Splits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#arguments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arguments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arguments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shared-arguments-inherited-from-basevqadataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared arguments (inherited from BaseVQADataset)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#harmonizer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Harmonizer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-data-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known data problems
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="chexinstruct_vqa.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXinstruct VQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluators
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evaluators
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/linear_probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/knn_probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    k-NN Probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/svm_probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SVM Probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/prototype_probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prototype Probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/zero_shot.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Shot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/finetune.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fine-tune
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/linear_probe_seg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Probe (Segmentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/conv_probe_seg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conv Probe (Segmentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/upernet_seg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UPerNet (Segmentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/report_generation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Report Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluators/vqa.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual Question Answering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_7" id="__nav_4_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backbones
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Backbones
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/raddino.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAD-DINO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/biomed_clip.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BiomedCLIP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/chexagent.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXagent (XraySigLIP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/medsiglip.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedSigLIP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/medimageinsights.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedImageInsight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/chexfound.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXFound
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/dinov3.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DINOv3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/eva_x.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EVA-X
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/ark_plus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ark+
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/medical_mae.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Medical MAE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/siglip2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SigLIP 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/chexagent_gen.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXagent-2 (generator)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backbones/maira2_gen.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MAIRA-2 (generator)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api-datasets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../transforms.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transforms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../datathon26.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datathon26 module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../design.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/label-policy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Label policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/phase-grounding.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIMIC-CXR label extraction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/dicom-loading.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DICOM loading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../explanation/testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How we test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick use
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-is-harmonized" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it is harmonized
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#captions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Captions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#splits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Splits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#arguments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arguments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arguments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shared-arguments-inherited-from-basevqadataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared arguments (inherited from BaseVQADataset)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#harmonizer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Harmonizer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-data-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known data problems
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="medpmc">MedPMC<a class="headerlink" href="#medpmc" title="Permanent link">&para;</a></h1>
+<!-- claim: id=medpmc.images tier=ci cmd="python scripts/evalkit/dataset_stat.py medpmc medpmc.images" expect="11,123,087" -->
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Registry keys</td>
+<td><code>medpmc</code></td>
+</tr>
+<tr>
+<td>Task and outputs</td>
+<td>Image captioning: the caption (<code>answer</code>). <code>question</code> is empty</td>
+</tr>
+<tr>
+<td>Images in the table</td>
+<td>11,123,087 images, with no filter. One image has one caption</td>
+</tr>
+<tr>
+<td>Modality</td>
+<td>Medical figures from PubMed Central articles: radiology, pathology, microscopy, clinical photos and more. 2-D, JPEG</td>
+</tr>
+<tr>
+<td>License</td>
+<td>CC BY-NC-SA 4.0 (the Hugging Face card). Each record also has its own source and license metadata</td>
+</tr>
+<tr>
+<td>Download</td>
+<td><a href="../../../how-to/get-the-data.html#other-datasets">Get the data: other datasets</a></td>
+</tr>
+</tbody>
+</table>
+<p>MedPMC (<a href="https://arxiv.org/abs/2607.07673">Kim et al., arXiv 2026</a>) pairs medical figures from PubMed Central
+articles with their captions. It has 3 subsets. <code>multipanel</code> has whole figures with many panels, and
+<code>singlepanel</code> has figures with one panel. <code>subfigure</code> has the panels cut out of the multipanel figures, with
+their own captions. The class gives the caption as <code>answer</code>, not as <code>report</code>. <code>ReportGenerationEvaluator</code>
+reads <code>report</code>, so it cannot score this class.</p>
+<p>RadHarmony makes its own tag tables of specialty and modality, so you can filter, for example, to radiology
+X-ray images. These tags are not labels of the MedPMC authors.</p>
+<h2 id="quick-use">Quick use<a class="headerlink" href="#quick-use" title="Permanent link">&para;</a></h2>
+<p>The source is a Hugging Face snapshot of <code>Yale-BIDS-Chen/medpmc-11m-dataset_jun24_baseline</code>. The images stay
+in webdataset tar files. Before you use the class:</p>
+<ol>
+<li>Build the caption tag table with <code>scripts/build_medpmc_tags.py --base-dir /data/MedPMC/</code>. It reads the
+   caption of each image from the tar files. The <code>answer</code> of the class comes from this table.</li>
+<li>For the CLIP filters (<code>modalities</code>, <code>require_tagger_agreement</code>, <code>min_clip_prob</code>), run
+   <code>scripts/build_medpmc_tags_clip.py --subsets singlepanel subfigure</code>. It writes parts to <code>tags/_clip_parts/</code>.
+   Then run <code>scripts/merge_clip_tags.py --base-dir /data/MedPMC/</code> to make the CLIP tag table.</li>
+<li>Extract the images of your subset with <code>scripts/materialize_medpmc_subset.py</code>. Do not extract all images
+   to a network drive. Example: <code>--base-dir /data/MedPMC/ --high-precision-radiology --modalities xray</code>.</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>MedPMC/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  webdataset/
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    metadata/medpmc_index.parquet       # one row for each image
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    multipanel/train-000000.tar ...
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    singlepanel/train-000000.tar ...
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    subfigure/train-000000.tar ...
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  tags/medpmc_tags.parquet              # made by scripts/build_medpmc_tags.py
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  tags/medpmc_tags_clip.parquet         # made by scripts/merge_clip_tags.py
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  images/singlepanel/singlepanel_000000000038.jpg   # made by scripts/materialize_medpmc_subset.py
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">radharmony.dataset</span><span class="w"> </span><span class="kn">import</span> <span class="n">MedPMCDataset</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">ds</span> <span class="o">=</span> <span class="n">MedPMCDataset</span><span class="p">(</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">base_dir</span><span class="o">=</span><span class="s2">"/data/MedPMC/"</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">subsets</span><span class="o">=</span><span class="p">[</span><span class="s2">"singlepanel"</span><span class="p">,</span> <span class="s2">"subfigure"</span><span class="p">],</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">radiology_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">modalities</span><span class="o">=</span><span class="p">[</span><span class="s2">"xray"</span><span class="p">],</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">require_tagger_agreement</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">min_clip_prob</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">ds</span><span class="o">.</span><span class="n">verify_images</span><span class="p">()</span>  <span class="c1"># drop the rows with no extracted image file</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="n">train_ds</span><span class="p">,</span> <span class="n">val_ds</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">get_datasets</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>  <span class="c1"># 1/5 of the articles go to val</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="n">sample</span> <span class="o">=</span> <span class="n">train_ds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># sample keys: img, question, answer, patient_id, study_id, question_id</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="c1"># sample["img"]: Tensor(3, 224, 224)</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="c1"># sample["answer"]: 'Abdomen X-ray of the patient, showed a large urinary calculus in the bladder.'</span>
+</code></pre></div>
+<h2 id="how-it-is-harmonized">How it is harmonized<a class="headerlink" href="#how-it-is-harmonized" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Source: <code>webdataset/metadata/medpmc_index.parquet</code>, with the caption tag table joined on <code>image_id</code>. One
+  row of the harmonized table is one image and its caption (D-03). <code>subsets</code> keeps only those subsets.</li>
+<li>IDs: the source has no patient ID. <code>patient_id</code> is the article (<code>pmcid</code>), because the figures of one article
+  are not independent. <code>study_id</code> is the figure: <code>parent_image_id</code> for a subfigure, and <code>image_id</code> for the
+  other subsets. <code>question_id</code> is <code>image_id</code>. Example: <code>patient_id</code> <code>PMC4770620</code>, <code>study_id</code>
+  <code>PMC4770620_EUS-5-35-g002</code> and <code>question_id</code> <code>PMC4770620_EUS-5-35-g002_2</code>.</li>
+<li><code>image_path</code>: <code>&lt;source_type&gt;/&lt;key&gt;&lt;image_ext&gt;</code>, for example <code>subfigure/subfigure_000000000085.jpg</code>. It is
+  relative to <code>base_image_dir</code>, which is <code>&lt;base_dir&gt;/images</code> by default (D-04).</li>
+<li>Caption: <code>answer</code> is <code>caption</code> of the caption tag table. With no tag table, <code>answer</code> is None in every row,
+  and the harmonizer warns. <code>question</code> is <code>""</code>.</li>
+<li>Tags: the caption tag table gives <code>specialty</code>, <code>modality</code>, <code>tag_confidence</code>, <code>tag_source</code> and <code>tag_method</code>.
+  The CLIP tag table gives <code>clip_specialty</code>, <code>clip_modality</code> and <code>clip_prob</code>, only when a CLIP filter
+  (<code>modalities</code>, <code>require_tagger_agreement</code> or <code>min_clip_prob</code>) needs it.</li>
+<li>View, age and sex: the source has none of them, so the harmonized table has no <code>view_position</code>,
+  <code>age_years</code> or <code>sex</code> (D-01).</li>
+<li>Dropped rows: by default, the harmonizer drops no row. The filter arguments drop rows (see
+  <a href="#arguments">Arguments</a>). With no caption tag table, <code>radiology_only</code>, <code>specialties</code>, <code>modalities</code>,
+  <code>min_tag_confidence</code>, <code>drop_untagged</code> and <code>require_tagger_agreement</code> raise <code>FileNotFoundError</code>. A CLIP filter with no CLIP tag table
+  also raises <code>FileNotFoundError</code>.</li>
+</ul>
+<h2 id="captions">Captions<a class="headerlink" href="#captions" title="Permanent link">&para;</a></h2>
+<p>The text columns of the harmonized table:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>question</code></td>
+<td>Always <code>""</code>, because this is a captioning set</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>answer</code></td>
+<td>The caption of the image. A subfigure has its own short caption</td>
+<td>The caption tag table</td>
+</tr>
+<tr>
+<td><code>source_type</code></td>
+<td><code>multipanel</code>, <code>singlepanel</code> or <code>subfigure</code></td>
+<td>The index</td>
+</tr>
+<tr>
+<td><code>pmcid</code></td>
+<td>The PubMed Central article</td>
+<td>The index</td>
+</tr>
+<tr>
+<td><code>image_id</code>, <code>parent_image_id</code></td>
+<td>The image, and the multipanel figure of a subfigure</td>
+<td>The index</td>
+</tr>
+<tr>
+<td><code>subfigure_index</code>, <code>figure_label</code></td>
+<td>The panel number of a subfigure, and the figure name in the article (for example <code>Fig. 1</code>)</td>
+<td>The index</td>
+</tr>
+<tr>
+<td><code>shard</code>, <code>key</code></td>
+<td>The tar file and the name of the image in it</td>
+<td>The index</td>
+</tr>
+<tr>
+<td><code>specialty</code></td>
+<td>One of 10 values, for example <code>radiology</code>, <code>pathology</code> or <code>unknown</code></td>
+<td>The caption tag table</td>
+</tr>
+<tr>
+<td><code>modality</code></td>
+<td>The radiology modality: <code>ct</code>, <code>mri</code>, <code>fmri</code>, <code>xray</code>, <code>ultrasound</code>, <code>pet_spect</code>, <code>angiography</code>, <code>mammography</code> or <code>radiology_other</code></td>
+<td>The caption tag table</td>
+</tr>
+<tr>
+<td><code>tag_confidence</code></td>
+<td><code>high</code> (a specific term matched), <code>low</code> (a general term, or a tag from the parent caption) or None</td>
+<td>The caption tag table</td>
+</tr>
+<tr>
+<td><code>tag_source</code></td>
+<td><code>own</code> (the caption of the image) or <code>parent</code> (the caption of the whole figure). None with no tag</td>
+<td>The caption tag table</td>
+</tr>
+<tr>
+<td><code>tag_method</code></td>
+<td>The method that made the tag, for example <code>caption-lexicon-v2</code></td>
+<td>The caption tag table</td>
+</tr>
+<tr>
+<td><code>clip_specialty</code>, <code>clip_modality</code>, <code>clip_prob</code></td>
+<td>The tag of a zero-shot MedPMC-CLIP model on the pixels, and its probability. Only with a CLIP filter</td>
+<td>The CLIP tag table</td>
+</tr>
+</tbody>
+</table>
+<p>The caption tag table uses word lists on the caption (<code>radharmony/harmonizer/medpmc/tagging.py</code>). The CLIP
+tag table has rows only for <code>singlepanel</code> and <code>subfigure</code>. On 2026-08-22, a clinician checked 151 images where
+the 2 taggers disagreed (the docstring of <code>MedPMCHarmonizer</code>). CLIP was right for 72.8% of them, and the
+caption word lists for 10.6%. So <code>modalities</code> uses the CLIP modality, and the caption modality where CLIP has
+none.</p>
+<p>Example row of <code>medpmc</code>, with <code>radiology_only=True</code> and <code>modalities=["xray"]</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>question_id</code></td>
+<td><code>PMC10009441_gr1</code></td>
+</tr>
+<tr>
+<td><code>answer</code></td>
+<td><code>Abdomen X-ray of the patient, showed a large urinary calculus in the bladder.</code></td>
+</tr>
+<tr>
+<td><code>source_type</code></td>
+<td><code>singlepanel</code></td>
+</tr>
+<tr>
+<td><code>specialty</code>, <code>modality</code></td>
+<td><code>radiology</code>, <code>xray</code></td>
+</tr>
+<tr>
+<td><code>tag_confidence</code>, <code>tag_source</code></td>
+<td><code>high</code>, <code>own</code></td>
+</tr>
+<tr>
+<td><code>clip_modality</code>, <code>clip_prob</code></td>
+<td><code>xray</code>, <code>0.964</code></td>
+</tr>
+</tbody>
+</table>
+<p>The sample holds <code>img</code>, <code>question</code>, <code>answer</code>, <code>patient_id</code>, <code>study_id</code> and <code>question_id</code>. <code>img</code> is
+<code>(3, 224, 224)</code>: many figures are in color, so the class sets <code>IMG_CHANNELS = 3</code> (D-42). A gray file gives 3
+equal channels. An <code>answer</code> of None gives <code>""</code> in the sample. The tag columns are only in the
+harmonized table, not in the sample.</p>
+<h2 id="splits">Splits<a class="headerlink" href="#splits" title="Permanent link">&para;</a></h2>
+<!-- claim: id=medpmc.splits.images tier=ci cmd="python scripts/evalkit/dataset_stat.py medpmc medpmc.images" expect="11,123,087" -->
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Registry key</th>
+<th>Images</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MedPMCDataset</code></td>
+<td><code>medpmc</code></td>
+<td>11,123,087</td>
+<td><code>webdataset/metadata/medpmc_index.parquet</code>, all 3 subsets, with no filter</td>
+</tr>
+</tbody>
+</table>
+<!-- claim: id=medpmc.studies tier=ci cmd="python scripts/evalkit/dataset_stat.py medpmc medpmc.studies" expect="3,799,545" -->
+<!-- claim: id=medpmc.patients tier=ci cmd="python scripts/evalkit/dataset_stat.py medpmc medpmc.patients" expect="1,274,778" -->
+<p>With no filter, the 11,123,087 images come from 3,799,545 figures (<code>study_id</code>) and 1,274,778 articles
+(<code>patient_id</code>).</p>
+<p>MedPMC has no official split. <code>get_datasets(n_splits=5)</code> makes a train and val split. It groups by patient
+(D-10). Here the patient is the article, so all figures of one article go to one split. For example, a
+subfigure and its multipanel figure stay in one split.</p>
+<h2 id="arguments">Arguments<a class="headerlink" href="#arguments" title="Permanent link">&para;</a></h2>
+<!-- args: radharmony.dataset.MedPMCDataset -->
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>base_dir</code></td>
+<td><code>str</code></td>
+<td>Yes</td>
+<td><code>None</code></td>
+<td>The MedPMC folder, with <code>webdataset/</code> and <code>tags/</code> in it. Not needed with <code>harmonizer_path</code>, which holds it</td>
+</tr>
+<tr>
+<td><code>base_image_dir</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>The folder of the extracted images. With <code>harmonizer_path</code>, <code>None</code> gives the <code>base_image_dir</code> of the saved harmonizer. Else, or when the saved harmonizer has none, it gives <code>&lt;base_dir&gt;/images</code>. With <code>harmonizer_path</code> and no <code>base_dir</code>, the class takes <code>base_dir</code> from the saved harmonizer</td>
+</tr>
+<tr>
+<td><code>subsets</code></td>
+<td><code>list[str]</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>Any of <code>multipanel</code>, <code>singlepanel</code> and <code>subfigure</code>. <code>None</code> gives all 3. An unknown name raises <code>ValueError</code>. It also filters a given table (D-02)</td>
+</tr>
+<tr>
+<td><code>radiology_only</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>False</code></td>
+<td>With <code>specialties=None</code>, it gives <code>specialties=["radiology"]</code>. With <code>specialties</code>, it does nothing. It also filters a given table (D-02)</td>
+</tr>
+<tr>
+<td><code>specialties</code></td>
+<td><code>list[str]</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>Keep only these values of <code>specialty</code>. A multipanel row has the tag of its whole-figure caption. An unknown name raises <code>ValueError</code>. It also filters a given table (D-02)</td>
+</tr>
+<tr>
+<td><code>modalities</code></td>
+<td><code>list[str]</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>Keep only these modalities, for example <code>["ct", "mri"]</code>. It uses the CLIP modality, and the caption modality where CLIP has none. It needs the CLIP tag table. An unknown name raises <code>ValueError</code>. It also filters a given table (D-02)</td>
+</tr>
+<tr>
+<td><code>min_tag_confidence</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td><code>"high"</code> keeps only <code>tag_confidence</code> <code>high</code>. <code>"low"</code> keeps <code>low</code> and <code>high</code>. <code>None</code> keeps all rows. Another value raises <code>ValueError</code>. It also filters a given table (D-02)</td>
+</tr>
+<tr>
+<td><code>drop_untagged</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>False</code></td>
+<td>Drop the rows with <code>specialty</code> <code>unknown</code> or None. It also filters a given table (D-02)</td>
+</tr>
+<tr>
+<td><code>require_tagger_agreement</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>False</code></td>
+<td>Keep only the rows where the 2 taggers give the same specialty, and the same modality when both give one. A row with no CLIP tag (every multipanel row) goes. It needs the caption tag table and the CLIP tag table. Without the caption tag table, <code>harmonize()</code> raises <code>FileNotFoundError</code>. It also filters a given table (D-02)</td>
+</tr>
+<tr>
+<td><code>min_clip_prob</code></td>
+<td><code>float</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>Keep only the rows with <code>clip_prob</code> at this value or more. The class drops a row with no CLIP tag. It needs the CLIP tag table. It also filters a given table (D-02)</td>
+</tr>
+<tr>
+<td><code>modality_source</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>"clip"</code></td>
+<td>The tagger of <code>modalities</code>: <code>"clip"</code>, <code>"caption"</code> or <code>"either"</code>, as in the harmonizer table below. Another value raises <code>ValueError</code></td>
+</tr>
+<tr>
+<td><code>include_multipanel</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>True</code></td>
+<td>With <code>False</code>, a specialty filter drops the multipanel rows. Without a specialty filter, it does nothing</td>
+</tr>
+<tr>
+<td><code>clip_tags_path</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>The CLIP tag table. <code>None</code> gives <code>&lt;base_dir&gt;/tags/medpmc_tags_clip.parquet</code></td>
+</tr>
+<tr>
+<td><code>tags_path</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>The caption tag table. <code>None</code> gives <code>&lt;base_dir&gt;/tags/medpmc_tags.parquet</code></td>
+</tr>
+</tbody>
+</table>
+<p>With a given table, a filter that needs a column the table does not have raises <code>ValueError</code>. Example:
+<code>min_clip_prob</code> on a table that <code>harmonize()</code> made with no CLIP filter, so it has no <code>clip_prob</code> column.
+<code>modalities</code> with <code>modality_source="clip"</code> (the default) or <code>"either"</code> needs the <code>clip_modality</code> column.</p>
+<h3 id="shared-arguments-inherited-from-basevqadataset">Shared arguments (inherited from BaseVQADataset)<a class="headerlink" href="#shared-arguments-inherited-from-basevqadataset" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transform</code></td>
+<td>MONAI transform</td>
+<td>No</td>
+<td><code>None</code></td>
+<td>The image steps. <code>None</code> gives the VQA steps. They load <code>img</code> with 3 channels (D-42), and resize and pad it to 224 x 224 (H x W). They have no <code>SelectItemsD</code>, so the text keys stay in the sample</td>
+</tr>
+<tr>
+<td><code>output_struct</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>False</code></td>
+<td>Add <code>answer_struct</code> to the sample. The harmonized table has no <code>answer_struct</code> column, so the class warns and adds no key (D-11)</td>
+</tr>
+<tr>
+<td><code>output_question_type</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>False</code></td>
+<td>Add <code>question_type</code> to the sample. The harmonized table has no <code>question_type</code> column, so the class warns and adds no key (D-11)</td>
+</tr>
+<tr>
+<td><code>cache_dir</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>"./cache"</code></td>
+<td>The MONAI cache folder. <code>None</code> gives no cache</td>
+</tr>
+<tr>
+<td><code>dtype</code></td>
+<td><code>torch.dtype</code></td>
+<td>No</td>
+<td><code>torch.bfloat16</code></td>
+<td>The type of <code>img</code>. The text keys stay strings</td>
+</tr>
+<tr>
+<td><code>harmonized_df</code></td>
+<td><code>pd.DataFrame</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>A harmonized table to use</td>
+</tr>
+<tr>
+<td><code>harmonizer</code></td>
+<td>harmonizer</td>
+<td>No</td>
+<td><code>None</code></td>
+<td>A harmonizer to use</td>
+</tr>
+<tr>
+<td><code>harmonizer_path</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>A saved harmonizer (<code>.pkl</code>). A file of another class raises <code>ValueError</code>. See <a href="../../../how-to/save-and-reuse.html">Save and reuse a harmonized table</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="harmonizer">Harmonizer<a class="headerlink" href="#harmonizer" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">radharmony.harmonizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">MedPMCHarmonizer</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">h</span> <span class="o">=</span> <span class="n">MedPMCHarmonizer</span><span class="p">(</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">base_dir</span><span class="o">=</span><span class="s2">"/data/MedPMC/"</span><span class="p">,</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">base_image_dir</span><span class="o">=</span><span class="s2">"/data/MedPMC/images/"</span><span class="p">,</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">subsets</span><span class="o">=</span><span class="p">[</span><span class="s2">"subfigure"</span><span class="p">],</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="p">)</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">df</span> <span class="o">=</span> <span class="n">h</span><span class="o">.</span><span class="n">harmonize</span><span class="p">()</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># ['patient_id', 'study_id', 'question_id', 'image_path', 'question', 'answer', 'source_type', 'pmcid',</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1">#  'image_id', 'parent_image_id', 'subfigure_index', 'figure_label', 'shard', 'key', 'specialty',</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="c1">#  'modality', 'tag_confidence', 'tag_source', 'tag_method']</span>
+</code></pre></div>
+<p>The harmonizer takes the same filter arguments as the dataset class. Only the dataset class sets
+<code>base_image_dir</code> to <code>&lt;base_dir&gt;/images</code> when it is <code>None</code>. The harmonizer keeps <code>None</code>.</p>
+<!-- args: radharmony.harmonizer.MedPMCHarmonizer -->
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>base_dir</code></td>
+<td><code>str</code></td>
+<td>Yes</td>
+<td><code>None</code></td>
+<td>The MedPMC folder. Without it, <code>harmonize()</code> raises <code>ValueError</code>. With no index file, it raises <code>FileNotFoundError</code></td>
+</tr>
+<tr>
+<td><code>base_image_dir</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>The folder of the extracted images. <code>harmonize()</code> does not read it. <code>verify_images()</code> and a saved harmonizer use it</td>
+</tr>
+<tr>
+<td><code>subsets</code></td>
+<td><code>list[str]</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>Any of <code>multipanel</code>, <code>singlepanel</code> and <code>subfigure</code>. <code>None</code> gives all 3. An unknown name raises <code>ValueError</code></td>
+</tr>
+<tr>
+<td><code>radiology_only</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>False</code></td>
+<td>With <code>specialties=None</code>, it gives <code>specialties=["radiology"]</code>. With <code>specialties</code>, it does nothing</td>
+</tr>
+<tr>
+<td><code>specialties</code></td>
+<td><code>list[str]</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>Keep only these values of <code>specialty</code>. An unknown name raises <code>ValueError</code></td>
+</tr>
+<tr>
+<td><code>modalities</code></td>
+<td><code>list[str]</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>Keep only these modalities. <code>modality_source</code> picks the tagger. An unknown name raises <code>ValueError</code></td>
+</tr>
+<tr>
+<td><code>min_tag_confidence</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td><code>"high"</code>, <code>"low"</code> or <code>None</code>. Another value raises <code>ValueError</code></td>
+</tr>
+<tr>
+<td><code>drop_untagged</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>False</code></td>
+<td>Drop the rows with <code>specialty</code> <code>unknown</code> or None</td>
+</tr>
+<tr>
+<td><code>require_tagger_agreement</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>False</code></td>
+<td>Keep only the rows where the 2 taggers agree. Every multipanel row goes, because the CLIP tag table has no multipanel row. Without the caption tag table, <code>harmonize()</code> raises <code>FileNotFoundError</code></td>
+</tr>
+<tr>
+<td><code>min_clip_prob</code></td>
+<td><code>float</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>Keep only the rows with <code>clip_prob</code> at this value or more</td>
+</tr>
+<tr>
+<td><code>modality_source</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>"clip"</code></td>
+<td>The tagger of <code>modalities</code>. <code>"clip"</code> takes the CLIP modality, and the caption modality where CLIP has none. <code>"caption"</code> takes the caption modality. <code>"either"</code> keeps a row when one of the 2 matches. Another value raises <code>ValueError</code></td>
+</tr>
+<tr>
+<td><code>clip_tags_path</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>The CLIP tag table. <code>None</code> gives <code>&lt;base_dir&gt;/tags/medpmc_tags_clip.parquet</code></td>
+</tr>
+<tr>
+<td><code>include_multipanel</code></td>
+<td><code>bool</code></td>
+<td>No</td>
+<td><code>True</code></td>
+<td>With <code>False</code>, a specialty filter drops the multipanel rows, because their tag comes from the caption of the whole figure. Without a specialty filter, it does nothing</td>
+</tr>
+<tr>
+<td><code>tags_path</code></td>
+<td><code>str</code></td>
+<td>No</td>
+<td><code>None</code></td>
+<td>The caption tag table. <code>None</code> gives <code>&lt;base_dir&gt;/tags/medpmc_tags.parquet</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="known-data-problems">Known data problems<a class="headerlink" href="#known-data-problems" title="Permanent link">&para;</a></h2>
+<ul>
+<li>No specialty or modality: the source has no such field. The paper gives the specialty shares from a check
+  by hand of a sample of images, not a label for each image.</li>
+<li>Benchmark images: PubMed Central figures include images of MIMIC-CXR, CheXpert, VinDr and other benchmark
+  datasets. If you train on MedPMC and test on these benchmarks, remove these images from the training data
+  first.</li>
+<li>Same pixels twice: each subfigure is also a panel of its multipanel figure. To count each figure once,
+  count the unique <code>study_id</code> values, or leave out the <code>multipanel</code> subset.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

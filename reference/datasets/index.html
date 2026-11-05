@@ -1,0 +1,4869 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Unified API for public radiological datasets (CXR, CT, MRI)">
+      
+      
+      
+        <link rel="canonical" href="https://f10409.github.io/RadHarmony/reference/datasets/index.html">
+      
+      
+        <link rel="prev" href="../../how-to/use-the-app.html">
+      
+      
+        <link rel="next" href="cxr-labels/chexpert.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Dataset catalog - RadHarmony</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#datasets" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../index.html" title="RadHarmony" class="md-header__button md-logo" aria-label="RadHarmony" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            RadHarmony
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Dataset catalog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/f10409/RadHarmony" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    f10409/RadHarmony
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../get-started/install.html" class="md-tabs__link">
+          
+  
+  
+  Get started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to/get-the-data.html" class="md-tabs__link">
+          
+  
+  
+  How-to guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="index.html" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../design.html" class="md-tabs__link">
+          
+  
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../index.html" title="RadHarmony" class="md-nav__button md-logo" aria-label="RadHarmony" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    RadHarmony
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/f10409/RadHarmony" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    f10409/RadHarmony
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Get started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../get-started/install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../get-started/first-benchmark.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first benchmark in 10 minutes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../get-started/concepts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/get-the-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get the data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/load-a-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Load a dataset and pick outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/save-and-reuse.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save and reuse a harmonized table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/split-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Split data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/cache.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cache the samples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-a-probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run a probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-segmentation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run segmentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/run-report-generation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run report generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/compare-backbones.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compare backbones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/add-a-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add a dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/add-a-backbone.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add a backbone
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/use-the-app.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use the app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset catalog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="index.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finding-a-datasets-label-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding a dataset's label columns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output flags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#base_image_dir-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        base_image_dir convention
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets - chest X-ray, labels
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datasets - chest X-ray, labels
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/chexpert.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXpert
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/chexpert_plus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXpert-Plus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/chexphoto.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXphoto
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/mimic_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIMIC-CXR (DICOM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/mimic_cxr_jpg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIMIC-CXR-JPG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/chestxray14.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChestX-ray14
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/padchest.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PadChest
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/rexgradient.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ReXGradient-160K
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/brax.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BRAX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/taix_ray.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TAIX-Ray
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/emory_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EmoryCXR v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/emory_chorus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Emory CHORUS (X-ray subset)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-labels/ms_cxr_t.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MS-CXR-T
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets - chest X-ray, boxes and masks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datasets - chest X-ray, boxes and masks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/chexlocalize.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXlocalize
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/chestxdet10.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChestX-Det10
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/node21.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NODE21
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/padchest_gr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PadChest-GR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/vindr_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VinDr-CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/chest_imagenome.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chest ImaGenome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/vindr_pcxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VinDr-PCXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/ranzcr_clip.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RANZCR CLiP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/siim_acr_ptx.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SIIM-ACR Pneumothorax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/siim_covid19.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SIIM COVID-19
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/rsna_pneumonia.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA Pneumonia (Adjudicated JSON)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/rsna_pneumonia_kaggle.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA Pneumonia (Kaggle)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/montgomery_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Montgomery County CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/shenzhen_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shenzhen Hospital CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/qata_cov19.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QaTa-COV19 v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cxr-boxes-masks/ms_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MS-CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets - CT, MRI and other
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datasets - CT, MRI and other
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ct-mri-other/rsna_pe_detection.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA PE Detection <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ct-mri-other/rsna_bone_age.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA Pediatric Bone Age <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ct-mri-other/rsna_2024_lumbar_spine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA 2024 Lumbar Spine <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ct-mri-other/ct_rate.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CT-RATE <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ct-mri-other/radchestct.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAD-ChestCT <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ct-mri-other/rsna_2022_cervical_spine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA 2022 Cervical Spine <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ct-mri-other/rsna_abdominal_trauma_2023.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RSNA 2023 Abdominal Trauma <sup class="beta">beta</sup>
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ct-mri-other/medseg_covid_ct.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedSeg COVID-19 CT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets - VQA, reports and text
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Datasets - VQA, reports and text
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vqa-text/openi_cxr.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenI IU CXR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vqa-text/vqa_rad.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VQA-RAD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vqa-text/gemex_vqa.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEMeX-VQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vqa-text/mimic_ext_cxr_qba.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIMIC-Ext-CXR-QBA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vqa-text/roco.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ROCO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vqa-text/medpmc.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedPMC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vqa-text/chexinstruct_vqa.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXinstruct VQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluators
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evaluators
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/linear_probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/knn_probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    k-NN Probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/svm_probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SVM Probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/prototype_probe.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prototype Probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/zero_shot.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Shot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/finetune.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fine-tune
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/linear_probe_seg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Probe (Segmentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/conv_probe_seg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conv Probe (Segmentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/upernet_seg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UPerNet (Segmentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/report_generation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Report Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluators/vqa.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual Question Answering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_7" id="__nav_4_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backbones
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Backbones
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/raddino.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAD-DINO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/biomed_clip.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BiomedCLIP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/chexagent.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXagent (XraySigLIP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/medsiglip.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedSigLIP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/medimageinsights.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MedImageInsight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/chexfound.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXFound
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/dinov3.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DINOv3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/eva_x.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EVA-X
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/ark_plus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ark+
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/medical_mae.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Medical MAE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/siglip2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SigLIP 2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/chexagent_gen.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CheXagent-2 (generator)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backbones/maira2_gen.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MAIRA-2 (generator)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-datasets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transforms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datathon26.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datathon26 module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/label-policy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Label policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/phase-grounding.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MIMIC-CXR label extraction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/dicom-loading.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DICOM loading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/testing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How we test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finding-a-datasets-label-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding a dataset's label columns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output flags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#base_image_dir-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        base_image_dir convention
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="datasets">Datasets<a class="headerlink" href="#datasets" title="Permanent link">&para;</a></h1>
+<!-- claim: id=registry.n_dataset_keys tier=ci cmd="python -c 'import radharmony.dataset; from radharmony.registry import list_datasets; print(len(list_datasets()))'" expect="132" -->
+<p>RadHarmony has 132 dataset registry keys. Each row of the inventory is one dataset configuration. The
+Registry keys column gives the keys for <code>resolve_dataset()</code>. <code>list_datasets()</code> in <code>radharmony.registry</code>
+lists every key (import <code>radharmony.dataset</code> first). The Page column links to the page of the dataset
+(constructor arguments, harmonizer notes, label columns).</p>
+<p>When a row has split keys and one key without a split name (for example <code>chexpert</code>), use the split keys.
+The key without a split name is the old class. A row that says "not for benchmarks" is an old class.
+It mixes the official splits, or a folder or file that you give picks the split (D-09).</p>
+<h2 id="inventory">Inventory<a class="headerlink" href="#inventory" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>Modality</th>
+<th>Dim</th>
+<th>Labels</th>
+<th>Outputs available</th>
+<th>Registry keys</th>
+<th>Page</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CheXpert</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>chexpert_train</code>, <code>chexpert_valid</code>, <code>chexpert</code></td>
+<td><a href="cxr-labels/chexpert.html">→</a></td>
+</tr>
+<tr>
+<td>CheXpert-Plus (Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, report</td>
+<td><code>chexpert_plus_train</code></td>
+<td><a href="cxr-labels/chexpert_plus.html">→</a></td>
+</tr>
+<tr>
+<td>CheXpert-Plus (Valid)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, report</td>
+<td><code>chexpert_plus_valid</code></td>
+<td><a href="cxr-labels/chexpert_plus.html">→</a></td>
+</tr>
+<tr>
+<td>CheXpert-Plus (all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, report</td>
+<td><code>chexpert_plus</code></td>
+<td><a href="cxr-labels/chexpert_plus.html">→</a></td>
+</tr>
+<tr>
+<td>CheXphoto</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>chexphoto_train</code>, <code>chexphoto_valid</code>, <code>chexphoto</code></td>
+<td><a href="cxr-labels/chexphoto.html">→</a></td>
+</tr>
+<tr>
+<td>CheXlocalize (Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, mask</td>
+<td><code>chexlocalize</code></td>
+<td><a href="cxr-boxes-masks/chexlocalize.html">→</a></td>
+</tr>
+<tr>
+<td>CheXlocalize (Val)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, mask</td>
+<td><code>chexlocalize_val</code></td>
+<td><a href="cxr-boxes-masks/chexlocalize.html">→</a></td>
+</tr>
+<tr>
+<td>VQA-RAD (Train)</td>
+<td>CXR/CT/MRI</td>
+<td>2D</td>
+<td>n/a (VQA)</td>
+<td>question, answer</td>
+<td><code>vqa_rad_train</code></td>
+<td><a href="vqa-text/vqa_rad.html">→</a></td>
+</tr>
+<tr>
+<td>VQA-RAD (Test)</td>
+<td>CXR/CT/MRI</td>
+<td>2D</td>
+<td>n/a (VQA)</td>
+<td>question, answer</td>
+<td><code>vqa_rad_test</code></td>
+<td><a href="vqa-text/vqa_rad.html">→</a></td>
+</tr>
+<tr>
+<td>VQA-RAD (all splits, not for benchmarks)</td>
+<td>CXR/CT/MRI</td>
+<td>2D</td>
+<td>n/a (VQA)</td>
+<td>question, answer</td>
+<td><code>vqa_rad</code></td>
+<td><a href="vqa-text/vqa_rad.html">→</a></td>
+</tr>
+<tr>
+<td>CheXinstruct VQA (Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>n/a (VQA)</td>
+<td>question, answer</td>
+<td><code>chexinstruct_vqa_train</code></td>
+<td><a href="vqa-text/chexinstruct_vqa.html">→</a></td>
+</tr>
+<tr>
+<td>CheXinstruct VQA (Val)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>n/a (VQA)</td>
+<td>question, answer</td>
+<td><code>chexinstruct_vqa_val</code></td>
+<td><a href="vqa-text/chexinstruct_vqa.html">→</a></td>
+</tr>
+<tr>
+<td>CheXinstruct VQA (Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>n/a (VQA)</td>
+<td>question, answer</td>
+<td><code>chexinstruct_vqa_test</code></td>
+<td><a href="vqa-text/chexinstruct_vqa.html">→</a></td>
+</tr>
+<tr>
+<td>CheXinstruct VQA (all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>n/a (VQA)</td>
+<td>question, answer</td>
+<td><code>chexinstruct_vqa</code></td>
+<td><a href="vqa-text/chexinstruct_vqa.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR (DICOM, Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, report</td>
+<td><code>mimic_cxr_train</code></td>
+<td><a href="cxr-labels/mimic_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR (DICOM, Validate)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, report</td>
+<td><code>mimic_cxr_validate</code></td>
+<td><a href="cxr-labels/mimic_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR (DICOM, Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, report</td>
+<td><code>mimic_cxr_test</code></td>
+<td><a href="cxr-labels/mimic_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR (DICOM, all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, report</td>
+<td><code>mimic_cxr</code></td>
+<td><a href="cxr-labels/mimic_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR-JPG (Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>mimic_cxr_jpg_train</code></td>
+<td><a href="cxr-labels/mimic_cxr_jpg.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR-JPG (Validate)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>mimic_cxr_jpg_validate</code></td>
+<td><a href="cxr-labels/mimic_cxr_jpg.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR-JPG (Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>mimic_cxr_jpg_test</code></td>
+<td><a href="cxr-labels/mimic_cxr_jpg.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR-JPG (Test, labeler labels)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>mimic_cxr_jpg_test_chexpert</code></td>
+<td><a href="cxr-labels/mimic_cxr_jpg.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-CXR-JPG (all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>mimic_cxr_jpg</code></td>
+<td><a href="cxr-labels/mimic_cxr_jpg.html">→</a></td>
+</tr>
+<tr>
+<td>ChestX-ray14</td>
+<td>CXR</td>
+<td>2D</td>
+<td>15 pathologies</td>
+<td>cls</td>
+<td><code>chestxray14_train</code>, <code>chestxray14_test</code>, <code>chestxray14</code></td>
+<td><a href="cxr-labels/chestxray14.html">→</a></td>
+</tr>
+<tr>
+<td>ChestX-Det10</td>
+<td>CXR</td>
+<td>2D</td>
+<td>10 pathologies (boxes)</td>
+<td>cls, bbox</td>
+<td><code>chestxdet10_train</code>, <code>chestxdet10_test</code>, <code>chestxdet10</code></td>
+<td><a href="cxr-boxes-masks/chestxdet10.html">→</a></td>
+</tr>
+<tr>
+<td>NODE21</td>
+<td>CXR</td>
+<td>2D</td>
+<td>nodule (boxes)</td>
+<td>cls, bbox</td>
+<td><code>node21</code></td>
+<td><a href="cxr-boxes-masks/node21.html">→</a></td>
+</tr>
+<tr>
+<td>NODE21 (original images)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>nodule (boxes)</td>
+<td>cls, bbox</td>
+<td><code>node21_original</code></td>
+<td><a href="cxr-boxes-masks/node21.html">→</a></td>
+</tr>
+<tr>
+<td>ChestX-ray14 (BBox)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>15 pathologies</td>
+<td>cls, bbox</td>
+<td><code>chestxray14_bbox</code></td>
+<td><a href="cxr-labels/chestxray14.html">→</a></td>
+</tr>
+<tr>
+<td>PadChest</td>
+<td>CXR</td>
+<td>2D</td>
+<td>193 findings</td>
+<td>cls, report (Spanish)</td>
+<td><code>padchest</code></td>
+<td><a href="cxr-labels/padchest.html">→</a></td>
+</tr>
+<tr>
+<td>PadChest-GR (Train / Validation / Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>154 findings (boxes)</td>
+<td>cls, bbox, report</td>
+<td><code>padchest_gr_train</code>, <code>padchest_gr_validation</code>, <code>padchest_gr_test</code></td>
+<td><a href="cxr-boxes-masks/padchest_gr.html">→</a></td>
+</tr>
+<tr>
+<td>PadChest-GR (all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>154 findings (boxes)</td>
+<td>cls, bbox, report</td>
+<td><code>padchest_gr</code></td>
+<td><a href="cxr-boxes-masks/padchest_gr.html">→</a></td>
+</tr>
+<tr>
+<td>ReXGradient-160K (Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>none (14 with <code>labels_csv_path</code>)</td>
+<td>report, cls (with <code>labels_csv_path</code>)</td>
+<td><code>rexgradient_train</code>, <code>rexgradient</code></td>
+<td><a href="cxr-labels/rexgradient.html">→</a></td>
+</tr>
+<tr>
+<td>ReXGradient-160K (Valid)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>none (14 with <code>labels_csv_path</code>)</td>
+<td>report, cls (with <code>labels_csv_path</code>)</td>
+<td><code>rexgradient_valid</code>, <code>rexgradient</code></td>
+<td><a href="cxr-labels/rexgradient.html">→</a></td>
+</tr>
+<tr>
+<td>ReXGradient-160K (Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>none (14 with <code>labels_csv_path</code>)</td>
+<td>report, cls (with <code>labels_csv_path</code>)</td>
+<td><code>rexgradient_test</code>, <code>rexgradient</code></td>
+<td><a href="cxr-labels/rexgradient.html">→</a></td>
+</tr>
+<tr>
+<td>VinDr-CXR (Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>28 findings</td>
+<td>cls, bbox</td>
+<td><code>vindr_cxr_train</code></td>
+<td><a href="cxr-boxes-masks/vindr_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>VinDr-CXR (Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>28 findings</td>
+<td>cls, bbox</td>
+<td><code>vindr_cxr_test</code></td>
+<td><a href="cxr-boxes-masks/vindr_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>Chest ImaGenome (Gold)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>per-box findings</td>
+<td>bbox</td>
+<td><code>chest_imagenome_gold</code></td>
+<td><a href="cxr-boxes-masks/chest_imagenome.html">→</a></td>
+</tr>
+<tr>
+<td>Chest ImaGenome (Silver, Train / Valid / Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>per-box findings</td>
+<td>bbox</td>
+<td><code>chest_imagenome_silver_train</code>, <code>chest_imagenome_silver_valid</code>, <code>chest_imagenome_silver_test</code></td>
+<td><a href="cxr-boxes-masks/chest_imagenome.html">→</a></td>
+</tr>
+<tr>
+<td>Chest ImaGenome (Silver, all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>per-box findings</td>
+<td>bbox</td>
+<td><code>chest_imagenome_silver</code></td>
+<td><a href="cxr-boxes-masks/chest_imagenome.html">→</a></td>
+</tr>
+<tr>
+<td>VinDr-PCXR (Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>15 conditions (pediatric)</td>
+<td>cls, bbox</td>
+<td><code>vindr_pcxr_train</code></td>
+<td><a href="cxr-boxes-masks/vindr_pcxr.html">→</a></td>
+</tr>
+<tr>
+<td>VinDr-PCXR (Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>15 conditions (pediatric)</td>
+<td>cls, bbox</td>
+<td><code>vindr_pcxr_test</code></td>
+<td><a href="cxr-boxes-masks/vindr_pcxr.html">→</a></td>
+</tr>
+<tr>
+<td>VinDr-PCXR (all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>15 conditions (pediatric)</td>
+<td>cls, bbox</td>
+<td><code>vindr_pcxr</code></td>
+<td><a href="cxr-boxes-masks/vindr_pcxr.html">→</a></td>
+</tr>
+<tr>
+<td>SIIM-ACR Pneumothorax</td>
+<td>CXR</td>
+<td>2D</td>
+<td>pneumothorax</td>
+<td>cls, mask (test key: none)</td>
+<td><code>siim_acr_ptx_train</code>, <code>siim_acr_ptx_test</code>, <code>siim_acr_ptx</code></td>
+<td><a href="cxr-boxes-masks/siim_acr_ptx.html">→</a></td>
+</tr>
+<tr>
+<td>SIIM COVID-19</td>
+<td>CXR</td>
+<td>2D</td>
+<td>4 appearance classes</td>
+<td>cls, bbox (test key: none)</td>
+<td><code>siim_covid19_train</code>, <code>siim_covid19_test</code>, <code>siim_covid19</code></td>
+<td><a href="cxr-boxes-masks/siim_covid19.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA Pneumonia</td>
+<td>CXR</td>
+<td>2D</td>
+<td>3 classes</td>
+<td>cls, bbox</td>
+<td><code>rsna_pneumonia</code></td>
+<td><a href="cxr-boxes-masks/rsna_pneumonia.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA Pneumonia (Kaggle)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>3 classes</td>
+<td>cls, bbox (test key: none)</td>
+<td><code>rsna_pneumonia_kaggle_train</code>, <code>rsna_pneumonia_kaggle_test</code>, <code>rsna_pneumonia_kaggle</code></td>
+<td><a href="cxr-boxes-masks/rsna_pneumonia_kaggle.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA PE Detection <sup class="beta">beta</sup></td>
+<td>CT</td>
+<td>3D</td>
+<td>13 PE labels</td>
+<td>cls (test key: none)</td>
+<td><code>rsna_pe_detection_train</code>, <code>rsna_pe_detection_test</code>, <code>rsna_pe_detection</code></td>
+<td><a href="ct-mri-other/rsna_pe_detection.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA Pediatric Bone Age <sup class="beta">beta</sup></td>
+<td>Radiograph</td>
+<td>2D</td>
+<td>age (regression)</td>
+<td>reg</td>
+<td><code>rsna_bone_age_train</code>, <code>rsna_bone_age_val</code>, <code>rsna_bone_age</code></td>
+<td><a href="ct-mri-other/rsna_bone_age.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA Pediatric Bone Age (Test, no labels) <sup class="beta">beta</sup></td>
+<td>Radiograph</td>
+<td>2D</td>
+<td>none</td>
+<td>none</td>
+<td><code>rsna_bone_age_test</code></td>
+<td><a href="ct-mri-other/rsna_bone_age.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA 2024 Lumbar Spine <sup class="beta">beta</sup></td>
+<td>MRI</td>
+<td>3D</td>
+<td>75 severity cols</td>
+<td>cls, bbox (test key: none)</td>
+<td><code>rsna_2024_lumbar_spine_train</code>, <code>rsna_2024_lumbar_spine_test</code>, <code>rsna_2024_lumbar_spine</code></td>
+<td><a href="ct-mri-other/rsna_2024_lumbar_spine.html">→</a></td>
+</tr>
+<tr>
+<td>CT-RATE (Train / Valid) <sup class="beta">beta</sup></td>
+<td>CT</td>
+<td>3D</td>
+<td>18 findings</td>
+<td>cls</td>
+<td><code>ct_rate_train</code>, <code>ct_rate_valid</code></td>
+<td><a href="ct-mri-other/ct_rate.html">→</a></td>
+</tr>
+<tr>
+<td>CT-RATE (folder picks the split, not for benchmarks) <sup class="beta">beta</sup></td>
+<td>CT</td>
+<td>3D</td>
+<td>18 findings</td>
+<td>cls</td>
+<td><code>ct_rate</code></td>
+<td><a href="ct-mri-other/ct_rate.html">→</a></td>
+</tr>
+<tr>
+<td>RAD-ChestCT (Train / Valid / Test) <sup class="beta">beta</sup></td>
+<td>CT</td>
+<td>3D</td>
+<td>84 findings</td>
+<td>cls, bbox</td>
+<td><code>radchestct_train</code>, <code>radchestct_valid</code>, <code>radchestct_test</code></td>
+<td><a href="ct-mri-other/radchestct.html">→</a></td>
+</tr>
+<tr>
+<td>RAD-ChestCT (label file picks the split, not for benchmarks) <sup class="beta">beta</sup></td>
+<td>CT</td>
+<td>3D</td>
+<td>84 findings</td>
+<td>cls, bbox</td>
+<td><code>radchestct</code></td>
+<td><a href="ct-mri-other/radchestct.html">→</a></td>
+</tr>
+<tr>
+<td>Montgomery County CXR</td>
+<td>CXR</td>
+<td>2D</td>
+<td>TB classification</td>
+<td>cls, mask, report</td>
+<td><code>montgomery_cxr</code></td>
+<td><a href="cxr-boxes-masks/montgomery_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>Shenzhen Hospital CXR</td>
+<td>CXR</td>
+<td>2D</td>
+<td>tuberculosis (binary)</td>
+<td>cls, mask, report</td>
+<td><code>shenzhen_cxr</code></td>
+<td><a href="cxr-boxes-masks/shenzhen_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>QaTa-COV19 v2 (Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>covid (constant 1) + infection masks</td>
+<td>cls, mask</td>
+<td><code>qata_cov19_train</code>, <code>qata_cov19</code></td>
+<td><a href="cxr-boxes-masks/qata_cov19.html">→</a></td>
+</tr>
+<tr>
+<td>QaTa-COV19 v2 (Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>covid (constant 1) + infection masks</td>
+<td>cls, mask</td>
+<td><code>qata_cov19_test</code>, <code>qata_cov19</code></td>
+<td><a href="cxr-boxes-masks/qata_cov19.html">→</a></td>
+</tr>
+<tr>
+<td>MedSeg COVID-19 CT (Dataset 1)</td>
+<td>CT</td>
+<td>2D slices</td>
+<td>3 lesion classes + any_lesion</td>
+<td>cls, mask</td>
+<td><code>medseg_covid_ct</code></td>
+<td><a href="ct-mri-other/medseg_covid_ct.html">→</a></td>
+</tr>
+<tr>
+<td>MedSeg COVID-19 CT (Dataset 2)</td>
+<td>CT</td>
+<td>2D slices</td>
+<td>3 lesion classes + any_lesion</td>
+<td>cls, mask</td>
+<td><code>medseg_covid_ct</code></td>
+<td><a href="ct-mri-other/medseg_covid_ct.html">→</a></td>
+</tr>
+<tr>
+<td>MedSeg COVID-19 CT (Dataset 1, val_im, no labels)</td>
+<td>CT</td>
+<td>2D slices</td>
+<td>none</td>
+<td>none</td>
+<td><code>medseg_covid_ct_val</code></td>
+<td><a href="ct-mri-other/medseg_covid_ct.html">→</a></td>
+</tr>
+<tr>
+<td>OpenI IU CXR</td>
+<td>CXR</td>
+<td>2D</td>
+<td>8 findings (CheXpert-compat)</td>
+<td>cls, report</td>
+<td><code>openi_cxr</code></td>
+<td><a href="vqa-text/openi_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>OpenI IU CXR (DICOM)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>8 findings (CheXpert-compat)</td>
+<td>cls, report</td>
+<td><code>openi_cxr</code></td>
+<td><a href="vqa-text/openi_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>TAIX-Ray (512px, Train / Val / Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>8 findings (binary/ordinal)</td>
+<td>cls</td>
+<td><code>taix_ray_512_train</code>, <code>taix_ray_512_val</code>, <code>taix_ray_512_test</code></td>
+<td><a href="cxr-labels/taix_ray.html">→</a></td>
+</tr>
+<tr>
+<td>TAIX-Ray (512px, all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>8 findings (binary/ordinal)</td>
+<td>cls</td>
+<td><code>taix_ray_512</code></td>
+<td><a href="cxr-labels/taix_ray.html">→</a></td>
+</tr>
+<tr>
+<td>TAIX-Ray (original, Train / Val / Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>8 findings (binary/ordinal)</td>
+<td>cls</td>
+<td><code>taix_ray_train</code>, <code>taix_ray_val</code>, <code>taix_ray_test</code></td>
+<td><a href="cxr-labels/taix_ray.html">→</a></td>
+</tr>
+<tr>
+<td>TAIX-Ray (original, all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>8 findings (binary/ordinal)</td>
+<td>cls</td>
+<td><code>taix_ray</code></td>
+<td><a href="cxr-labels/taix_ray.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA 2022 Cervical Spine <sup class="beta">beta</sup></td>
+<td>CT</td>
+<td>3D</td>
+<td>8 fracture labels</td>
+<td>cls, mask (test key: none)</td>
+<td><code>rsna_2022_cervical_spine_train</code>, <code>rsna_2022_cervical_spine_test</code>, <code>rsna_2022_cervical_spine</code></td>
+<td><a href="ct-mri-other/rsna_2022_cervical_spine.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA 2022 Cervical Spine (BBox) <sup class="beta">beta</sup></td>
+<td>CT</td>
+<td>3D</td>
+<td>8 fracture labels</td>
+<td>cls, bbox</td>
+<td><code>rsna_2022_cervical_spine_bbox</code></td>
+<td><a href="ct-mri-other/rsna_2022_cervical_spine.html">→</a></td>
+</tr>
+<tr>
+<td>RSNA 2023 Abdominal Trauma <sup class="beta">beta</sup></td>
+<td>CT</td>
+<td>3D</td>
+<td>14 injury labels</td>
+<td>cls (test key: none)</td>
+<td><code>rsna_abdominal_trauma_2023_train</code>, <code>rsna_abdominal_trauma_2023_test</code>, <code>rsna_abdominal_trauma_2023</code></td>
+<td><a href="ct-mri-other/rsna_abdominal_trauma_2023.html">→</a></td>
+</tr>
+<tr>
+<td>BRAX (DICOM)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>brax</code></td>
+<td><a href="cxr-labels/brax.html">→</a></td>
+</tr>
+<tr>
+<td>BRAX (PNG)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls</td>
+<td><code>brax_png</code></td>
+<td><a href="cxr-labels/brax.html">→</a></td>
+</tr>
+<tr>
+<td>RANZCR CLiP (Train)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>11 catheter/line labels</td>
+<td>cls, mask</td>
+<td><code>ranzcr_clip_train</code></td>
+<td><a href="cxr-boxes-masks/ranzcr_clip.html">→</a></td>
+</tr>
+<tr>
+<td>RANZCR CLiP (Test, no labels)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>none</td>
+<td>none</td>
+<td><code>ranzcr_clip_test</code></td>
+<td><a href="cxr-boxes-masks/ranzcr_clip.html">→</a></td>
+</tr>
+<tr>
+<td>RANZCR CLiP (all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>11 catheter/line labels</td>
+<td>cls, mask</td>
+<td><code>ranzcr_clip</code></td>
+<td><a href="cxr-boxes-masks/ranzcr_clip.html">→</a></td>
+</tr>
+<tr>
+<td>GEMeX-VQA</td>
+<td>CXR</td>
+<td>2D</td>
+<td>n/a (VQA over MIMIC-CXR-JPG)</td>
+<td>question, answer, bbox</td>
+<td><code>gemex_vqa</code></td>
+<td><a href="vqa-text/gemex_vqa.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-Ext-CXR-QBA (Train / Validate / Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>n/a (VQA over MIMIC-CXR)</td>
+<td>question, answer</td>
+<td><code>mimic_ext_cxr_qba_train</code>, <code>mimic_ext_cxr_qba_validate</code>, <code>mimic_ext_cxr_qba_test</code></td>
+<td><a href="vqa-text/mimic_ext_cxr_qba.html">→</a></td>
+</tr>
+<tr>
+<td>MIMIC-Ext-CXR-QBA (all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>n/a (VQA over MIMIC-CXR)</td>
+<td>question, answer</td>
+<td><code>mimic_ext_cxr_qba</code></td>
+<td><a href="vqa-text/mimic_ext_cxr_qba.html">→</a></td>
+</tr>
+<tr>
+<td>ROCO (Train / Validation / Test)</td>
+<td>Multimodal</td>
+<td>2D</td>
+<td>n/a (captioning)</td>
+<td>question (empty), answer, keywords</td>
+<td><code>roco_train</code>, <code>roco_validation</code>, <code>roco_test</code></td>
+<td><a href="vqa-text/roco.html">→</a></td>
+</tr>
+<tr>
+<td>ROCO (all splits, not for benchmarks)</td>
+<td>Multimodal</td>
+<td>2D</td>
+<td>n/a (captioning)</td>
+<td>question (empty), answer, keywords</td>
+<td><code>roco</code></td>
+<td><a href="vqa-text/roco.html">→</a></td>
+</tr>
+<tr>
+<td>ROCOv2 (Train / Validation / Test)</td>
+<td>Radiology figures</td>
+<td>2D</td>
+<td>n/a (captioning)</td>
+<td>question (empty), answer</td>
+<td><code>rocov2_train</code>, <code>rocov2_validation</code>, <code>rocov2_test</code></td>
+<td><a href="vqa-text/roco.html">→</a></td>
+</tr>
+<tr>
+<td>ROCOv2 (all splits, not for benchmarks)</td>
+<td>Radiology figures</td>
+<td>2D</td>
+<td>n/a (captioning)</td>
+<td>question (empty), answer</td>
+<td><code>rocov2</code></td>
+<td><a href="vqa-text/roco.html">→</a></td>
+</tr>
+<tr>
+<td>MedPMC</td>
+<td>Medical figures (PubMed Central)</td>
+<td>2D</td>
+<td>n/a (captioning)</td>
+<td>question (empty), answer</td>
+<td><code>medpmc</code></td>
+<td><a href="vqa-text/medpmc.html">→</a></td>
+</tr>
+<tr>
+<td>EmoryCXR v2 (PNG / DICOM)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>14 pathologies</td>
+<td>cls, report</td>
+<td><code>emory_cxr</code>, <code>emory_cxr_dicom</code></td>
+<td><a href="cxr-labels/emory_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>Emory CHORUS (X-ray subset, Emory only)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>none (images only)</td>
+<td>img</td>
+<td><code>emory_chorus</code></td>
+<td><a href="cxr-labels/emory_chorus.html">→</a></td>
+</tr>
+<tr>
+<td>MS-CXR (Train / Val / Test)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>8 findings + phrase grounding</td>
+<td>cls, bbox</td>
+<td><code>ms_cxr_train</code>, <code>ms_cxr_val</code>, <code>ms_cxr_test</code></td>
+<td><a href="cxr-boxes-masks/ms_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>MS-CXR (all splits, not for benchmarks)</td>
+<td>CXR</td>
+<td>2D</td>
+<td>8 findings + phrase grounding</td>
+<td>cls, bbox</td>
+<td><code>ms_cxr</code></td>
+<td><a href="cxr-boxes-masks/ms_cxr.html">→</a></td>
+</tr>
+<tr>
+<td>MS-CXR-T</td>
+<td>CXR</td>
+<td>2D</td>
+<td>temporal progression (5 findings)</td>
+<td>previous_img</td>
+<td><code>ms_cxr_t</code></td>
+<td><a href="cxr-labels/ms_cxr_t.html">→</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="finding-a-datasets-label-columns">Finding a dataset's label columns<a class="headerlink" href="#finding-a-datasets-label-columns" title="Permanent link">&para;</a></h2>
+<p>Every image dataset class has <code>LABEL_COLS</code> and <code>REG_COLS</code> as class attributes. The VQA and captioning
+classes (VQA-RAD, CheXinstruct VQA, GEMeX-VQA, MIMIC-Ext-CXR-QBA, ROCO, ROCOv2 and MedPMC) do not have
+them. An example for image classes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">radharmony.dataset</span><span class="w"> </span><span class="kn">import</span> <span class="n">CheXpertDataset</span><span class="p">,</span> <span class="n">RSNABoneAgeDataset</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">CheXpertDataset</span><span class="o">.</span><span class="n">LABEL_COLS</span><span class="p">)</span>   <span class="c1"># ['atelectasis', 'cardiomegaly', ...]</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">RSNABoneAgeDataset</span><span class="o">.</span><span class="n">REG_COLS</span><span class="p">)</span>  <span class="c1"># ['age_months']</span>
+</code></pre></div>
+<p>The <code>cls</code> tensor in a data dict has one value for each entry in <code>LABEL_COLS</code>, in the order of
+<code>sorted(LABEL_COLS)</code> (the plain Python sort). This order can differ from the order in the class definition.
+See <a href="../api-datasets.html#data-dict-keys">Dataset API → Data dict keys</a>.</p>
+<h2 id="output-flags">Output flags<a class="headerlink" href="#output-flags" title="Permanent link">&para;</a></h2>
+<p>Each image dataset supports a subset of output flags. Passing a flag that the dataset does not support raises a warning and the key is absent from the data dict. The VQA and caption classes take none of these flags. They raise <code>TypeError</code> for an unknown argument (D-11).</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Data dict key</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_cls=True</code></td>
+<td><code>"cls"</code></td>
+<td>Multi-label classification tensor</td>
+</tr>
+<tr>
+<td><code>output_mask=True</code></td>
+<td><code>"mask"</code></td>
+<td>Segmentation mask tensor</td>
+</tr>
+<tr>
+<td><code>output_bbox=True</code></td>
+<td><code>"bbox"</code>, <code>"bbox_labels"</code></td>
+<td>Float32 tensor <code>(N, 4)</code> (2-D) or <code>(N, 6)</code> (3-D) of fractional boxes, and a list of labels in snake case (see <a href="../transforms.html#boxes">Transforms → Boxes</a>)</td>
+</tr>
+<tr>
+<td><code>output_report=True</code></td>
+<td><code>"report"</code></td>
+<td>Free-text radiology report string</td>
+</tr>
+<tr>
+<td><code>output_reg=True</code></td>
+<td><code>"reg"</code></td>
+<td>Regression target tensor</td>
+</tr>
+</tbody>
+</table>
+<h2 id="base_image_dir-convention"><code>base_image_dir</code> convention<a class="headerlink" href="#base_image_dir-convention" title="Permanent link">&para;</a></h2>
+<p><code>base_image_dir</code> is the <strong>deepest common ancestor directory</strong> shared by all
+images in the dataset — not the competition root. <code>image_path</code> values are
+relative to it and may include subdirectory components (e.g.
+<code>patient_id/study_id/image.dcm</code> for datasets with patient/study folder
+structure). For each dataset, the wiki page above documents the exact expected
+layout and an example path.</p>
+<p>For datasets with separate train/test splits, each split takes its own image
+directory:</p>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>Train base</th>
+<th>Test base</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CheXpert</td>
+<td><code>train/</code></td>
+<td><code>valid/</code></td>
+</tr>
+<tr>
+<td>ChestX-ray14</td>
+<td>CXR14 root (<code>images_001/</code> … <code>images_012/</code> siblings)</td>
+<td>same</td>
+</tr>
+<tr>
+<td>VinDr-CXR</td>
+<td><code>train/</code></td>
+<td><code>test/</code></td>
+</tr>
+<tr>
+<td>SIIM-ACR-PTX</td>
+<td><code>dicom-images-train/</code></td>
+<td><code>dicom-images-test/</code></td>
+</tr>
+<tr>
+<td>SIIM COVID-19</td>
+<td><code>train/</code></td>
+<td><code>test/</code></td>
+</tr>
+<tr>
+<td>RSNA Pneumonia (Kaggle)</td>
+<td><code>stage_2_train_images/</code></td>
+<td><code>stage_2_test_images/</code></td>
+</tr>
+<tr>
+<td>RSNA PE Detection</td>
+<td><code>train/</code></td>
+<td><code>test/</code></td>
+</tr>
+<tr>
+<td>RSNA Cervical Spine</td>
+<td><code>train_images/</code></td>
+<td><code>test_images/</code></td>
+</tr>
+<tr>
+<td>RSNA Abdominal Trauma</td>
+<td><code>train_images/</code></td>
+<td><code>test_images/</code></td>
+</tr>
+<tr>
+<td>RSNA Lumbar Spine</td>
+<td><code>train_images/</code></td>
+<td><code>test_images/</code></td>
+</tr>
+<tr>
+<td>RSNA Bone Age</td>
+<td><code>boneage-training-dataset/</code></td>
+<td><code>boneage-test-dataset/</code> (validation: <code>Bone Age Validation Set/</code>)</td>
+</tr>
+<tr>
+<td>RANZCR CLiP</td>
+<td>Kaggle root (images in <code>train/</code>)</td>
+<td>Kaggle root (images in <code>test/</code>)</td>
+</tr>
+<tr>
+<td>QaTa-COV19 v2</td>
+<td><code>QaTa-COV19-v2/Train Set/Images/</code></td>
+<td><code>QaTa-COV19-v2/Test Set/Images/</code></td>
+</tr>
+<tr>
+<td>ReXGradient-160K</td>
+<td><code>deid_png/</code> (train split)</td>
+<td><code>deid_png/</code> (test split — JSON differs per split, image tree shared)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Structural exceptions</strong> — some datasets have images split across multiple
+sibling subdirs inside <code>base_image_dir</code>, where <code>image_path</code> carries the
+subdir name. Examples:</p>
+<ul>
+<li><strong>MIMIC-CXR (DICOM) and MIMIC-CXR-JPG</strong>: <code>base_image_dir</code> is the <code>files/</code>
+  directory; images are grouped under <code>p10/</code>, <code>p11/</code>, … patient-group
+  subdirectories, so <code>image_path</code> takes the form
+  <code>p{group}/p{patient_id}/s{study_id}/{image}.dcm</code> (or <code>.jpg</code>).</li>
+<li><strong>ChestX-ray14</strong>: <code>base_image_dir</code> is the CXR14 root; images are split
+  across its <code>images_001/</code> … <code>images_012/</code> sibling children.</li>
+<li><strong>PadChest</strong>: <code>base_image_dir</code> is the <code>images/</code> directory; images are
+  split across its <code>0/</code>, <code>1/</code>, …, <code>50/</code>, <code>54/</code> sibling children (slots
+  51/52/53 don't exist in the official distribution).</li>
+<li><strong>RSNA Bone Age (val)</strong>: <code>base_image_dir</code> is <code>Bone Age Validation Set/</code>;
+  images are split across its <code>boneage-validation-dataset-1/</code> and <code>-2/</code>
+  sibling children. (Train has no exception — its <code>base_image_dir</code> is the
+  flat image directory.)</li>
+</ul>
+<p>When adding a new dataset, follow the <code>base_image_dir</code> convention: no
+hardcoded subdirectory prefix in <code>image_path</code> that could be folded into
+<code>base_image_dir</code> instead.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
