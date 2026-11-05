@@ -82,8 +82,6 @@ def main():
     print(f"{len(sel)} studies from {repo_id}  (~{est_gb:.1f} GB at {mb:.0f} MB/study)",
           flush=True)
 
-    from huggingface_hub import hf_hub_download
-
     zip_root = os.path.join(a.base_dir, "zips" if a.repo == "main" else f"zips_{a.repo}")
     out_root = os.path.join(a.base_dir, root_name)
     got = skipped = failed = 0
@@ -95,6 +93,10 @@ def main():
             skipped += 1
             continue
         rel = f"mri/{r.batch_id}/{r.study_uid}{suffix}.zip"
+        try:  # Import here, so a run that only skips needs no huggingface_hub.
+            from huggingface_hub import hf_hub_download
+        except ImportError:
+            sys.exit("huggingface_hub is missing: pip install huggingface_hub")
         try:
             zp = hf_hub_download(repo_id, rel, repo_type="dataset",
                                  local_dir=zip_root)

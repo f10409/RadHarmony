@@ -539,20 +539,21 @@ other phases of the plan come after that. "Needs your yes" means that the agent 
 
 ## 4. Later phases of the plan
 
-- [ ] **Code cleanup (plan 6b).** One comment style, and no dead code. Save golden outputs before each
+- [x] **Code cleanup (plan 6b).** Done on 2026-11-03: cleanup C1 to C6 (36e7f7a to 4f7a98e), golden 0 differences
+  on 122 specs. One comment style, and no dead code. Save golden outputs before each
   batch and compare after it. `vulture` is approved and installed. Base files get comment
   changes only, each file with your yes.
   - [x] D-30 (decided on 2026-10-31): move the 45 copied `harmonize()` methods to the base steps. Give the
     10 `_KeepSplitMixin` split classes a `_read_source()` that removes the other splits first. Done on
     2026-11-03 (merges refactor-r1 to r4). Golden: 0 differences on 122 specs.
-- [ ] **Rewrite `scripts/evalkit/wiki_audit.py`.** Part 1 is done (2026-11-03). The import and argument
+- [x] **Rewrite `scripts/evalkit/wiki_audit.py`.** Part 2 is done in dfa42fa (2026-11-04). Part 1 is done (2026-11-03). The import and argument
   checks of the code blocks moved to the static level of `run_blocks.py` (L-005). The signature helpers moved
   to `scripts/evalkit/signatures.py`. The audit has 666 lines and gives the same 200 findings. Part 2 is in
   6c (Frank Li, 2026-11-03). One `<!-- args: <class> -->` line above each argument table replaces the guess
   of the class. The new page template replaces the section-title and shared-subsection checks.
-- [ ] **Claims (plan, phase 6).** Add claim notes for the counts in the docs, for example "4,555" images in
+- [x] **Claims (plan, phase 6).** Done in the 6c rewrite: the docs have 393 claim notes (2026-11-05). Add claim notes for the counts in the docs, for example "4,555" images in
   PadChest-GR. The docs have 1 claim note (the 127 registry keys in `docs/wiki/reference/datasets/index.md`, B7).
-- [ ] **Docs restructure and rewrite (plan 6c).** You approve the new outline first. `mkdocs-redirects` is
+- [x] **Docs restructure and rewrite (plan 6c).** Done on 2026-11-04: 143bcd7 (layout) to dfa42fa (template check). You approve the new outline first. `mkdocs-redirects` is
   a new package, so it needs your yes. At the end, the known-problems lists are empty.
   - **A conversion page for each dataset, in a new docs tab** (Frank Li, 2026-11-01). Users and developers
     must see how the raw data becomes the RadHarmony format. Each page says:
@@ -563,16 +564,16 @@ other phases of the plan come after that. "Needs your yes" means that the agent 
   - The name of the tab is for the outline. "Recipe" already names a backbone recipe (`make_<name>`), so
     another word, for example "Data conversion", keeps one word for one meaning. The `add-dataset` skill
     (plan 6d) writes this page for each new dataset.
-- [ ] **Skills upgrade (plan 6d).** It includes the 3 decisions of 2026-10-28 for `add-dataset`: no change
+- [x] **Skills upgrade (plan 6d).** Done on 2026-11-04 in c53df70 and 5e599bb. It includes the 3 decisions of 2026-10-28 for `add-dataset`: no change
   before the upgrade, a config review, and `expected_stats`. Still open: new config fields for the official
   splits, age and sex. B7 left these skill findings for it: R-docs-1, R-docs-9, R-docs-15, and the skill
   part of R-docs-4 (`add-dataset/SKILL.md:756-757`: the `cls` order is `sorted(ds.LABEL_COLS)`). Found in the
   6c rewrite (2026-11-04): the skill still lists the old dataset page sections (`add-dataset/SKILL.md:818-821`
   and `:899-903`). Use the 6c dataset page template (`reference/datasets/cxr-labels/chexpert.md`).
-- [ ] **Full sync of the public repo with the dev repo** (Frank Li, 2026-11-04, after 6d). Progress on 2026-11-05:
+- [x] **Full sync of the public repo with the dev repo** (Frank Li, 2026-11-04, after 6d). Done on 2026-11-05:
   public/main merged into dev (b73ea6e). `scripts/sync_public.py` makes the snapshot, and
-  `docs/internal/syncing.md` has the steps (it replaces `scripts/SYNCING.md`). The snapshot passes all checks as
-  a public clone. Left for Frank Li: the archived copy of the public repo, the snapshot commit and the push. The public repo
+  `docs/internal/syncing.md` has the steps (it replaces `scripts/SYNCING.md`). The old public repo is archived as
+  `f10409/RadHarmony-v0.1`. The snapshot 8ba0345 (dev bb37402) is pushed, and dc37337 records it in dev. The public repo
   gets everything in the dev repo, except a short exclude list: `configs/data_paths.json`, `docs/internal/`,
   the internal Emory checks (`scripts/check_datasets_internal.py`,
   `notebooks/datasets/dataset_integrity_check_internal.ipynb`) and `radharmony_internal/`. Before the sync,
@@ -590,5 +591,14 @@ other phases of the plan come after that. "Needs your yes" means that the agent 
 - [x] **Tell users how to install the skills** (Frank Li, 2026-11-04). Done in c53df70: a short section on
   docs/wiki/get-started/install.md and one line in README.md. In a clone, Claude Code loads `.claude/skills/`
   with no step. In another project, copy a skill to `~/.claude/skills/`.
-- [ ] **Merge `v0.2-dev` into `main` through a PR.** If base code changed, the PR description starts with
-  the base-code section.
+- [x] **Merge `v0.2-dev` into `main` through a PR.** Done on 2026-11-05: PR 37, merge commit 75c68ea. If base
+  code changed, the PR description starts with the base-code section.
+- [ ] **New package versions** (found in the CI of PR 37, 2026-11-05). `pyproject.toml` pins `monai<1.6`,
+  `itk<5.4.6` and `simpleitk<2.5.4` for now (Frank Li). To lift the pins:
+  - SimpleITK 2.5.4 and ITK 5.4.6 (and later) have a new GDCM. It does not read a signed 12-bit MONOCHROME1
+    DICOM whose negative values fill the high bits. `CXRPreprocessor` raises, and the dataset load gives pixels that are not
+    inverted and not windowed. Tests: `tests/test_preprocessor.py::test_signed_monochrome1_dicom_with_window`
+    and `tests/test_dataset.py::test_dataset_load_of_signed_monochrome1_dicom_with_window`. The fix is in
+    `_base_load_2d` (base code, needs your yes) and in `radharmony/preprocessor/cxr.py`.
+  - MONAI 1.6.1 warns "NvImgCodecPydicomReader ... did not register" on each `LoadImageD` when nvImageCodec
+    is missing. Test: `tests/test_output_flags.py::test_a_transform_that_drops_a_requested_key_warns_at_once`.

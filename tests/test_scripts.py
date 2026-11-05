@@ -199,6 +199,7 @@ def test_mrrate_no_skip_existing_downloads_again(fake_mrrate):
     """V-A-26: --no-skip-existing turns the skip off. Offline, the download fails."""
     r = _run("materialize_mrrate.py", "--base-dir", str(fake_mrrate), "--studies", "s1")
     assert "1 already present" in r.stdout, r.stdout + r.stderr
+    pytest.importorskip("huggingface_hub")  # the download step needs it
     r = _run("materialize_mrrate.py", "--base-dir", str(fake_mrrate), "--studies", "s1",
              "--no-skip-existing")
     assert "0 already present, 1 failed" in r.stdout, r.stdout + r.stderr

@@ -7,7 +7,9 @@ name = "radharmony"
 version = "0.2.0"
 requires-python = ">=3.10"
 dependencies = [
-    "monai[itk]",
+    # Upper bounds: newer versions change the DICOM reading (eval/TODO.md, "New package versions").
+    "monai[itk]<1.6",  # 1.6.1 warns on each LoadImageD when nvImageCodec is missing
+    "itk<5.4.6",  # 5.4.6 and later (new GDCM) gives wrong pixels for a signed 12-bit MONOCHROME1 DICOM
     "torch",
     "pandas",
     "openpyxl",  # pd.read_excel for CheXpert race labels .xlsx
@@ -15,7 +17,7 @@ dependencies = [
     "pydicom",
     "pycocotools",
     "opencv-python-headless",  # cv2.polylines for the RANZCR CLiP catheter masks
-    "simpleitk>=2.5.3",
+    "simpleitk>=2.5.3,<2.5.4",  # 2.5.4 and later (new GDCM) cannot read a signed 12-bit MONOCHROME1 DICOM
     "pyarrow>=15",
     "tqdm",
     "scikit-learn",
