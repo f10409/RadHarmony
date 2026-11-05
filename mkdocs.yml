@@ -137,6 +137,7 @@ nav:
     - Label policy: explanation/label-policy.md
     - MIMIC-CXR label extraction: explanation/phase-grounding.md
     - DICOM loading: explanation/dicom-loading.md
+    - How we test: explanation/testing.md
 
 plugins:
   - search
