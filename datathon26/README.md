@@ -28,3 +28,7 @@ Follow these steps to get set up before the workshop.
 
 5. Open [0_setup.ipynb](0_setup.ipynb) to log in to Hugging Face and finish the
    setup.
+
+6. The notebooks read the data folders from [basepaths.py](basepaths.py). Set the
+   `DATATHON26_ROOT` environment variable to the root folder of the event data, or
+   edit the default in that file.

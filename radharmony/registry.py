@@ -3,7 +3,10 @@
 Allows datasets to be looked up by name and enables third-party datasets
 to register themselves without modifying the core package.
 
-Example — built-in usage::
+The first lookup imports ``radharmony.dataset``, so the built-in datasets
+are always in the registry. You do not have to import them first.
+
+Example: built-in usage::
 
     from radharmony.registry import resolve_dataset, list_datasets
 
@@ -11,7 +14,7 @@ Example — built-in usage::
     DatasetCls = resolve_dataset("mimic_cxr")
     dataset = DatasetCls(base_image_dir="/data/mimic", ...)
 
-Example — registering a custom dataset::
+Example: registering a custom dataset::
 
     from radharmony.registry import register_dataset
     from radharmony.dataset import BaseRadiologicalDataset
@@ -23,6 +26,11 @@ Example — registering a custom dataset::
 """
 
 _REGISTRY: dict[str, type] = {}
+
+
+def _load_builtins() -> None:
+    """Import the built-in datasets, so that their decorators register them."""
+    import radharmony.dataset  # noqa: F401
 
 
 def register_dataset(name: str):
@@ -57,6 +65,7 @@ def resolve_dataset(name: str) -> type:
     Raises:
         KeyError: If *name* is not registered.
     """
+    _load_builtins()
     if name not in _REGISTRY:
         available = list_datasets()
         raise KeyError(
@@ -68,4 +77,5 @@ def resolve_dataset(name: str) -> type:
 
 def list_datasets() -> list[str]:
     """Return a sorted list of all registered dataset names."""
+    _load_builtins()
     return sorted(_REGISTRY.keys())

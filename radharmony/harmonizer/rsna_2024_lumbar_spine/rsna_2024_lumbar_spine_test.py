@@ -8,15 +8,13 @@ from .rsna_2024_lumbar_spine import RSNA2024LumbarSpineHarmonizer
 class RSNA2024LumbarSpineTestHarmonizer(RSNA2024LumbarSpineHarmonizer):
     """Test-split harmonizer for RSNA 2024 Lumbar Spine.
 
-    Reads ``test_series_descriptions.csv`` only — no label CSV, no join, no
-    severity expansion.  ``LABEL_COLS`` is empty; the harmonized DataFrame
-    carries only the structural columns (``image_path``, ``patient_id``,
-    ``study_id``, ``series_id``, ``view_position``).
+    Reads only ``test_series_descriptions.csv``. There is no label CSV and no join. The
+    table has no labels. It has only ``image_path``, ``patient_id``, ``study_id``,
+    ``series_id`` and ``view_position``.
 
     Args:
         series_description_csv_path: Path to ``test_series_descriptions.csv``.
-        base_image_dir: Root of the test DICOM tree (typically
-            ``<competition_root>/test_images/``).
+        base_image_dir: Root of the test DICOM tree, usually ``<competition_root>/test_images/``.
     """
 
     LABEL_COLS = []
@@ -28,26 +26,11 @@ class RSNA2024LumbarSpineTestHarmonizer(RSNA2024LumbarSpineHarmonizer):
             base_image_dir=base_image_dir,
         )
 
-    def harmonize(self, **kwargs) -> pd.DataFrame:
-        """Read ``test_series_descriptions.csv`` and build structural columns."""
-        self._harmonized_df_override = None
-
+    def _read_source(self) -> pd.DataFrame:
+        """Read ``test_series_descriptions.csv`` (one row per series)."""
         if self.series_description_csv_path is None:
             raise ValueError(
                 "series_description_csv_path is required for "
                 "RSNA2024LumbarSpineTestHarmonizer (test_series_descriptions.csv)."
             )
-
-        self.df = pd.read_csv(self.series_description_csv_path)
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_series_id()
-        self._build_image_path()
-        self._build_view_position()
-        self._build_mask_path()
-        self._build_report()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
-
-        return self._select_harmonized_columns(self.df)
+        return pd.read_csv(self.series_description_csv_path)

@@ -1,0 +1,42 @@
+{
+  "_comment": "OpenI Indiana University chest X-ray (IU X-Ray). Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "OpenI Indiana University CXR (IU X-Ray)",
+  "registry_key": "openi_cxr",
+  "modality": "2D",
+  "image_format": "PNG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source (2026-11-04): the 3,955 files ecgen-radiology/*.xml read with xml.etree and pandas, and Demner-Fushman et al., JAMIA 2016 (3,955 reports, 7,470 images). One row is one parentImage of an XML report (D-03): 7,470 images. 104 reports have no parentImage, so they give no row, and 3,851 reports stay. studies counts pmcId and patients counts uId: each report has its own uId, so 3,851 for both. rows_with_report counts the images whose report (FINDINGS and IMPRESSION joined) is not empty: 7,430. positives: the <MeSH><major> terms, matched as whole words (a final s can follow) with the triggers of the harmonizer, and a device term with the word breast does not count. uncertain: 172 images have only the term No Indexing, so every label is NaN. No sex, no age, no boxes and no masks in the source.",
+    "openi_cxr": {
+      "images": 7470,
+      "studies": 3851,
+      "patients": 3851,
+      "positives": {
+        "atelectasis": 616,
+        "cardiomegaly": 655,
+        "consolidation": 290,
+        "edema": 183,
+        "no_finding": 2696,
+        "pleural_effusion": 286,
+        "pneumothorax": 44,
+        "support_devices": 425
+      },
+      "uncertain": {
+        "atelectasis": 172,
+        "cardiomegaly": 172,
+        "consolidation": 172,
+        "edema": 172,
+        "no_finding": 172,
+        "pleural_effusion": 172,
+        "pneumothorax": 172,
+        "support_devices": 172
+      },
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 7430,
+      "harmonizer_args": {
+        "base_dir": "base_image_dir"
+      }
+    }
+  }
+}

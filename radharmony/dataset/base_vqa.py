@@ -1,39 +1,40 @@
 """Base dataset for VQA (visual question-answering) over radiology images.
 
 Returns dict samples with keys:
-    img            (Tensor; loaded by the MONAI transform)
+    img            (Tensor, loaded by the MONAI transform)
     question       (str)
     answer         (str)
-    answer_struct  (dict; only when output_struct=True and column present)
-    question_type  (str; only when output_question_type=True and column present)
+    answer_struct  (dict, only when output_struct=True and the column is present)
+    question_type  (str, only when output_question_type=True and the column is present)
     patient_id     (str)
     study_id       (str)
     question_id    (str)
 
-Phase-1 design: single_image_only — one row per (image, question) sample.
-Multi-image studies (where one question spans multiple views) are deferred
-to Phase 2 along with a custom collate fn.
+Phase-1 design: single_image_only, so one row per (image, question) sample.
+Multi-image studies (one question for many views) wait for Phase 2, together
+with a custom collate fn.
 """
 
-from __future__ import annotations
-
 import os
+import warnings
+
 import pandas as pd
 import torch
 import monai as mn
-import monai.transforms  # noqa: F401  (ensure mn.transforms is bound regardless of import order)
 
 from radharmony.utils.data_utils import split_data, kfold_splits
+from .base import _Dataset, _PersistentDataset, _require_image_folder, _transform_key, _warn_random_val
 from .transforms import _base_load_2d
 
 
-def _default_vqa_2d_transform(img_size: int = 224, dtype=torch.bfloat16) -> mn.transforms.Compose:
+def _default_vqa_2d_transform(img_size: int = 224, dtype=torch.bfloat16, channels: int = 1) -> mn.transforms.Compose:
     """Default 2-D image pipeline that preserves non-image dict keys.
 
     Mirrors :class:`RadiologyTransform2D` for the ``img`` key but omits
     ``SelectItemsD`` so question / answer / id keys flow through unchanged.
+    ``channels`` is the channel count of ``img``: 1 or 3 (D-42).
     """
-    steps = _base_load_2d(["img"])
+    steps = _base_load_2d(["img"], channels=channels)
     steps += [
         mn.transforms.ResizeD(
             keys=["img"], spatial_size=img_size, size_mode="longest", mode="bilinear",
@@ -43,17 +44,28 @@ def _default_vqa_2d_transform(img_size: int = 224, dtype=torch.bfloat16) -> mn.t
             mode="constant", constant_values=-1,
         ),
         mn.transforms.ToTensorD(keys=["img"], dtype=dtype, track_meta=False),
+        # ToTensorD adds a trace record, img_transforms. Remove it so a sample has only its documented keys.
+        mn.transforms.DeleteItemsD(keys=["img_transforms"]),
     ]
     return mn.transforms.Compose(steps)
+
+
+def _warn_missing_output_cols(df: pd.DataFrame, output_struct: bool, output_question_type: bool) -> None:
+    """Warn once for each output flag that asks for a column the table does not have (D-11)."""
+    for flag, on, col in (("output_struct", output_struct, "answer_struct"),
+                          ("output_question_type", output_question_type, "question_type")):
+        if on and col not in df.columns:
+            warnings.warn(f"{flag}=True, but the table has no {col} column, so the samples have no {col} key.",
+                          UserWarning, stacklevel=3)
 
 
 def _build_vqa_data_dicts(df: pd.DataFrame, base_image_dir: str | None,
                           carry_struct: bool, carry_qtype: bool) -> list[dict]:
     """Build a list of MONAI-ready dicts from a VQA harmonized DataFrame.
 
-    Image paths are joined with *base_image_dir* (when set); object-typed
-    columns (e.g. ``answer_struct``) are passed through unchanged so dicts
-    survive the trip into the dataset.
+    Image paths are joined with *base_image_dir* (when set). Object-typed
+    columns (for example ``answer_struct``) pass through unchanged, so the
+    dicts stay intact in the dataset.
     """
     df = df.dropna(subset=["image_path"]).reset_index(drop=True)
     if base_image_dir:
@@ -88,9 +100,9 @@ class BaseVQADataset:
 
     Args:
         base_image_dir: Root directory prepended to relative ``image_path``.
-        transform: MONAI transform pipeline applied to each sample.  Defaults
-            to a 2-D radiology pipeline that loads ``img`` only — text fields
-            pass through untouched.
+        transform: MONAI transform pipeline applied to each sample. Defaults
+            to a 2-D radiology pipeline that loads ``img`` only. Text fields
+            pass through unchanged. Its channel count is :attr:`IMG_CHANNELS` (D-42).
         cache_dir: Root directory for MONAI PersistentDataset cache.  Pass
             ``None`` to use an in-memory ``Dataset`` (no caching).
         output_struct: Include ``answer_struct`` (dict) in each sample.
@@ -103,6 +115,8 @@ class BaseVQADataset:
     """
 
     _HARMONIZER_CLS = None
+    #: The channel count of ``img`` (D-42): 1 for a gray modality, 3 for color figures.
+    IMG_CHANNELS: int = 1
 
     def __init__(
         self,
@@ -117,7 +131,7 @@ class BaseVQADataset:
         dtype=torch.bfloat16,
     ):
         self.base_image_dir = base_image_dir
-        self.transform = transform or _default_vqa_2d_transform(dtype=dtype)
+        self.transform = transform or _default_vqa_2d_transform(dtype=dtype, channels=self.IMG_CHANNELS)
         self.cache_dir = cache_dir
         self.output_struct = output_struct
         self.output_question_type = output_question_type
@@ -166,14 +180,15 @@ class BaseVQADataset:
 
     def _make_dataset(self, dicts: list, cache_subdir: str, transform=None):
         t = transform if transform is not None else self.transform
+        # The dataset classes seed the augmentation in each DataLoader worker (V-D-7).
         if self.cache_dir is None:
-            return mn.data.Dataset(data=dicts, transform=t)
-        return mn.data.PersistentDataset(
+            return _Dataset(data=dicts, transform=t)
+        # The key of the cached steps is in the folder name (D-15, V-D-8).
+        folder = f"{self.cache_dir}/{cache_subdir}" if cache_subdir else self.cache_dir
+        return _PersistentDataset(
             data=dicts,
             transform=t,
-            cache_dir=(
-                f"{self.cache_dir}/{cache_subdir}" if cache_subdir else self.cache_dir
-            ),
+            cache_dir=f"{folder}/{_transform_key(t)}",
         )
 
     def get_datasets(
@@ -185,6 +200,7 @@ class BaseVQADataset:
     ):
         """Return one dataset over the full data, or a (train, val) split."""
         df = self._get_harmonized_df()
+        _warn_missing_output_cols(df, self.output_struct, self.output_question_type)
 
         if n_splits is None:
             dicts = _build_vqa_data_dicts(
@@ -192,6 +208,7 @@ class BaseVQADataset:
             )
             return self._make_dataset(dicts, cache_subdir="")
 
+        _warn_random_val(self.transform, val_transform)
         train_df, val_df = split_data(df, "patient_id", n_splits, random_state)
         train_dicts = _build_vqa_data_dicts(
             train_df, self.base_image_dir, self.output_struct, self.output_question_type
@@ -212,6 +229,8 @@ class BaseVQADataset:
         val_transform=None,
     ):
         df = self._get_harmonized_df()
+        _warn_missing_output_cols(df, self.output_struct, self.output_question_type)
+        _warn_random_val(self.transform, val_transform)
         for fold, (train_df, val_df) in enumerate(
             kfold_splits(df, "patient_id", n_splits, random_state)
         ):
@@ -231,7 +250,13 @@ class BaseVQADataset:
             )
 
     def verify_images(self, drop_missing: bool = True) -> pd.DataFrame:
+        """Check that every ``image_path`` exists, and drop the missing rows if ``drop_missing``.
+
+        Raises:
+            ValueError: If ``image_path`` is relative and ``base_image_dir`` is ``None`` (D-04).
+        """
         df = self._get_harmonized_df()
+        _require_image_folder(df, self.base_image_dir)
 
         def _exists(p):
             fp = os.path.join(self.base_image_dir, p) if self.base_image_dir else p

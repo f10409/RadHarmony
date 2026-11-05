@@ -4,190 +4,130 @@
 
 [![Tests](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml/badge.svg)](https://github.com/f10409/RadHarmony/actions/workflows/tests.yml)
 
-**RadHarmony** is a Python library for loading and harmonizing radiological datasets with a unified API. It wraps [MONAI](https://project-monai.github.io/) to deliver ready-to-use **PyTorch `Dataset`** objects — drop them straight into a `DataLoader` for training and evaluation with minimal configuration. Chest X-ray is the primary, fully-supported modality; CT, MRI, and non-chest radiographs are available as <sup>beta</sup> and still under testing.
+**RadHarmony** gives many public radiology datasets and many foundation models one interface. A harmonizer
+reads the source files of a dataset and makes one harmonized table. A dataset class is a PyTorch `Dataset`
+built on [MONAI](https://monai.io/), with the same sample keys for every dataset. An evaluator takes any
+dataset and the encoder of a backbone recipe, and gives the same result table for all of them. Report
+generation takes a report generator in place of an encoder.
 
-**Harmonize datasets** — load and unify multiple sources into one format:
+Chest X-ray datasets have full support. Most CT, MRI and other radiograph datasets are beta. The
+[Dataset catalog](https://f10409.github.io/RadHarmony/reference/datasets/index.html) marks them.
+
+**Harmonize datasets:** load many sources into one format.
 
 ![Dataset demo](docs/figs/demo_dataset.gif)
 
-**Evaluate models** — probe foundation-model backbones across the supported datasets:
+**Evaluate models:** probe the features of foundation-model encoders on the datasets.
 
 ![Evaluator demo](docs/figs/demo_evaluator.gif)
 
-## Documentation
+## Install
 
-Full docs: **[f10409.github.io/RadHarmony](https://f10409.github.io/RadHarmony)** — quickstart, per-dataset pages, transforms, architecture, the [Evaluator API](https://f10409.github.io/RadHarmony/evaluator/index.html) (linear / k-NN / SVM / prototype probes, zero-shot, fine-tune, three segmentation heads, backbone recipes), and the [App Guide](https://f10409.github.io/RadHarmony/app.html) (including remote access over an SSH tunnel).
+RadHarmony needs Python 3.10 or newer. We recommend [uv](https://docs.astral.sh/uv/). The base install gives
+the harmonizers, the dataset classes, the evaluators and PyTorch.
 
-## Installation
-
-This project uses [uv](https://docs.astral.sh/uv/) for environment management.
-
+<!-- block: run=skip reason="installs packages" -->
 ```bash
-git clone <repo-url>
+git clone https://github.com/f10409/RadHarmony.git
 cd RadHarmony
 uv venv
+source .venv/bin/activate
 uv pip install -e .
 ```
 
-Next we need to register the Jupyter kernel.
+An extra adds the packages of one backbone, the app or the notebooks. Put the name of the extra in brackets.
+You can give more than one extra.
 
+<!-- block: run=skip reason="installs packages" -->
 ```bash
-python -m ipykernel install --user --name=RadHarmony
+uv pip install -e ".[raddino]"
+uv pip install -e ".[model,app]"
 ```
 
-Python ≥ 3.10 required.
+Each report generator extra (`chexagent_gen`, `maira2_gen`, `medgemma_gen`) needs its own venv. The
+[Install](https://f10409.github.io/RadHarmony/get-started/install.html#extras) page lists all the extras.
+[More than one venv](https://f10409.github.io/RadHarmony/get-started/install.html#more-than-one-venv) lists
+the extras that cannot share a venv.
 
-### Optional extras
+The repo has Claude Code skills in `.claude/skills/` (use the package, add a dataset or a backbone, review,
+fix). See [Claude Code skills](https://f10409.github.io/RadHarmony/get-started/install.html#claude-code-skills)
+to use them in another project.
 
-The base install gives you the dataset API. Install extras for models, notebooks, or the Gradio app:
+## Example
 
-| Extra | Adds | Install |
-|---|---|---|
-| `model` | PyTorch, torchvision, transformers, CUDA runtime libs | `uv pip install -e ".[model]"` |
-| `notebook` | ipykernel, ipywidgets | `uv pip install -e ".[notebook]"` |
-| `app` | Gradio (for the visualizer app) | `uv pip install -e ".[app]"` |
-| `all` | Everything above | `uv pip install -e ".[all]"` |
-| `raddino` | RAD-DINO backbone (`rad-dino`) | `uv pip install -e ".[raddino]"` |
-| `biomed` | BiomedCLIP backbone (`open-clip-torch`, `transformers`) | `uv pip install -e ".[biomed]"` |
-| `chexagent` | XraySigLIP backbone (`transformers`) | `uv pip install -e ".[chexagent]"` |
-| `medsiglip` | MedSigLIP backbone (`transformers`) | `uv pip install -e ".[medsiglip]"` |
-| `medimageinsights` | MedImageInsights backbone (`huggingface_hub`, `mup`, …) | `uv pip install -e ".[medimageinsights]"` |
-| `chexfound` | CheXFound backbone (`omegaconf`) + manual checkpoint | `uv pip install -e ".[chexfound]"` |
-| `dinov3` | DINOv3 backbone (`transformers`) — Meta ViT, register tokens | `uv pip install -e ".[dinov3]"` |
-| `eva_x` | EVA-X CXR ViT (`timm`, `huggingface_hub`, `torchvision`) — needs `third_party_models/EVA-X` submodule | `uv pip install -e ".[eva_x]"` |
-| `ark_plus` | Ark+ Swin-L (`torchvision`) — manual checkpoint + side-installs `timm==0.5.4` into `third_party_models/Ark/timm-054` on first call | `uv pip install -e ".[ark_plus]"` |
-| `medical_mae` | Medical MAE CXR ViT (`torchvision`) — cloned repo + manual checkpoint + side-installs `timm==0.4.12` into `third_party_models/medical_mae/timm-0412` on first call | `uv pip install -e ".[medical_mae]"` |
-| `siglip2` | SigLIP 2 backbone (`transformers`) — general-domain vision-language baseline, 1152-d pooled embeddings, 384×384 input | `uv pip install -e ".[siglip2]"` |
-| `chexagent_gen` | Generative CheXagent-2-3b (pins `transformers==4.40.0`, `torch==2.7.1`) for report generation; install in its own venv | `uv pip install -e ".[chexagent_gen]"` |
-| `maira2_gen` | Generative MAIRA-2 (`transformers>=4.46,<4.47`) for report generation; install in its own venv | `uv pip install -e ".[maira2_gen]"` |
-| `medgemma_gen` | Generative MedGemma-4B (`google/medgemma-4b-it`, gated) for VQA / report generation; install in its own venv | `uv pip install -e ".[medgemma_gen]"` |
-| `radeval` | RadEval metrics for report-generation scoring (`radeval[api] @ git+jbdel/RadEval`); install in its own venv | `uv pip install -e ".[radeval]"` |
+This block runs a linear probe with RAD-DINO features on Montgomery County CXR (138 chest X-rays, 1 label:
+`tuberculosis`), with 5 folds. It needs the `raddino` extra and a GPU. Change
+`/data/MontgomerySet/CXR_png/` to the folder of your images.
+[Your first benchmark in 10 minutes](https://f10409.github.io/RadHarmony/get-started/first-benchmark.html)
+downloads the data and runs this example step by step.
 
-Combine extras as needed, e.g. `uv pip install -e ".[model,app]"`. The generative extras (`chexagent_gen`, `maira2_gen`, `medgemma_gen`, `radeval`) pin incompatible `transformers` versions and are meant to be installed in separate venvs (see [pyproject.toml](pyproject.toml) comments).
-
-## Quick Start
-
+<!-- block: run=gpu timeout=600 -->
 ```python
-import torch
-from radharmony.dataset import CheXpertTrainDataset
-
-ds = CheXpertTrainDataset(
-    base_image_dir="/data/CheXpert-v1.0/train/",
-    output_cls=True,
-    dtype=torch.float32,
-)
-train_ds, val_ds = ds.get_datasets(n_splits=10, num_cores=4)
-
-sample = train_ds[0]
-# sample["img"]  → torch.Tensor, shape (1, 224, 224), float in [-1, 1]
-# sample["cls"]  → torch.Tensor, shape (14,), binary labels
-```
-
-For augmentations, k-fold splits, dataset registry, harmonizer save/reuse, and the Gradio visualizer — see the [wiki Quickstart](https://f10409.github.io/RadHarmony/quickstart.html) and per-dataset pages.
-
-## Evaluators
-
-`radharmony.evaluator` pairs a supported dataset with an image encoder and produces
-a standardized results DataFrame (AUROC, AUPRC, F1, and eight other per-label
-metrics). Six classification evaluators are available — linear probe, k-NN
-probe, SVM probe, prototype probe, zero-shot, and fine-tune — plus three
-segmentation evaluators (`LinearProbeSegEvaluator` 1×1 Conv2d head,
-`ConvProbeSegEvaluator` conv-block head, and `UPerNetSegEvaluator` simple
-feature pyramid + `UperNetHead`), all over frozen dense features. A
-`ReportGenerationEvaluator` scores VLM-generated reports with the RadEval
-metric suite (BLEU, ROUGE, BERTScore, RadCliQ, and other language metrics; pair
-with `make_chexagent_generator`, `make_maira2_generator`, or
-`make_medgemma_generator`), and
-a `VQAEvaluator` scores question-conditioned VLM answers with tokenized-F1 and
-yes/no accuracy (the MedGemma protocol; pair with `make_medgemma_vqa`).
-
-Use a built-in backbone recipe for the fastest setup:
-
-```python
-from radharmony.evaluator.backbones import make_raddino
+from radharmony.dataset import MontgomeryCXRDataset
 from radharmony.evaluator import LinearProbeEvaluator
-from radharmony.dataset import VinDrCXRTrainDataset, VinDrCXRTestDataset
+from radharmony.evaluator.backbones import make_raddino
 
 transform, encoder = make_raddino(device="cuda")
-
-train_ds = VinDrCXRTrainDataset(base_image_dir="/data/VinDr-CXR/", transform=transform, output_cls=True, cache_dir=None)
-test_ds  = VinDrCXRTestDataset (base_image_dir="/data/VinDr-CXR/", transform=transform, output_cls=True, cache_dir=None)
-
-ev = LinearProbeEvaluator(
-    encoder,
-    train_dataset=train_ds,
-    test_dataset=test_ds,
-    n_seeds=5,
-    n_train_samples=[500, 1500],
-    n_bootstrap=100,
-    output_dir="outputs/linprobe",
+ds = MontgomeryCXRDataset(
+    base_image_dir="/data/MontgomerySet/CXR_png/", transform=transform, output_cls=True, cache_dir=None
 )
-df = ev.evaluate()
-ev.save_results(df)
-# → outputs/linprobe/results.csv, results_summary.csv
+ev = LinearProbeEvaluator(encoder, dataset=ds, n_folds=5, output_dir="outputs/first_benchmark")
+results = ev.evaluate()
+ev.save_results(results)  # writes results.csv and results_summary.csv
+print(results.groupby("label")["auroc"].mean().round(3).to_dict())
+# {'macro_average': 0.971, 'tuberculosis': 0.971}
 ```
 
-Other evaluators follow the same interface:
+## Documentation
 
-```python
-from radharmony.evaluator import KNNProbeEvaluator, SVMProbeEvaluator
-from radharmony.evaluator import PrototypeProbeEvaluator, ZeroShotEvaluator
-from radharmony.evaluator.backbones import make_biomed_clip
+The wiki is at [f10409.github.io/RadHarmony](https://f10409.github.io/RadHarmony/index.html).
 
-# k-NN probe (k-fold mode)
-ev = KNNProbeEvaluator(encoder, dataset=train_ds, n_folds=5, k=20)
+- Get started: [Install](https://f10409.github.io/RadHarmony/get-started/install.html),
+  [Your first benchmark in 10 minutes](https://f10409.github.io/RadHarmony/get-started/first-benchmark.html),
+  [Concepts](https://f10409.github.io/RadHarmony/get-started/concepts.html).
+- How-to guides, for example
+  [Load a dataset and pick outputs](https://f10409.github.io/RadHarmony/how-to/load-a-dataset.html),
+  [Run a probe](https://f10409.github.io/RadHarmony/how-to/run-a-probe.html) and
+  [Add a dataset](https://f10409.github.io/RadHarmony/how-to/add-a-dataset.html). The
+  [wiki home page](https://f10409.github.io/RadHarmony/index.html#the-4-parts-of-this-wiki) lists all the
+  guides.
+- Reference: [Dataset catalog](https://f10409.github.io/RadHarmony/reference/datasets/index.html),
+  [Evaluators](https://f10409.github.io/RadHarmony/reference/evaluators/index.html),
+  [Backbones](https://f10409.github.io/RadHarmony/reference/backbones/index.html).
 
-# SVM probe
-ev = SVMProbeEvaluator(encoder, dataset=train_ds, n_folds=5)
+## What is in RadHarmony
 
-# Prototype probe (parameter-free baseline)
-ev = PrototypeProbeEvaluator(encoder, dataset=train_ds, n_folds=5)
-
-# Zero-shot (vision-language models only)
-_, vl_encoder, text_encoder, tokenizer = make_biomed_clip(device="cuda")
-ev = ZeroShotEvaluator(
-    image_encoder=vl_encoder,
-    text_encoder=text_encoder,
-    tokenizer=tokenizer,
-    test_dataset=test_ds,
-    prompts={"pneumothorax": ["a chest X-ray showing pneumothorax"]},
-)
-```
-
-See the [evaluator wiki](https://f10409.github.io/RadHarmony/evaluator/index.html) for the full API and all constructor arguments.
-
-## Supported Datasets
-
-A broad collection of public radiological datasets covering 2D CXR, 3D CT, and 3D MRI — including CheXpert, CheXpert-Plus, CheXlocalize, MIMIC-CXR (DICOM/JPG), ChestX-ray14, PadChest, ReXGradient-160K, VinDr-CXR, VinDr-PCXR (pediatric), SIIM-ACR PTX, SIIM COVID-19, RSNA Pneumonia, RSNA PE Detection <sup>beta</sup>, RSNA Bone Age <sup>beta</sup>, RSNA 2022 Cervical Spine <sup>beta</sup>, RSNA 2023 Abdominal Trauma <sup>beta</sup>, RSNA 2024 Lumbar Spine <sup>beta</sup>, CT-RATE <sup>beta</sup>, RAD-ChestCT <sup>beta</sup>, TAIX-Ray, BRAX, RANZCR CLiP, OpenI IU CXR, Montgomery County CXR, Shenzhen Hospital CXR, VQA-RAD, GEMeX-VQA (chest-CXR VQA), MIMIC-Ext-CXR-QBA (CXR VQA), ROCO (radiology captioning), MS-CXR and MS-CXR-T (phrase grounding & temporal progression), the institutional EmoryCXR v2, and Emory CHORUS (X-ray subset) <sup>beta</sup>.
-
-See the [Datasets inventory](https://f10409.github.io/RadHarmony/datasets.html) for the full table with registry keys, modalities, and label counts.
-
-## Notebooks
-
-Worked examples in [`datathon26/`](datathon26/) and [`notebooks/`](notebooks/):
-
-| Notebook | Contents |
-|---|---|
-| [`datathon26/`](datathon26/README.md) | Guided workshop — a numbered sequence (`0_setup` → `8_build_your_own`) covering environment + Hugging Face setup, loading and inspecting datasets, adding a custom/new dataset, linear and segmentation probes, VQA and report generation, and a build-your-own template. Participant notebooks with paired answers in [`datathon26/solutions/`](datathon26/solutions/); start from [`datathon26/README.md`](datathon26/README.md) |
-| [`tutorials/dataset_api_tour.ipynb`](notebooks/tutorials/dataset_api_tour.ipynb) | Full dataset-API tour: harmonizers, preprocessors, datasets, transforms, registry |
-| [`tutorials/custom_dataset_tutorial.ipynb`](notebooks/tutorials/custom_dataset_tutorial.ipynb) | Template for integrating a new dataset |
-| [`tutorials/evaluator_tutorial.ipynb`](notebooks/tutorials/evaluator_tutorial.ipynb) | End-to-end evaluator walkthrough: linear probe on VinDr-CXR with RAD-DINO |
-| [`evaluator/fm_comparison.ipynb`](notebooks/evaluator/fm_comparison.ipynb) | FM benchmark — 11 foundation-model image encoders × 6 probing strategies on VinDr-CXR / TAIX-Ray |
-| [`evaluator/fm_comparison_seg.ipynb`](notebooks/evaluator/fm_comparison_seg.ipynb) | FM benchmark — 11 encoders × three segmentation heads (linear / conv / UPerNet) on SIIM-ACR PTX and Montgomery-CXR |
-| [`evaluator/report_generation_example.ipynb`](notebooks/evaluator/report_generation_example.ipynb) | Report generation, Stage A — run a VLM (CheXagent-2 / MAIRA-2) over a dataset and dump `(id, ref, hyp)` pairs |
-| [`evaluator/score_reports_radeval.ipynb`](notebooks/evaluator/score_reports_radeval.ipynb) | Report generation, Stage B — score the pairs parquet with the RadEval metric suite (standalone RadEval env) |
-| [`datasets/dataset_integrity_check.ipynb`](notebooks/datasets/dataset_integrity_check.ipynb) | Integrity pass over every supported dataset — instantiate, iterate, validate outputs, visualize samples; headless counterpart: [`scripts/check_datasets.py`](scripts/check_datasets.py) |
+- Datasets: chest X-ray datasets with labels, boxes, masks, reports or questions and answers, plus CT, MRI
+  and other radiograph datasets. Examples: CheXpert, MIMIC-CXR, VinDr-CXR, PadChest, SIIM-ACR
+  Pneumothorax, Montgomery County CXR, CT-RATE. The
+  [Dataset catalog](https://f10409.github.io/RadHarmony/reference/datasets/index.html) lists all datasets
+  and their registry keys.
+- Evaluators: the linear, kNN, SVM and prototype probes, zero-shot, fine-tune, 3 segmentation heads (linear,
+  conv and UPerNet), report generation and visual question answering (VQA). See
+  [Evaluators](https://f10409.github.io/RadHarmony/reference/evaluators/index.html).
+- Backbone recipes: a `make_<name>()` function for each model, for example `make_raddino`,
+  `make_biomed_clip` and `make_medsiglip`. See
+  [Backbones](https://f10409.github.io/RadHarmony/reference/backbones/index.html).
+- Notebooks: the tutorials are in [`notebooks/tutorials/`](notebooks/tutorials/). Start with
+  [`radharmony_hands_on.ipynb`](notebooks/tutorials/radharmony_hands_on.ipynb). The backbone comparison
+  notebooks are in [`notebooks/evaluator/`](notebooks/evaluator/). The datathon26 workshop notebooks are in
+  [`datathon26/`](datathon26/). Start with [`datathon26/README.md`](datathon26/README.md).
+- Datathon26 module: `radharmony.datathon26` scores the embeddings and reports of an external inference
+  service. See [Datathon26 module](https://f10409.github.io/RadHarmony/reference/datathon26.html).
+- App: a Gradio web page shows the samples of a dataset, with the boxes and masks on the image. See
+  [Use the app](https://f10409.github.io/RadHarmony/how-to/use-the-app.html).
 
 ## Contributors
 
-RadHarmony is developed and maintained by the [HITI Lab](https://www.hitilab.com/) at Emory University, with contributions from:
+The [HITI Lab](https://www.hitilab.com/) at Emory University develops and maintains RadHarmony. The
+contributors are:
 
 - **Frank Li** ([@f10409](https://github.com/f10409))
 - **Bardia Khosravi** ([@BardiaKh](https://github.com/BardiaKh))
 - **Judy Gichoya** ([@judywawira](https://github.com/judywawira))
 - **Reza Chavoshi**
 - **Theo Dapamede** ([@theodapamede](https://github.com/theodapamede))
-- and other members of the HITI Lab, Emory University.
+- Other members of the HITI Lab
 
 ## Citation
 

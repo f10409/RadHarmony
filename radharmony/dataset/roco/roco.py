@@ -17,29 +17,32 @@ class ROCODataset(BaseVQADataset):
     from ROCO's ``keywords.txt``.
 
     Args:
-        base_dir: Root of the roco-dataset clone/download tree — the directory
+        base_dir: Root of the roco-dataset clone/download tree, the directory
             containing the ``data/`` subdirectory.  Required unless
             ``harmonized_df`` / ``harmonizer`` / ``harmonizer_path`` is given.
         splits: Which dataset splits to load.  Defaults to all three:
             ``["train", "validation", "test"]``.
-        radiology_only: When ``True`` (default), load only the ``radiology/``
-            subset.  Set ``False`` to include ``non-radiology/`` images as well.
+        radiology_only: ``True`` keeps only the ``radiology/`` subset, and
+            ``False`` keeps both subsets. ``None`` (default) gives ``True`` when the class
+            harmonizes. On a given table, ``True`` keeps only the radiology rows, and
+            ``None`` and ``False`` keep every row (D-02).
         image_subdir: Image subdirectory name inside each split/subset folder
             (default ``"images"``).  Must match the ``--subdir`` argument used
             when running ``scripts/fetch.py``.
         transform, cache_dir, output_struct, output_question_type:
             See :class:`~radharmony.dataset.base_vqa.BaseVQADataset`.
         harmonized_df, harmonizer, harmonizer_path: Standard harmonizer
-            resolution paths; when used, ``base_dir`` is not required.
+            resolution paths. When used, ``base_dir`` is not required.
     """
 
     _HARMONIZER_CLS = ROCOHarmonizer
+    IMG_CHANNELS = 3  # color figures (D-42)
 
     def __init__(
         self,
         base_dir: str = None,
         splits: list[str] | None = None,
-        radiology_only: bool = True,
+        radiology_only: bool | None = None,
         image_subdir: str = "images",
         transform=None,
         cache_dir: str = "./cache",
@@ -51,7 +54,7 @@ class ROCODataset(BaseVQADataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_dir is None:
-            _h = ROCOHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_dir = _h.base_dir
 
         if (
@@ -77,16 +80,18 @@ class ROCODataset(BaseVQADataset):
             dtype=dtype,
         )
 
-        if harmonized_df is None and harmonizer is None and harmonizer_path is None:
-            self._harmonizer = ROCOHarmonizer(
-                base_dir=base_dir,
-                splits=splits,
-                radiology_only=radiology_only,
-                image_subdir=image_subdir,
-            )
+        given = harmonized_df is not None or harmonizer is not None or harmonizer_path is not None
+        self._harmonizer = self._HARMONIZER_CLS(
+            base_dir=base_dir,
+            splits=splits,
+            # None: radiology only when the class harmonizes, no filter on a given table.
+            radiology_only=bool(radiology_only) if given else radiology_only is not False,
+            image_subdir=image_subdir,
+        )
 
     def _get_harmonized_df(self):
         preset = self._try_resolve_preset_harmonized()
         if preset is not None:
-            return preset
+            # A given table gets the same filters (D-02).
+            return self._harmonizer.filter_table(preset)
         return self._harmonizer.harmonize()

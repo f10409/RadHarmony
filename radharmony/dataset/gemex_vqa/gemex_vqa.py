@@ -14,7 +14,7 @@ class GEMeXVQADataset(BaseVQADataset):
     Args:
         data_dir: Directory containing the 4 GEMeX-VQA JSONL files
             downloaded from https://huggingface.co/datasets/BoKelvin/GEMeX-VQA.
-        base_image_dir: MIMIC-CXR-JPG ``files/`` root, e.g.
+        base_image_dir: MIMIC-CXR-JPG ``files/`` root, for example
             ``/data/mimic-cxr-jpg/2.0.0/files``.  Image paths in the
             harmonized DataFrame are relative to this directory.
         question_subtypes: Which subtypes to include.  Defaults to all four:
@@ -22,7 +22,7 @@ class GEMeXVQADataset(BaseVQADataset):
         transform, cache_dir, output_struct, output_question_type:
             See :class:`~radharmony.dataset.base_vqa.BaseVQADataset`.
         harmonized_df, harmonizer, harmonizer_path: Standard harmonizer
-            resolution paths; when used, ``data_dir`` is not required.
+            resolution paths. When used, ``data_dir`` is not required.
     """
 
     _HARMONIZER_CLS = GEMeXVQAHarmonizer
@@ -42,7 +42,7 @@ class GEMeXVQADataset(BaseVQADataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = GEMeXVQAHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = _h.base_image_dir
 
         if (

@@ -1,5 +1,7 @@
 """MONAI dataset for the CT-RATE dataset."""
 
+import os
+
 import torch
 
 from radharmony.harmonizer import CTRATEHarmonizer
@@ -9,12 +11,32 @@ from ..base import BaseRadiologicalDataset
 from ..transforms import RadiologyTransform3D
 
 
+# Label and metadata file names of each split, in the release's "tables/" folder.
+# The release names the valid labels "valid_*" but the valid metadata "validation_*".
+_TABLES = {
+    "train": (("train_predicted_labels.csv",), ("train_metadata.csv",)),
+    "valid": (("valid_predicted_labels.csv", "validation_predicted_labels.csv"),
+              ("validation_metadata.csv", "valid_metadata.csv")),
+}
+
+
+def _folder_split(base_image_dir: str) -> str:
+    """Return "valid" when the image folder name starts with "valid" (for example valid_fixed/), else "train"."""
+    name = os.path.basename(os.path.normpath(base_image_dir or ""))
+    return "valid" if name.startswith("valid") else "train"
+
+
+def _in_tables(names: tuple) -> list:
+    """Look in the sibling tables/ folder first: it is fast, and it avoids the image trees."""
+    return [f"tables/{n}" for n in names] + list(names)
+
+
 @register_dataset("ct_rate")
 class CTRATEDataset(BaseRadiologicalDataset):
     """3-D MONAI PersistentDataset for CT-RATE.
 
     Args:
-        base_image_dir: Root directory of the NIfTI volume tree (e.g. ``…/dataset/train_fixed/``).
+        base_image_dir: Root directory of the NIfTI volume tree (for example ``…/dataset/train_fixed/``).
             ``csv_path`` and ``view_position_csv_path`` are inferred from the ``tables/``
             subdirectory of the parent when not provided and the expected files exist.
         csv_path: Path to ``train_predicted_labels.csv``.  Defaults to
@@ -27,6 +49,8 @@ class CTRATEDataset(BaseRadiologicalDataset):
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls"})
     _HARMONIZER_CLS = CTRATEHarmonizer
+    # None: the image folder name picks the split of the tables (train or valid).
+    _SPLIT = None
 
     LABEL_COLS = [
         "arterial_wall_calcification",
@@ -60,6 +84,7 @@ class CTRATEDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -67,7 +92,7 @@ class CTRATEDataset(BaseRadiologicalDataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = CTRATEHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = _h.base_image_dir
 
         if base_image_dir is None and harmonizer_path is None and harmonized_df is None and harmonizer is None:
@@ -76,22 +101,18 @@ class CTRATEDataset(BaseRadiologicalDataset):
             )
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
+            label_names, meta_names = _TABLES[self._SPLIT or _folder_split(base_image_dir)]
             csv_path = infer_path(
-                base_image_dir,
-                "train_predicted_labels.csv", "validation_predicted_labels.csv",
-                user_path=csv_path or "",
+                base_image_dir, *_in_tables(label_names), user_path=csv_path or "", required=True, arg="csv_path",
             ) or csv_path
             view_position_csv_path = infer_path(
-                base_image_dir,
-                "train_metadata.csv", "validation_metadata.csv",
-                user_path=view_position_csv_path or "",
+                base_image_dir, *_in_tables(meta_names), user_path=view_position_csv_path or "",
             ) or view_position_csv_path
 
+        # Only cls is supported. The base class warns for the other flags. A key
+        # that no sample has must not be in the transform: it raises KeyError (D-11).
         output_keys = {"img"}
         if output_cls:    output_keys.add("cls")
-        if output_mask:   output_keys.add("mask")
-        if output_report: output_keys.add("report")
-        if output_bbox:   output_keys.add("bbox")
         if transform is None:
             transform = RadiologyTransform3D(
                 output_keys=output_keys, hu_window=hu_window,
@@ -104,13 +125,14 @@ class CTRATEDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
             harmonizer_path=harmonizer_path,
         )
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
-            self._harmonizer = CTRATEHarmonizer(
+            self._harmonizer = self._HARMONIZER_CLS(
                 csv_path=csv_path,
                 view_position_csv_path=view_position_csv_path,
                 base_image_dir=base_image_dir,

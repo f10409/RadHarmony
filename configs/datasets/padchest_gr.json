@@ -1,0 +1,86 @@
+{
+  "_comment": "PadChest-GR (Castro et al., arXiv:2411.05085; BIMCV) — the grounded-report release of PadChest. 4,555 chest radiographs from 4,459 patients; each radiologist report is split into sentences, every sentence is typed (abnormal or not), labelled from PadChest's own vocabulary and, where localisable, boxed on the image. Bilingual (English + Spanish). VERIFIED AGAINST THE 2024-08-19 RELEASE 2026-09-28: 4,555 images; 10,479 sentences (7,037 abnormal); 7,733 boxes on 3,008 images; 1,456 images with no abnormal finding; splits train 3,185 / validation 455 / test 915, patient-disjoint. SEVEN TRAPS: (1) the zip extracts to a directory named `BIMCV-Padchest-GR ` WITH A TRAILING SPACE. (2) the images are a 37-volume split zip (Padchest_GR_files/PadChest_GR.zip.001 ...) that `unzip` cannot read — use `7z x`. (3) boxes are [x0, y0, x1, y1] fractions of the ORIGINAL image, x first; RadHarmony's convention is [dim0_min, dim0_max, dim1_min, dim1_max] with dim0 = row, i.e. [y0, y1, x0, x1], so read literally every box is transposed. (4) no box does not mean no finding: 820 abnormal findings, on 91 images, have no box, so n_boxes == 0 is not an all-zero label vector. (5) master_table.csv is one row per FINDING (8,787 rows for 4,555 images). (6) 288 findings carry two or three labels; their boxes belong to the sentence, so bbox_labels joins them with ' + '. (7) `extra_boxes` is a second, looser, undocumented box set (6,265 boxes) — exposed as extra_bbox, never merged. OVERLAP: every ImageID is also in `padchest`, with different splits — a GR test patient is very probably a padchest training patient. LICENSE: the release ships no license file; the terms are BIMCV's, given on the download page, and were not verified here.",
+
+  "dataset_name": "PadChest-GR",
+  "registry_key": "padchest_gr",
+  "modality": "2D",
+  "image_format": "PNG",
+
+  "base_image_dir": "<release directory holding grounded_reports_*.json, master_table.csv and PadChest_GR/, e.g. <DATA_ROOT>/PadChest-GR/BIMCV-Padchest-GR /  (trailing space)>",
+
+  "primary_csv": {
+    "_comment": "master_table.csv — ONE ROW PER FINDING, not per image. Columns: StudyID, ImageID, label ('Normal' on the single row of each of the 1,456 images with no abnormal finding), boxes_count, extra_boxes_count, locations, prior_study, progression_status, prior_imageID, sentence_en, sentence_es, split, PatientID, PatientSex_DICOM, PatientAge (years, at the study), StudyDate, label_group, Year. The boxes themselves are NOT in the table, only their counts: they come from grounded_reports_20240819.json, which the harmonizer also reads for the sentence structure (both languages). Patient, split, sex and age repeat on every row of an image and are checked to agree before the first is taken.",
+    "path": "<DATA_ROOT>/PadChest-GR/BIMCV-Padchest-GR /master_table.csv",
+    "filename_variants": ["master_table.csv"]
+  },
+
+  "patient_id": {
+    "_comment": "Direct column (PatientID) — anonymised hash. Same id space as PadChest, so the patient is the split unit and a GR patient is a padchest patient.",
+    "column": "PatientID",
+    "derivation": null
+  },
+
+  "study_id": {
+    "_comment": "Direct column (StudyID) — same id space as PadChest.",
+    "column": "StudyID",
+    "derivation": null
+  },
+
+  "image_path": {
+    "_comment": "'PadChest_GR/<ImageID>' — a flat directory of 4,555 PNGs beside the JSON. Unlike padchest there is no numbered sub-directory. The pixels are byte-for-byte the PadChest originals in size (checked on 400 of 400 samples).",
+    "column": "ImageID",
+    "derivation": "PadChest_GR/ + ImageID",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "154 of PadChest's labels occur on an abnormal finding in this release; the vocabulary is a strict subset of padchest's 193, spelled the same way and snake-cased for the columns. Image-level multi-hot = union of the labels of its abnormal findings. An image with no abnormal finding is all zeros. A label outside the 154 raises rather than being dropped: a silently smaller vocabulary trains a classifier on fewer classes than it believes. Several labels are vague or non-anatomical (`dai`, `end on vessel`, `chronic changes`, `metal`, `surgery`, `abnormal foreign body`) and are kept as released.",
+    "columns_note": "See LABELS in radharmony/harmonizer/padchest_gr/padchest_gr.py — 154 names, not repeated here.",
+    "separate_csv": {
+      "_comment": "Labels are in the master table.",
+      "path": null, "filename_variants": [], "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "No uncertainty markers. A finding the reader hedged is still an abnormal sentence with a label; a sentence that is not abnormal carries none.",
+      "nan_action": "none", "negative_one_action": "none", "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "NOT in the GR release (measured through padchest: 4,257 PA, 242 AP_horizontal, 56 AP; the table writes AP_HORIZONTAL, Q-13). Filled from PadChest's own Projection column when padchest_csv_path is given; an image missing from that file raises rather than getting NaN. Without it the optional view_position column is absent.",
+    "column": "Projection",
+    "source": "csv",
+    "separate_csv": {
+      "path": "<DATA_ROOT>/PadChest/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
+      "filename_variants": [
+        "PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
+        "PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+      ],
+      "join_columns": ["ImageID"]
+    }
+  },
+
+  "masks": {
+    "_comment": "No segmentation masks.",
+    "supported": false, "column": null, "format": null
+  },
+
+  "bboxes": {
+    "_comment": "THE POINT OF THIS DATASET. Released as [x0, y0, x1, y1] fractions of the original image; harmonized to RadHarmony's [dim0_min, dim0_max, dim1_min, dim1_max] = [y0, y1, x0, x1], normalised to [0,1], each validated as 0 <= min < max <= 1. Stored JSON-ENCODED (ragged: 0-14 per image). bbox_labels (' + '-joined when a sentence has several labels) and bbox_findings (the English sentence) are parallel lists — the dataset sets SUPPORTS_BBOX_FINDINGS. An image with no box has bbox == '[]', whether or not the image has an abnormal finding. 93.0% of the 2,169 boxes whose sentence names exactly one side have their centre on that side of the midline (patient's left = image right), which is what confirms x is the image column and not the row.",
+    "supported": true, "column": "bbox"
+  },
+
+  "reports": {
+    "_comment": "The full report per image, reassembled from the sentences, in English (default) or Spanish (report_language='es'). Both languages, the per-sentence labels, locations and progression are in the `findings` JSON column.",
+    "supported": true, "format": "json_field",
+    "separate_csv": {"_comment": null, "path": null, "filename_variants": [], "join_columns": []},
+    "base_dir": null, "path_column": "report"
+  },
+
+  "extra_init_params": {
+    "_comment": "json_path: grounded_reports_*.json (defaults to base_image_dir's). padchest_csv_path: PadChest's label CSV, fills view_position. split: 'train' | 'validation' | 'test' | None. report_language: 'en' | 'es'."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Harmonizer collapses the one-row-per-finding master table into one row per image, verifying that per-image metadata agrees across rows, and swaps the box axes from [x0,y0,x1,y1] to [y0,y1,x0,x1]. Images are 8/16-bit PNGs at their PadChest sizes (long side >= 1,468), so the percentile windowing in RadiologyTransform2D applies as for padchest. PRIOR STUDIES: PadChest_GR_progression_prior_studies/ holds 1,446 prior images (9 GB) that are not read here; prior_image_id names each image's prior so they can be joined."
+}

@@ -11,7 +11,7 @@ from .rsna_abdominal_trauma_2023 import RSNAAbdominalTrauma2023Dataset
 class RSNAAbdominalTrauma2023TrainDataset(RSNAAbdominalTrauma2023Dataset):
     """Train split of :class:`RSNAAbdominalTrauma2023Dataset`.
 
-    Identical to the base class; uses
+    Identical to the base class. Uses
     :class:`RSNAAbdominalTrauma2023TrainHarmonizer` for correct save/load
     round-trips via ``load_from_saved()``.
     All constructor arguments are the same as

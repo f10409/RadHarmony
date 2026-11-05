@@ -13,6 +13,7 @@ __pycache__/
 .venv
 # No lock file: install with `uv pip install -e ".[all]"`
 uv.lock
+.radharmony
 
 # Cache / data
 cache
@@ -63,11 +64,25 @@ datathon26/sample_data.ipynb
 # Local, uncommitted dataset configs with real data paths (internal use)
 configs/local/
 
-# contains hardcoded reportbench API key — never commit
+# local secrets (never commit)
+secrets.env
+*.secret
+.env
+
+# NaViT code (proprietary/unpublished, must NOT be version-controlled or public)
+model/modules/navit_reference_wrapper.py
+model/modules/navit_wrapper.py
+model/launch_scripts/*navit*
+reports/
+
+# Caches and results of the model/ scripts (RADHARMONY_OUTPUT_DIR default). They can hold internal results.
+model/outputs/
+
+# Has a hard-coded reportbench API key: never commit it
 datathon26/preextract_embeddings.py
-# one-shot repair companion to the driver — keep the reportbench tooling untracked
+# One-shot repair script for the driver: keep the reportbench tools untracked
 datathon26/repair_missing_embeddings.py
-# local data-prep utility for the private CXR batch tables — keep untracked
+# Local data-prep notebook for the private CXR batch tables: keep it untracked
 datathon26/filter_multi_image_studies.ipynb
 
 # toy datasets for the hands-on notebooks are distributed to participants out of
@@ -92,3 +107,7 @@ datathon26/solutions/
 
 # Local draw.io argument diagrams (not part of the published docs)
 docs/diagrams/
+
+# The real data paths. The dev repo tracks this file, so this line has no effect there. The public repo
+# does not have the file: each user makes their own from configs/data_paths.example.json.
+configs/data_paths.json

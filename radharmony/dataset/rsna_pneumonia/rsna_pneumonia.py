@@ -6,7 +6,7 @@ bounding boxes for lung opacities.
 
 Images are DICOM files in a nested directory structure:
 ``<StudyUID>/<SeriesUID>/<SOPUID>.dcm`` under the base directory
-(e.g. ``~/Downloads/rsna/``).
+(for example ``~/Downloads/rsna/``).
 """
 
 import os
@@ -31,14 +31,14 @@ class RSNAPneumoniaDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Root of the image export containing
-            ``<StudyUID>/<SeriesUID>/<SOPUID>.dcm`` (e.g. ``~/Downloads/rsna/``).
+            ``<StudyUID>/<SeriesUID>/<SOPUID>.dcm`` (for example ``~/Downloads/rsna/``).
         csv_path: Path to the adjudicated JSON annotation file.  Auto-inferred
             when ``None``.
         transform: MONAI Compose transform. Defaults to standard 2-D pipeline.
         cache_dir: PersistentDataset cache directory. ``None`` disables caching.
         output_cls: Yield label vector under key ``cls``.
-        output_mask: Not supported (no segmentation masks); silently ignored.
-        output_report: Not supported (no radiology reports); silently ignored.
+        output_mask / output_report / output_reg: Not supported. RSNA Pneumonia has no masks,
+            reports or regression targets. A warning, and no key (D-11).
         output_bbox: Yield bounding boxes under key ``bbox``.
         label_group: Label group name in the JSON.  Default ``"Calculated"``.
     """
@@ -60,6 +60,7 @@ class RSNAPneumoniaDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -75,7 +76,7 @@ class RSNAPneumoniaDataset(BaseRadiologicalDataset):
 
         # Infer base_image_dir from saved harmonizer if needed.
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RSNAPneumoniaHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -94,6 +95,8 @@ class RSNAPneumoniaDataset(BaseRadiologicalDataset):
                 base_image_dir,
                 "pneumonia-challenge-annotations-adjudicated-kaggle_2018.json",
                 user_path=csv_path or "",
+                required=True,
+                arg="csv_path",
             ) or csv_path
         else:
             self._csv_path = csv_path
@@ -106,6 +109,7 @@ class RSNAPneumoniaDataset(BaseRadiologicalDataset):
                 output_keys.add("cls")
             if output_bbox:
                 output_keys.add("bbox")
+                output_keys.add("bbox_labels")
             transform = RadiologyTransform2D(
                 img_size=224, output_keys=output_keys,
                 dtype=dtype,
@@ -118,6 +122,7 @@ class RSNAPneumoniaDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,

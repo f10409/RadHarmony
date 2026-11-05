@@ -1,8 +1,9 @@
 """Abstract base class for radharmony evaluators.
 
-Owns split-mode enforcement (k-fold vs fixed-split), variance wiring
-(n_seeds + n_bootstrap), the bootstrap helper, and result-handling.
-Encoder-agnostic — subclasses add task-specific feature extraction.
+It checks the split mode (k-fold or fixed-split), sets up the variance
+(n_seeds and n_bootstrap) and saves the results. The bootstrap draw is
+``radharmony.evaluator.sampling.bootstrap_indices`` (D-32). It works with
+any encoder. Subclasses add the feature extraction for each task.
 """
 
 from __future__ import annotations
@@ -10,7 +11,6 @@ from __future__ import annotations
 import os
 import warnings
 from abc import ABC, abstractmethod
-from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -122,8 +122,14 @@ class BaseEvaluator(ABC):
     def _summarize(self, df: pd.DataFrame) -> pd.DataFrame:
         """Aggregate per-row results into a per-label summary.
 
-        Groups by ``label`` and ``n_train`` (if present) and computes
-        mean / std / 95% CI for every numeric metric column.
+        Groups by ``label`` and ``n_train`` (if present). For each numeric metric
+        column (D-19, V-E-15):
+
+        - mean: the mean of the point-estimate rows (``bootstrap == -1``).
+        - n: the number of point-estimate rows with a value (Q-8). A label with NaN
+          runs warns one time.
+        - std and 95% CI: over the bootstrap rows. With no bootstrap rows, over the
+          point-estimate rows (the folds or the seeds).
         """
         group_cols = ["label"]
         if "n_train" in df.columns:
@@ -137,47 +143,34 @@ class BaseEvaluator(ABC):
         if not metric_cols:
             return df.groupby(group_cols).size().reset_index(name="n")
 
-        rows = []
+        rows, nan_runs = [], {}
         for key, sub in df.groupby(group_cols):
             if not isinstance(key, tuple):
                 key = (key,)
-            row = dict(zip(group_cols, key))
+            row = dict(zip(group_cols, key, strict=True))
+            if "bootstrap" in sub.columns:
+                point, boot = sub[sub["bootstrap"] < 0], sub[sub["bootstrap"] >= 0]
+            else:
+                point, boot = sub, sub.iloc[0:0]
+            spread = boot if len(boot) else point
             for m in metric_cols:
-                vals = sub[m].to_numpy()
-                row[f"{m}_mean"] = np.nanmean(vals) if len(vals) else np.nan
-                row[f"{m}_std"] = np.nanstd(vals) if len(vals) else np.nan
-                if len(vals) >= 2 and np.any(~np.isnan(vals)):
+                p = point[m].to_numpy(dtype=float)
+                row[f"{m}_mean"] = np.nanmean(p) if len(p) else np.nan
+                row[f"{m}_n"] = n_ok = int(np.sum(~np.isnan(p)))
+                if n_ok < len(p):  # some runs have no value (D-19, D-29)
+                    where = f" at n_train {row['n_train']}" if row.get("n_train", -1) != -1 else ""
+                    nan_runs.setdefault(row["label"], []).append(f"{m} is NaN in {len(p) - n_ok} of {len(p)} runs{where}")
+                vals = spread[m].to_numpy(dtype=float)
+                # 1 value has no spread: its std and CI are NaN, not 0.0 (V-E-31).
+                if np.sum(~np.isnan(vals)) >= 2:
+                    row[f"{m}_std"] = np.nanstd(vals)
                     row[f"{m}_ci_lo"] = np.nanpercentile(vals, 2.5)
                     row[f"{m}_ci_hi"] = np.nanpercentile(vals, 97.5)
                 else:
-                    row[f"{m}_ci_lo"] = np.nan
-                    row[f"{m}_ci_hi"] = np.nan
+                    row[f"{m}_std"] = row[f"{m}_ci_lo"] = row[f"{m}_ci_hi"] = np.nan
             rows.append(row)
 
+        for label, parts in nan_runs.items():  # one warning per label (Q-8)
+            warnings.warn(f"Label {label!r}: {', '.join(parts)}. Their means use the other runs (D-19).",
+                          UserWarning, stacklevel=3)
         return pd.DataFrame(rows)
-
-    @staticmethod
-    def _bootstrap_metrics(
-        y_true: np.ndarray,
-        y_score: np.ndarray,
-        metrics_fn: Callable[[np.ndarray, np.ndarray], dict],
-        n_bootstrap: int,
-        seed: int,
-    ) -> list[dict]:
-        """Resample test rows with replacement and recompute metrics *n_bootstrap* times.
-
-        ``y_true`` and ``y_score`` can be 1D (single label) or 2D (per-label columns).
-        ``metrics_fn`` is called once per resample on the subsampled arrays.
-        Degenerate resamples (<2 positives or <2 negatives) yield NaN-filled
-        metric dicts for that label inside ``metrics_fn`` — upstream.
-        """
-        rng = np.random.default_rng(seed)
-        n = len(y_true)
-        out = []
-        for _ in range(n_bootstrap):
-            idx = rng.integers(0, n, size=n)
-            if y_score.ndim == 1:
-                out.append(metrics_fn(y_true[idx], y_score[idx]))
-            else:
-                out.append(metrics_fn(y_true[idx], y_score[idx]))
-        return out

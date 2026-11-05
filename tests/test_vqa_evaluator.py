@@ -1,6 +1,6 @@
 """Tests for VQAEvaluator + VQA metrics using synthetic data.
 
-No model / NAS dependency — a fake answerer stands in for the VLM and a tiny
+No model and no data. A fake answerer stands in for the VLM, and a small
 in-memory harmonized DataFrame drives a BaseVQADataset. Exercises the
 MedGemma-protocol scoring (overall tokenized F1, closed yes/no accuracy,
 open token-F1/recall) end to end.
@@ -51,7 +51,7 @@ def test_extract_and_is_yes_no():
 
 # ── evaluator integration test ──────────────────────────────────────────────
 def _identity(sample: dict) -> dict:
-    # Keep img as-is (a path string); the fake answerer ignores the image.
+    # Keep img as it is (a path string). The fake answerer ignores the image.
     return sample
 
 
@@ -140,10 +140,9 @@ def test_bootstrap_row_count(synth_vqa):
 
     ev = VQAEvaluator(perfect, dataset=ds, batch_size=4, num_workers=0, n_bootstrap=5)
     df = ev.evaluate()
-    # The "overall" bucket is always present (non-empty pairs): 1 point
-    # estimate + 5 bootstrap resamples = 6 rows. closed/open buckets can be
-    # absent in a resample that happens to draw only one answer type, so the
-    # total is <= 3 * 6 = 18.
+    # The "overall" group is always there: 1 point estimate and 5 bootstrap samples give 6 rows.
+    # A bootstrap sample can draw only one answer type, and then it has no "closed" or "open" row.
+    # So the total is 18 rows (3 * 6) or fewer.
     assert (df["label"] == "overall").sum() == 6
     assert sorted(df["bootstrap"].unique()) == [-1, 0, 1, 2, 3, 4]
     assert len(df) <= 18
@@ -164,13 +163,20 @@ def test_answerer_ignoring_context_still_works(synth_vqa):
 
 # ── report-generation path (no RadEval): generation + indication plumbing ───
 class _StubReportDataset:
-    """Minimal stand-in exposing get_datasets(n_splits, num_cores)."""
+    """Minimal stand-in with get_datasets(n_splits, num_cores) and the harmonized table.
+
+    The evaluator names each pair by the ``image_path`` of its table row (D-46).
+    """
 
     def __init__(self, samples):
         self._samples = samples
 
     def get_datasets(self, n_splits=None, num_cores=0):
         return self._samples
+
+    def _get_harmonized_df(self):
+        return pd.DataFrame({"image_path": [s["img"] for s in self._samples],
+                             "patient_id": [f"p{i}" for i in range(len(self._samples))]})
 
 
 def test_report_generate_only_and_indication(tmp_path):
@@ -199,7 +205,8 @@ def test_report_generate_only_and_indication(tmp_path):
     out = ev.generate_only(str(tmp_path / "pairs.parquet"))
     df = pd.read_parquet(out)
 
-    assert list(df.columns) == ["sample_id", "reference", "hypothesis"]
+    assert list(df.columns) == ["sample_id", "reference", "hypothesis", "patient_id"]
+    assert df.iloc[0]["sample_id"] == "r0"
     assert df.iloc[0]["reference"] == "Patchy right base opacity."
     assert df.iloc[0]["hypothesis"] == "Right basilar consolidation."
     # The parsed indication was passed to the generator.
@@ -224,8 +231,19 @@ def test_report_no_indication_passes_none(tmp_path):
 
     ev = ReportGenerationEvaluator(gen, dataset=ds, num_workers=0)
     ev.generate_only(str(tmp_path / "p.parquet"))
-    # use_indication defaults False → contexts all None.
-    assert seen["indications"] == [None]
+    # use_indication defaults to False: the generator gets the images only.
+    assert seen["indications"] is None
+
+
+def test_report_use_indication_needs_a_two_argument_generator():
+    """D-52: a generator that cannot take the indications raises in __init__."""
+    from radharmony.evaluator.language.report_generation import (
+        ReportGenerationEvaluator,
+    )
+
+    ds = _StubReportDataset([{"img": "r2.png", "report": "FINDINGS: Clear lungs."}])
+    with pytest.raises(TypeError, match="2 arguments"):
+        ReportGenerationEvaluator(lambda imgs: ["x"] * len(imgs), dataset=ds, use_indication=True)
 
 
 # ── report parser: indication section ───────────────────────────────────────
@@ -243,3 +261,24 @@ def test_parse_indication_section():
     assert parse_report_section("FINDINGS: Clear lungs.", "indication") == ""
     # Sanity: findings/impression still parse.
     assert parse_report_section(report, "findings") == "No acute cardiopulmonary process."
+    # V-E-23: a lowercase "history:" in a sentence is not a header, so no findings text leaks in.
+    assert parse_report_section("FINDINGS: No history: of trauma. Lungs clear.", "indication") == ""
+    # One-line report: the indication stops at the next header in capitals.
+    assert parse_report_section("INDICATION: cough. FINDINGS: clear lungs. IMPRESSION: normal.",
+                                "indication") == "cough."
+    # MIMIC style with no FINDINGS header: the indication stops at the blank line.
+    mimic = "REASON FOR EXAMINATION: dyspnea.\n\n Heart size is normal.\n\n IMPRESSION: Normal."
+    assert parse_report_section(mimic, "indication") == "dyspnea."
+    assert parse_report_section("INDICATION: cough\nEXAMINATION: CXR\nFINDINGS: x", "indication") == "cough"
+
+
+def test_report_use_indication_with_a_full_reference_raises():
+    """The reference must not hold the indication that the generator gets as input."""
+    from radharmony.evaluator.language.report_generation import (
+        ReportGenerationEvaluator,
+    )
+
+    ds = _StubReportDataset([{"img": "r3.png", "report": "FINDINGS: Clear lungs."}])
+    with pytest.raises(ValueError, match="indication"):
+        ReportGenerationEvaluator(lambda imgs, inds: ["x"] * len(imgs), dataset=ds,
+                                  use_indication=True, ref_section="full")

@@ -2,15 +2,16 @@
 
 For the *embed* task the reportbench service writes one ``.npz`` per image holding
 ``global`` ``[dim]`` and ``patches`` ``[n_patches, dim]`` (+ a ``grid`` ``[H, W]``).
-Segmentation needs the **patch** level: this dataset folds ``patches`` back into a
-dense feature map ``[dim, H, W]`` (row-major, using the stored ``grid``; falling
-back to a square ``H=W=√n`` when ``grid`` is absent) and serves it under the
-sample's ``"img"`` key, plus the ground-truth ``"mask"`` from ``mask_path``.
+Segmentation needs the **patch** level. This dataset folds ``patches`` back into a
+dense feature map ``[dim, H, W]``. The fold is row-major and uses the stored
+``grid``. When ``grid`` is absent, the fold uses a square ``H=W=√n``. The dataset serves the map
+under the sample's ``"img"`` key, plus the ground-truth ``"mask"`` from
+``mask_path``.
 
-Paired with :class:`IdentityEncoder` the standard RadHarmony segmentation probes
-(``LinearProbeSegEvaluator`` and friends) consume the map with no image encode —
-the encoder forward becomes a pass-through — so a 1×1-conv (or conv/UPerNet) head
-trains on the frozen patch features and is scored with Dice/IoU.
+With :class:`IdentityEncoder`, the standard RadHarmony segmentation probes
+(``LinearProbeSegEvaluator`` and the related probes) take the map with no image
+encoding. The encoder forward pass becomes a pass-through. So a 1×1-conv (or
+conv/UPerNet) head trains on the frozen patch features, and Dice/IoU scores it.
 """
 
 from __future__ import annotations
@@ -35,9 +36,9 @@ def _load_patch_map(path, dtype=torch.float32, grid_key="grid", feat_size=None):
     Module-level (picklable for DataLoader workers). Uses the stored ``grid``
     ``(H, W)`` when present, else a square grid ``H=W=√n_patches`` (raising if
     ``n_patches`` is not a perfect square and no grid is given). When
-    ``feat_size`` is set the map is bilinearly resized to ``[D, feat_size,
-    feat_size]`` — needed to batch models whose grid varies per image
-    (e.g. Qwen2.5-VL dynamic resolution).
+    ``feat_size`` is set, the map is bilinearly resized to ``[D, feat_size,
+    feat_size]``. This is needed to batch models whose grid varies per image
+    (for example Qwen2.5-VL dynamic resolution).
     """
     z = np.load(path)
     if hasattr(z, "files"):
@@ -92,23 +93,23 @@ class PatchSegResultsDataset(BaseRadiologicalDataset):
     Args:
         embeddings_dir: Root holding the reportbench embed results
             (``<study>/<model>_<stem>.npz`` under ``_reportbench_out/<model>``).
-        harmonized_df / csv_path: Batch frame — **one row per image** — with
+        harmonized_df / csv_path: Batch frame with **one row per image**. It has
             ``patient_id`` / ``study_id`` / ``image_path`` and a segmentation-mask
             column (``mask_col``). Either this or ``csv_path`` is required.
         result_path: Callable ``row -> relative .npz path`` under
             ``embeddings_dir`` (use ``viewwise_embedding_path(model)``).
         mask_col: Column holding each image's mask path (default ``"mask_path"``).
         mask_dir: Root prepended to *relative* ``mask_col`` values (absolute paths
-            are used as-is). Masks live in their own tree — a sibling of the
-            reportbench embed outputs — so they resolve against ``mask_dir`` rather
-            than ``embeddings_dir``. Leave ``None`` when the column already holds
+            are used as-is). Masks live in their own tree, a sibling of the
+            reportbench embed outputs. So they resolve against ``mask_dir``, not
+            against ``embeddings_dir``. Leave ``None`` when the column already holds
             absolute paths.
         grid_key: ``.npz`` key with the patch grid ``(H, W)`` (default ``"grid"``).
-        mask_size: If set, masks are resized (nearest) to ``mask_size²`` — makes
-            them batchable and sets the probe's output resolution.
-        feat_size: If set, feature maps are resized to ``feat_size²`` — needed for
-            models whose patch grid varies per image (else the native grid is
-            used, which requires a fixed grid across the batch).
+        mask_size: If set, masks are resized (nearest) to ``mask_size²``. This
+            makes them batchable and sets the probe's output resolution.
+        feat_size: If set, feature maps are resized to ``feat_size²``. This is
+            needed for models whose patch grid varies per image. If not set, the
+            native grid is used, so the batch needs one fixed grid.
         cache_dir, dtype: as for the other datathon26 datasets.
     """
 
@@ -170,7 +171,7 @@ class PatchSegResultsDataset(BaseRadiologicalDataset):
             df["image_path"] = df.apply(self._result_path, axis=1).astype(str)
         else:
             df["image_path"] = df["study_id"].astype(str) + "/patches.npz"
-        # base emits 'mask' from the 'mask_path' column; honour a custom mask_col.
+        # base emits 'mask' from the 'mask_path' column. Copy a custom mask_col into it.
         if self._mask_col != "mask_path":
             df["mask_path"] = df[self._mask_col]
         # get_data_dict passes non-image path columns through verbatim (no base

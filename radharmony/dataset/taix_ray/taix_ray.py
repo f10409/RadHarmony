@@ -2,29 +2,34 @@
 
 TAIX-Ray ships in two configurations on HuggingFace:
 
-* ``data/`` — 512-pixel resized PNGs (~58 GB, 215,381 images)
-* ``original/`` — native-resolution PNGs (~1.27 TB, same images)
+* ``data/``: 512-pixel resized PNGs (~58 GB, 215,381 images)
+* ``original/``: native-resolution PNGs (~1.27 TB, same images)
 
-Both share the same metadata schema, harmonizer, and label set; only the
+Both share the same metadata schema, harmonizer, and label set. Only the
 on-disk image directory differs.  Use :class:`TAIXRay512Dataset` for the
 former and :class:`TAIXRayDataset` for the latter.
 
 Both classes expose two label representations via the ``label_mode`` arg:
 
-* ``"binary"`` (default) — any severity ≥ 1 maps to 1.0; matches the
+* ``"binary"`` (default): any severity ≥ 1 maps to 1.0. Matches the
   multi-label-binary convention used by CheXpert / MIMIC datasets and
   plugs into a standard BCE training loop.
-* ``"ordinal"`` — preserves the raw 0–4 severity grades (0–3 for heart
-  size); intended for ordinal-regression heads (e.g. CORN loss as in
+* ``"ordinal"``: preserves the raw 0–4 severity grades (0–3 for heart
+  size). Intended for ordinal-regression heads (for example CORN loss as in
   Truhn et al. 2026).
 
 Both classes also ship a :meth:`get_datasets_predefined` method that
 honours the dataset's own ``split`` column (the paper's official
 patient-level train / val / test partition).
+
+These two classes mix the train, val and test splits, and
+``get_datasets()`` ignores the ``split`` column. They are not for
+benchmarks. Use the split classes in ``taix_ray_split.py`` (for example
+:class:`TAIXRay512TrainDataset`).
 """
 
 import os
-from pathlib import Path
+import warnings
 
 import pandas as pd
 import torch
@@ -33,7 +38,7 @@ from radharmony.harmonizer import TAIXRayHarmonizer
 from radharmony.registry import register_dataset
 from radharmony.utils.data_utils import get_data_dict
 from radharmony.utils.infer import infer_path
-from ..base import BaseRadiologicalDataset
+from ..base import BaseRadiologicalDataset, _has_random_step
 from ..transforms import RadiologyTransform2D
 
 
@@ -53,7 +58,7 @@ class _TAIXRayDatasetBase(BaseRadiologicalDataset):
     """Shared logic for the two TAIX-Ray dataset variants.
 
     Args:
-        base_image_dir: Root of the PNG image tree (e.g.
+        base_image_dir: Root of the PNG image tree (for example
             ``…/TAIX-Ray/data_512/images/`` or ``…/TAIX-Ray/data_original/images/``).
         csv_path: Path to ``annotation.csv``.  Auto-discovered near
             ``base_image_dir`` when ``None``.
@@ -63,10 +68,10 @@ class _TAIXRayDatasetBase(BaseRadiologicalDataset):
         transform: MONAI Compose transform.  Defaults to standard 2-D pipeline.
         cache_dir: PersistentDataset cache directory.  ``None`` disables caching.
         output_cls: Yield label vector under key ``cls``.
-        output_mask / output_report / output_bbox: Not supported by TAIX-Ray
-            (no masks, no reports, no bboxes); silently ignored with a warning.
+        output_mask / output_report / output_bbox / output_reg: Not supported. TAIX-Ray has
+            no masks, reports or boxes. A warning, and no key (D-11).
         harmonized_df / harmonizer / harmonizer_path: Standard harmonizer
-            preset hooks; see :class:`BaseRadiologicalDataset`.
+            preset hooks. See :class:`BaseRadiologicalDataset`.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls"})
@@ -83,6 +88,7 @@ class _TAIXRayDatasetBase(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -102,7 +108,7 @@ class _TAIXRayDatasetBase(BaseRadiologicalDataset):
 
         # Infer base_image_dir from a saved harmonizer if needed.
         if harmonizer_path is not None and base_image_dir is None:
-            _h = TAIXRayHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -115,12 +121,15 @@ class _TAIXRayDatasetBase(BaseRadiologicalDataset):
                 "base_image_dir is required when harmonizer_path is not provided."
             )
 
+        # A UserWarning, not print(), so the caller can see and filter it (D-11).
         if output_mask:
-            print("Warning: TAIX-Ray has no segmentation masks; output_mask=True ignored.")
+            warnings.warn("TAIX-Ray has no segmentation masks; output_mask=True ignored.", UserWarning, stacklevel=2)
         if output_report:
-            print("Warning: TAIX-Ray has no radiology reports; output_report=True ignored.")
+            warnings.warn("TAIX-Ray has no radiology reports; output_report=True ignored.", UserWarning, stacklevel=2)
         if output_bbox:
-            print("Warning: TAIX-Ray has no bounding boxes; output_bbox=True ignored.")
+            warnings.warn("TAIX-Ray has no bounding boxes; output_bbox=True ignored.", UserWarning, stacklevel=2)
+        if output_reg:
+            warnings.warn("TAIX-Ray has no regression targets; output_reg=True ignored.", UserWarning, stacklevel=2)
 
         # Auto-discover annotation.csv only when not loading from a preset.
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
@@ -153,7 +162,7 @@ class _TAIXRayDatasetBase(BaseRadiologicalDataset):
                     f"Could not locate annotation.csv near {base_image_dir!r}; "
                     "pass csv_path= explicitly."
                 )
-            self._harmonizer = TAIXRayHarmonizer(csv_path=self._csv_path)
+            self._harmonizer = self._HARMONIZER_CLS(csv_path=self._csv_path)
 
     def _apply_label_mode(self, df: pd.DataFrame) -> pd.DataFrame:
         if self._label_mode == "binary":
@@ -186,7 +195,9 @@ class _TAIXRayDatasetBase(BaseRadiologicalDataset):
         Args:
             num_cores: Parallel workers for building data dicts.
             train_transform / val_transform / test_transform: Optional
-                per-split MONAI transform overrides.
+                per-split MONAI transform overrides. A split with ``None`` uses
+                the dataset transform. For val and test, a random step in it
+                gives a warning (D-49).
 
         Returns:
             ``(train_dataset, val_dataset, test_dataset)``.
@@ -210,6 +221,13 @@ class _TAIXRayDatasetBase(BaseRadiologicalDataset):
             if sub.empty:
                 raise ValueError(
                     f"Split '{split_name}' is empty in the harmonized DataFrame."
+                )
+            if transform is None and split_name != "train" and _has_random_step(self.transform):
+                warnings.warn(
+                    f"The dataset transform has a random step, and the {split_name} split uses it, because "
+                    f"{split_name}_transform is None. So the {split_name} images get augmentation. "
+                    f"Pass {split_name}_transform= with no random step (D-49).",
+                    stacklevel=2,
                 )
             dicts = get_data_dict(sub, self.base_image_dir, "image_path", cols, num_cores)
             out.append(self._make_dataset(dicts, cache_subdir=split_name, transform=transform))

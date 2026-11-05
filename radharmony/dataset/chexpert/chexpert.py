@@ -15,15 +15,18 @@ class CheXpertDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Root directory of the JPEG image tree
-            (e.g. ``CheXpert-v1.0/train/``).
-        csv_path: Path to the CheXpert metadata CSV (e.g. ``train.csv``).
+            (for example ``CheXpert-v1.0/train/``).
+        csv_path: Path to the CheXpert metadata CSV (for example ``train.csv``).
             When ``None``, ``train.csv`` / ``valid.csv`` are searched near
             ``base_image_dir`` using :func:`~radharmony.utils.infer.infer_path`.
         transform: MONAI transform pipeline. Defaults to the standard 2-D pipeline.
         cache_dir: Root directory for MONAI PersistentDataset cache.
         output_cls: Yield label vector under key ``cls``.
-        drop_uncertain: If ``True`` (default), rows with uncertain labels
-            (``-1`` → ``NaN``) are dropped.
+        drop_uncertain: If ``True`` (default), drop the rows with an uncertain label (``-1``).
+            With ``False``, ``-1`` stays in ``cls`` (D-05).
+        not_mentioned: ``"negative"`` (default) gives 0 for a blank label, ``"nan"`` keeps NaN (D-05).
+        output_mask / output_report / output_bbox / output_reg: Not supported. A warning,
+            and no key (D-11).
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls"})
@@ -54,13 +57,18 @@ class CheXpertDataset(BaseRadiologicalDataset):
         cache_dir: str = "./cache",
         output_cls: bool = False,
         drop_uncertain: bool = True,
+        not_mentioned: str = "negative",
         harmonized_df=None,
         harmonizer=None,
         harmonizer_path: str = None,
         dtype=torch.bfloat16,
+        output_mask: bool = False,
+        output_report: bool = False,
+        output_reg: bool = False,
+        output_bbox: bool = False,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = CheXpertHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = _h.base_image_dir
 
         if base_image_dir is None and harmonizer_path is None and harmonized_df is None and harmonizer is None:
@@ -69,6 +77,7 @@ class CheXpertDataset(BaseRadiologicalDataset):
             )
 
         self._drop_uncertain = drop_uncertain
+        self._not_mentioned = not_mentioned
         output_keys = {"img"}
         if output_cls:
             output_keys.add("cls")
@@ -78,6 +87,8 @@ class CheXpertDataset(BaseRadiologicalDataset):
                 base_image_dir,
                 "train.csv",
                 user_path=csv_path or "",
+                required=True,
+                arg="csv_path",
             ) or csv_path
 
         if transform is None:
@@ -90,6 +101,10 @@ class CheXpertDataset(BaseRadiologicalDataset):
             transform=transform,
             cache_dir=cache_dir,
             output_cls=output_cls,
+            output_mask=output_mask,  # not in SUPPORTED_OUTPUTS: the base class warns
+            output_report=output_report,
+            output_reg=output_reg,
+            output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
             harmonizer_path=harmonizer_path,
@@ -101,4 +116,5 @@ class CheXpertDataset(BaseRadiologicalDataset):
         preset = self._try_resolve_preset_harmonized()
         if preset is not None:
             return preset
-        return self._harmonizer.harmonize(drop_uncertain=self._drop_uncertain)  # only reached when harmonizer was constructed
+        # Only reached when the class built the harmonizer.
+        return self._harmonizer.harmonize(drop_uncertain=self._drop_uncertain, not_mentioned=self._not_mentioned)

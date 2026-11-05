@@ -4,23 +4,17 @@ Phrase grounding benchmark for chest X-rays with explicit phrase-to-bounding-box
 annotations. 1,047 images from MIMIC-CXR-JPG with 1,448 annotated
 (phrase, bounding box) pairs across 8 pathology categories.
 
-**Source (PhysioNet — requires MIMIC credentialed access):**
-  https://physionet.org/content/ms-cxr/
+Source: https://physionet.org/content/ms-cxr/ (MIMIC credentialed access).
+Cite: Boecking et al., Making the Most of Text Semantics to Improve Biomedical
+Vision-Language Processing, ECCV 2022. File needed:
+``MS_CXR_Local_Alignment_v1.1.0.csv``.
 
-**Cite:**
-  Boecking B, et al. Making the Most of Text Semantics to Improve Biomedical
-  Vision-Language Processing. ECCV 2022.
+Images: ``base_image_dir`` is the MIMIC-CXR ``files/`` folder (the code removes
+the leading ``files/`` of the CSV ``path`` column). It can be a MIMIC-CXR-JPG
+tree (``.jpg``, as in the CSV) or the MIMIC-CXR DICOM tree (``.dcm``). The
+code tests one file to find the extension, so no flag is needed.
 
-**Files needed:**
-  MS_CXR_Local_Alignment_v1.1.0.csv  (primary — from ms-cxr PhysioNet)
-
-**Images:** ``base_image_dir`` must point at the MIMIC-CXR ``files/`` directory
-  (the leading ``files/`` in the CSV ``path`` column is stripped). This may be
-  either a MIMIC-CXR-JPG tree (``.jpg``, as named in the CSV) or the MIMIC-CXR
-  DICOM tree (``.dcm``) — the extension is auto-detected by probing one file,
-  so no separate flag is needed.
-
-**Layout:**
+Layout:
 
     <csv_path>   ← MS_CXR_Local_Alignment_v1.1.0.csv
 
@@ -39,19 +33,20 @@ aggregated into parallel Python lists (``bbox`` / ``bbox_labels`` /
 ``label_text``).
 
 **Harmonized columns:**
-  ``patient_id``, ``study_id``, ``image_path``, ``split``,
-  ``bbox`` (JSON list of [x,y,w,h] per annotation),
-  ``bbox_labels`` (JSON list of category names),
-  ``label_text`` (JSON list of phrases),
-  ``image_width``, ``image_height``,
-  ``Atelectasis``, ``Cardiomegaly``, ``Consolidation``, ``Edema``,
-  ``Lung Opacity``, ``Pleural Effusion``, ``Pneumonia``, ``Pneumothorax``
+
+- ``patient_id``, ``study_id``, ``image_path``, ``split``.
+- ``bbox``: one ``[y_min, y_max, x_min, x_max]`` box per annotation, as fractions (D-07).
+- ``bbox_labels``: one category name per box. ``label_text``: one phrase per box.
+- ``image_width``, ``image_height``.
+- 8 labels: ``atelectasis``, ``cardiomegaly``, ``consolidation``, ``edema``,
+  ``lung_opacity``, ``pleural_effusion``, ``pneumonia``, ``pneumothorax``.
 """
 
 import os
 
 import pandas as pd
 
+from radharmony.harmonizer._bbox import box_label, clip_boxes
 from radharmony.harmonizer.base import BaseHarmonizer
 
 
@@ -73,10 +68,9 @@ class MSCXRHarmonizer(BaseHarmonizer):
 
     Args:
         csv_path: Path to ``MS_CXR_Local_Alignment_v1.1.0.csv``.
-        mimic_base_dir: MIMIC-CXR ``files/`` directory (JPG or DICOM tree).
-            Used to resolve image paths and auto-detect the on-disk extension;
-            not required if you only need the harmonized DataFrame without
-            image loading (defaults the extension to ``.jpg``).
+        mimic_base_dir: MIMIC-CXR ``files/`` folder (JPG or DICOM tree). It
+            resolves image paths and finds the file extension. Without it the
+            extension is ``.jpg``, which is fine if you do not load images.
     """
 
     LABEL_COLS = FINDING_COLS
@@ -105,11 +99,10 @@ class MSCXRHarmonizer(BaseHarmonizer):
     def _resolve_image_ext(self, sample_path: str) -> str:
         """Return the on-disk image extension under ``mimic_base_dir``.
 
-        The CSV names ``.jpg`` files (MIMIC-CXR-JPG). When ``base_image_dir``
-        instead points at the MIMIC-CXR DICOM tree, only ``.dcm`` files exist;
-        detect that by probing one file and fall back to ``.dcm``. Keeps ``.jpg``
-        when the base dir can't be checked so the DataFrame is still buildable
-        without images.
+        The CSV names ``.jpg`` files (MIMIC-CXR-JPG). If ``base_image_dir`` is
+        the MIMIC-CXR DICOM tree, only ``.dcm`` files exist. The code tests one
+        file and then uses ``.dcm``. It keeps ``.jpg`` if the folder cannot be
+        checked, so the table still builds without images.
         """
         default_ext = os.path.splitext(sample_path)[1] or ".jpg"
         if not self.mimic_base_dir:
@@ -121,46 +114,53 @@ class MSCXRHarmonizer(BaseHarmonizer):
                 return ext
         return default_ext
 
-    def harmonize(self, *args, **kwargs) -> pd.DataFrame:
-        raw = pd.read_csv(self.csv_path)
+    def preprocess(self, output_dir: str, preprocessor, base_image_dir: str = None, **kwargs) -> None:
+        """Run :meth:`BaseHarmonizer.preprocess`. ``base_image_dir`` defaults to ``mimic_base_dir``."""
+        super().preprocess(output_dir, preprocessor, base_image_dir=base_image_dir or self.mimic_base_dir,
+                           **kwargs)
 
-        # The v1.1.0 CSV has no subject_id / study_id columns — only a MIMIC-style
-        # ``path`` (files/p10/p10233088/s54276838/<dicom_id>.jpg). Derive the IDs
-        # from the path components (strip the leading p/s to match MIMIC-CXR's
-        # numeric subject_id / study_id convention).
+    def preprocess_masks(self, *args, **kwargs) -> None:
+        """Raise ``ValueError``: MS-CXR has boxes, not masks, so ``mask_output_dir`` is an error."""
+        raise ValueError("MS-CXR has boxes, not masks. Leave mask_output_dir as None.")
+
+    def _read_source(self) -> pd.DataFrame:
+        """Read the CSV and return one row per image, with its boxes, phrases and labels."""
+        raw = super()._read_source()
+
+        # The v1.1.0 CSV has no subject_id or study_id. It has only a MIMIC
+        # ``path`` (files/p10/p10233088/s54276838/<dicom_id>.jpg). Take the IDs
+        # from the path. Remove the leading p and s to match the MIMIC numbers.
         path_parts = raw["path"].str.split("/", expand=True)
         raw["_patient_id"] = path_parts[2].str.lstrip("p")
         raw["_study_id"] = path_parts[3].str.lstrip("s")
 
-        # Decide the on-disk image extension. base_image_dir may point at either
-        # a MIMIC-CXR-JPG tree (.jpg, as named in the CSV) or the MIMIC-CXR DICOM
-        # tree (.dcm). Probe one file and swap the extension across the board when
-        # only the DICOM variant is present.
+        # base_image_dir can be a JPG tree or a DICOM tree. Test one file, and
+        # use .dcm for all paths if only DICOM files exist.
         img_ext = self._resolve_image_ext(raw["path"].iloc[0])
 
-        # --- aggregate per image ---
         rows = []
-        for dicom_id, group in raw.groupby("dicom_id", sort=False):
+        for _, group in raw.groupby("dicom_id", sort=False):
             first = group.iloc[0]
 
-            # binary finding flags
+            # Binary finding flags.
             findings = {col: 0 for col in FINDING_COLS}
             for cat in group["category_name"]:
                 col = _CAT_TO_COL.get(cat)
                 if col:
                     findings[col] = 1
 
-            # aggregated bbox and phrase lists
-            # Convert pixel [x, y, w, h] → normalized [y_min, y_max, x_min, x_max]
-            # to match the RadHarmony bbox convention expected by the transform pipeline.
+            # Lists of boxes and phrases.
+            # Convert pixel [x, y, w, h] to normalized [y_min, y_max, x_min, x_max],
+            # the bbox format of the transform pipeline.
+            # Python floats, not numpy floats: a CSV export then keeps JSON text (V-H2-35).
             img_w = int(first["image_width"])
             img_h = int(first["image_height"])
             norm_bboxes = [
                 [
-                    row_b["y"] / img_h,
-                    (row_b["y"] + row_b["h"]) / img_h,
-                    row_b["x"] / img_w,
-                    (row_b["x"] + row_b["w"]) / img_w,
+                    float(row_b["y"] / img_h),
+                    float((row_b["y"] + row_b["h"]) / img_h),
+                    float(row_b["x"] / img_w),
+                    float((row_b["x"] + row_b["w"]) / img_w),
                 ]
                 for _, row_b in group[["x", "y", "w", "h"]].iterrows()
             ]
@@ -180,7 +180,7 @@ class MSCXRHarmonizer(BaseHarmonizer):
                 # Stored as Python lists (VinDr convention) so the transform
                 # pipeline and app receive parsed boxes/labels, not JSON strings.
                 "bbox":       norm_bboxes,
-                "bbox_labels": categories,
+                "bbox_labels": [box_label(c) for c in categories],
                 "label_text": phrases,
                 "image_width":  int(first["image_width"]),
                 "image_height": int(first["image_height"]),
@@ -188,7 +188,17 @@ class MSCXRHarmonizer(BaseHarmonizer):
             row.update(findings)
             rows.append(row)
 
-        self.df = pd.DataFrame(rows)
-        self.df.reset_index(drop=True, inplace=True)
+        return pd.DataFrame(rows)
 
-        return self._select_harmonized_columns(self.df)
+    # _read_source() gives patient_id, study_id and image_path.
+    def _build_patient_id(self) -> None:
+        pass
+
+    def _build_study_id(self) -> None:
+        pass
+
+    def _build_image_path(self) -> None:
+        pass
+
+    def _build_bbox(self) -> None:
+        clip_boxes(self.df, "MS-CXR", per_box=("bbox_labels", "label_text"))  # D-07

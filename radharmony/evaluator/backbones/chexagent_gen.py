@@ -1,7 +1,7 @@
-"""Generative CheXagent-2 backbone — report generation (Stage A of two-stage).
+"""Generative CheXagent-2 backbone, report generation (Stage A of two-stage).
 
 Distinct from :func:`backbones.chexagent.make_chexagent` (XraySigLIP, a
-contrastive *encoder* — no text generation).
+contrastive *encoder*, no text generation).
 
 Loading follows the **official StanfordAIMI/CheXagent-2-3b model card**
 verbatim (verified 2026-05-19):
@@ -18,38 +18,37 @@ verbatim (verified 2026-05-19):
                            max_new_tokens=512)[0]
     resp  = tokenizer.decode(out[ids.size(1):-1])
 
+One change: the recipe loads with ``device_map=device``, not ``"auto"``. So
+the model stays on the ``device`` argument (V-B-15).
+
 CheXagent-2 consumes image **file paths**, not pixel tensors. So this
 recipe's "transform" is a thin callable that converts each sample's image
 (any MONAI-readable format incl. DICOM) to a temporary PNG and yields its
-**path** under ``img`` (kept as a string — no ToTensor), leaving ``report``
+**path** under ``img`` (kept as a string, no ToTensor), leaving ``report``
 untouched. The returned ``report_generator`` then takes a list of those
 PNG paths.
 
 DEPENDENCY ISOLATION: CheXagent-2 pins ``transformers==4.40.0`` (model card).
-That conflicts with RadEval / RadHarmony's other extras, so this runs in its
-**own env** (the ``chexagent_gen`` extra) and only produces (id, ref, hyp)
-pairs — scoring (RadEval) happens in a separate env. See the two-stage
+That conflicts with RadEval / RadHarmony's other extras. So this runs in its
+**own env** (the ``chexagent_gen`` extra) and only makes (id, ref, hyp)
+pairs. Scoring (RadEval) happens in a separate env. See the two-stage
 runbook in ``migration/HANDOFF.md``.
 """
 
 from __future__ import annotations
 
 import os
-import tempfile
+import warnings
 from typing import Callable
 
 import monai.transforms as mt
 import torch
 
-from ._utils import normalize_to_uint8, squeeze_frame_dim, to_3channel, to_pil_rgb
+from ._utils import (
+    display_255, load_image, png_cache_dir, png_path, squeeze_frame_dim, to_3channel, to_pil_rgb, to_uint8,
+)
 
 _CHEXAGENT_GEN_HUB = "StanfordAIMI/CheXagent-2-3b"
-_DEFAULT_PROMPT = (
-    "Write the FINDINGS and IMPRESSION sections of a chest radiograph "
-    "report for this image as a clinical narrative paragraph."
-)  # A ready-made single-shot prompt: pass prompt=_DEFAULT_PROMPT (or your own
-   # string) to make_chexagent_generator to use the single-call path. The
-   # default (prompt=None) uses the multi-step ABCDE recipe below.
 
 # Multi-step "ABCDE" recipe from the official Stanford-AIMI/CheXagent demo
 # (commit e4f31e6e, demos/app_demo.py): one generation call per anatomy →
@@ -84,70 +83,72 @@ def make_chexagent_generator(
     Prompting
     ---------
     prompt :
-        Controls the generation strategy:
-
-        - ``None`` (default) → the multi-step **ABCDE** recipe (one call per
-          anatomy → concatenate findings → one impression call), matching the
-          official Stanford-AIMI demo.
-        - a **string** → single-shot: one image call with that prompt (e.g.
-          ``prompt=_DEFAULT_PROMPT`` or your own instruction).
+        ``None`` (default) runs the multi-step ABCDE recipe of the official
+        Stanford-AIMI demo: one call per anatomy, then one impression call over
+        the joined findings. A string makes one call per image with that prompt
+        and returns the answer as it is.
     findings_prompts :
-        Override the ABCDE per-anatomy findings prompts (list of strings).
-        Only used on the multi-step path (``prompt is None``). Defaults to the
-        demo's five anatomy prompts.
+        Replace the 5 ABCDE findings prompts (list of strings). Used only when
+        ``prompt is None``. Default: the 5 anatomy prompts of the demo.
     impression_prompt :
-        Override the impression template on the multi-step path. Must contain
-        a ``{findings}`` placeholder. Defaults to the demo's template.
+        Replace the impression template. Used only when ``prompt is None``. It
+        must hold a ``{findings}`` placeholder. Default: the demo template.
 
-    In every case, if the evaluator passes a per-image indication (via
-    ``use_indication=True``), it is prepended to the prompt(s) as clinical
-    context.
+    With ``use_indication=True``, the evaluator gives an indication for each image.
+    The generator puts it before each image prompt as clinical context: the 5
+    findings prompts, or ``prompt``. The impression call does not get it.
 
     transform : callable ``sample_dict -> sample_dict``
-        Converts ``sample["img"]`` (an absolute image path placed there by
-        the RadHarmony dataset before transforms run) to a temp PNG and
-        stores the PNG **path string** back under ``img``; passes
+        Converts ``sample["img"]`` (an absolute image path) to a temp PNG
+        and stores the PNG **path string** back under ``img``. Passes
         ``report`` through unchanged. Plain callable (not a MONAI Compose)
-        on purpose — we must keep ``img`` a string for CheXagent-2.
+        on purpose. We must keep ``img`` a string for CheXagent-2.
     report_generator : callable ``(img_paths, indications=None) -> list[str]``
-        Input: PNG path strings (one per image) + optional indications.
-        Output: generated reports.
+        Input: PNG path strings (one per image), and an optional indication
+        for each image. Output: generated reports.
     """
-    findings_prompts = findings_prompts or _FINDINGS_PROMPTS
-    impression_tmpl = impression_prompt or _IMPRESSION_PROMPT_TMPL
+    if prompt is not None and (findings_prompts is not None or impression_prompt is not None):
+        warnings.warn("findings_prompts and impression_prompt are not used when prompt is set (D-52).",
+                      UserWarning, stacklevel=2)
+    findings_prompts = _FINDINGS_PROMPTS if findings_prompts is None else list(findings_prompts)
+    if not findings_prompts:
+        raise ValueError("findings_prompts is empty. Pass None for the 5 prompts of the demo.")
+    impression_tmpl = _IMPRESSION_PROMPT_TMPL if impression_prompt is None else impression_prompt
+    if "{findings}" not in impression_tmpl:
+        raise ValueError("impression_prompt must hold a {findings} placeholder.")
     from transformers import (  # lazy: needs transformers==4.40.0 (card)
         AutoModelForCausalLM,
         AutoTokenizer,
     )
 
     tokenizer = AutoTokenizer.from_pretrained(hub, trust_remote_code=True)
+    # The model card uses device_map="auto", which can spread the model over all
+    # visible GPUs. device_map=device keeps the whole model on device (V-B-15).
     model = AutoModelForCausalLM.from_pretrained(
-        hub, device_map="auto", trust_remote_code=True
+        hub, device_map=device, trust_remote_code=True
     )
     model = model.to(dtype).eval()
 
-    _tmp = tmp_dir or tempfile.mkdtemp(prefix="chexagent_png_")
-    os.makedirs(_tmp, exist_ok=True)
+    _tmp = png_cache_dir(tmp_dir, "chexagent_png_")
 
     # Any MONAI-readable image (PNG/JPEG/DICOM/NIfTI) → uint8 3-channel.
     _loader = mt.Compose(
         [
-            mt.LoadImage(image_only=True, ensure_channel_first=True),
+            load_image(),
             mt.Lambda(squeeze_frame_dim),
             mt.Transpose(indices=[0, 2, 1]),
+            mt.Lambda(display_255),
             mt.Lambda(to_3channel),
-            mt.Lambda(normalize_to_uint8),
+            mt.Lambda(to_uint8),
         ]
     )
 
     def transform(sample: dict) -> dict:
         src = str(sample["img"])
-        png = os.path.join(
-            _tmp, os.path.splitext(os.path.basename(src))[0] + ".png"
-        )
+        png = png_path(_tmp, src)
         if not os.path.exists(png):
             to_pil_rgb(_loader(src).float()).save(png)
-        sample["img"] = png  # keep as string path — do NOT tensorize
+        sample["img"] = png  # keep as string path, do NOT tensorize
         return sample
 
     def _one_gen(input_ids):
@@ -158,7 +159,7 @@ def make_chexagent_generator(
             use_cache=True, max_new_tokens=max_new_tokens,
         )[0]
         text = tokenizer.decode(gen[input_ids.size(1):-1])
-        # The demo's clean_text — drop trailing </s>.
+        # The demo's clean_text, drop trailing </s>.
         return text.replace("</s>", "").strip()
 
     def _ask_with_image(path: str, prompt_text: str) -> str:
@@ -180,30 +181,29 @@ def make_chexagent_generator(
         )
 
     @torch.no_grad()
-    def report_generator(img_paths, indications=None) -> list[str]:
+    def report_generator(img_paths: list[str], indications: list[str | None] | None = None) -> list[str]:
         """Official Stanford-AIMI/CheXagent demo recipe (`demos/app_demo.py`):
-        step 1 — 5 anatomy-specific findings calls + concatenate; step 2 —
+        Step 1: 5 anatomy-specific findings calls + concatenate. Step 2:
         impression call (text-only) over the concatenated findings.
         Produces free-text-style reports, NOT the single-shot grounded
         markup the original prompt yielded.
 
-        ``indications`` (optional): a per-image list of clinical-indication
-        strings (``None`` entries → none). When present, the indication is
-        prepended to each anatomy findings prompt as clinical context.
+        ``indications`` is optional: one indication text per image (``None``
+        for none). It goes before each image prompt. The impression call does not get it.
         """
         inds = indications if indications is not None else [None] * len(img_paths)
         out: list[str] = []
-        for path, ind in zip(img_paths, inds):
+        for path, ind in zip(img_paths, inds, strict=True):
             prefix = f"Clinical indication: {ind}. " if ind else ""
 
             if prompt is not None:
-                # Single-shot path: one image call with the custom prompt.
+                # One call per image with the given prompt. The answer is kept as it is.
                 out.append(_ask_with_image(str(path), prefix + prompt))
                 continue
 
-            # Step 1: ABCDE findings (skip the "Determine the view" prefix —
+            # Step 1: ABCDE findings (skip the "Determine the view" prefix):
             # the demo discards its output, but we still keep parity by not
-            # accumulating it).
+            # accumulating it.
             findings_parts = []
             for fp in findings_prompts:
                 findings_parts.append(_ask_with_image(str(path), prefix + fp))

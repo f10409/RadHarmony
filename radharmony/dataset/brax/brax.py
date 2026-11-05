@@ -4,21 +4,20 @@ BRAX ships both DICOM (under ``Anonymized_DICOMs/``) and PNG (under
 ``images/``) variants in the same PhysioNet download.  Two thin dataset
 classes share a single :class:`BRAXHarmonizer`:
 
-* :class:`BRAXDataset` — DICOM, ``image_format="dicom"``
-* :class:`BRAXPNGDataset` — PNG, ``image_format="png"``
+* :class:`BRAXDataset`: DICOM, ``image_format="dicom"``
+* :class:`BRAXPNGDataset`: PNG, ``image_format="png"``
 
 Both expect ``base_image_dir`` to point at the **BRAX root** (the directory
 containing ``master_spreadsheet.csv``, ``Anonymized_DICOMs/``, and
 ``images/``).  ``image_path`` in the harmonized DataFrame includes the
 ``Anonymized_DICOMs/`` or ``images/`` prefix exactly as written in the
-master CSV — joining ``base_image_dir`` + ``image_path`` resolves to the
-on-disk file.
+master CSV. Joining ``base_image_dir`` + ``image_path`` gives the on-disk file.
 
 Labels are CheXpert-aligned (14 classes).  ``uncertain_strategy`` controls
-how the labeller's ``-1`` (uncertain) cells are mapped — the default
-``"u_zeros"`` retains every row by treating uncertain mentions as
-negative (matches the most-cited CheXpert-paper baseline).  Reports are
-not distributed in BRAX 1.1.0; ``output_report`` is ignored.
+how the labeller's ``-1`` (uncertain) cells are mapped.  The default
+``"raw"`` keeps the source codes 1, 0, -1 and NaN, so ``cls`` can hold -1
+(D-05).  ``"u_zeros"`` gives 0 for both -1 and NaN.  Reports are not
+distributed in BRAX 1.1.0, so ``output_report`` gives a warning and no key.
 """
 
 import os
@@ -56,25 +55,27 @@ class _BRAXDatasetBase(BaseRadiologicalDataset):
     """Shared logic for the two BRAX dataset variants.
 
     Args:
-        base_image_dir: BRAX root (e.g.
+        base_image_dir: BRAX root (for example
             ``/data/physionet.org/files/brax/1.1.0/``).  Contains
             ``master_spreadsheet.csv``, ``Anonymized_DICOMs/``, and ``images/``.
         csv_path: Path to ``master_spreadsheet.csv``.  Auto-inferred near
             ``base_image_dir`` when ``None``.
         uncertain_strategy: How to map ``-1`` (uncertain) label cells.
-            One of ``"raw"`` (default — preserves the source ``1 / 0 / -1
+            One of ``"raw"`` (default, preserves the source ``1 / 0 / -1
             / NaN`` encoding exactly), ``"u_zeros"``, ``"u_ones"``,
             ``"u_ignore"``, ``"drop"``.  See :class:`BRAXHarmonizer` for
             semantics.  Note: with ``"raw"`` and ``output_cls=True`` the
-            yielded ``cls`` tensor will contain ``-1`` for uncertain
-            findings; downstream loss functions must handle it.
+            yielded ``cls`` tensor contains ``-1`` for uncertain
+            findings. Downstream loss functions must handle it.
         transform: MONAI Compose transform.  Defaults to standard 2-D pipeline.
         cache_dir: PersistentDataset cache directory.  ``None`` disables caching.
         output_cls: Yield label vector under key ``cls``.
-        output_mask / output_report / output_bbox: Not supported; warn-and-ignore.
+        output_mask / output_report / output_bbox / output_reg: Not supported. Each gives a warning.
     """
 
     LABEL_COLS = _LABEL_COLS
+    #: Labels only: BRAX has no masks, boxes, reports or regression targets (D-11).
+    SUPPORTED_OUTPUTS: frozenset = frozenset({"cls"})
     _HARMONIZER_CLS = BRAXHarmonizer
     _IMAGE_FORMAT: str = "dicom"  # overridden in subclasses
 
@@ -88,6 +89,7 @@ class _BRAXDatasetBase(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -100,7 +102,7 @@ class _BRAXDatasetBase(BaseRadiologicalDataset):
             csv_path = os.path.expanduser(csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = BRAXHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -180,6 +182,7 @@ class _BRAXDatasetBase(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,

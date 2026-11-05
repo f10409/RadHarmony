@@ -1,29 +1,23 @@
-"""Harmonizer for the RANZCR CLiP catheter & line classification dataset.
+"""Harmonizer for the RANZCR CLiP catheter and line classification dataset.
 
-Source: Kaggle competition ``ranzcr-clip-catheter-line-classification`` (the
-Royal Australian and New Zealand College of Radiologists 2021 challenge).
-Kaggle is the primary distribution channel for this dataset.
-
-Layout after ``kagglehub.competition_download``::
+Source: the Kaggle competition ``ranzcr-clip-catheter-line-classification`` (RANZCR 2021).
+Kaggle is the primary channel. Layout after ``kagglehub.competition_download``::
 
     <base_image_dir>/
-      train.csv                  # StudyInstanceUID, PatientID, 11 label cols
-      train_annotations.csv      # StudyInstanceUID, label, data (polyline pts)
+      train.csv                  # StudyInstanceUID, PatientID, 11 label columns
+      train_annotations.csv      # StudyInstanceUID, label, data (polyline points)
       sample_submission.csv      # test SOP UIDs (no labels)
-      train/
-        <StudyInstanceUID>.jpg   # ~30k frontal CXRs
-      test/
-        <StudyInstanceUID>.jpg   # competition holdout, no labels
+      train/<StudyInstanceUID>.jpg   # about 30K frontal CXRs
+      test/<StudyInstanceUID>.jpg    # competition holdout, no labels
 
-Train and test rows are both emitted; a ``split`` column distinguishes them.
-Test rows have NaN for every label column (no public labels).
+By default, the class gives the train rows and the test rows. The ``split`` column tells
+them apart. A test row has NaN in every label column. This mixes the splits, so do not use it
+for a benchmark. Use :class:`RANZCRClipTrainHarmonizer` (labeled rows) and
+:class:`RANZCRClipTestHarmonizer` (unlabeled test images, D-25).
 
-The 11 binary multi-label targets describe whether each catheter / line is
-positioned correctly.  Raw CSV column names use ``"CVC - Abnormal"`` style;
-the base-class default snake-casing (``lower().replace(" ", "_")``) would
-produce ``"cvc_-_abnormal"`` which preserves the dash.  We rename explicitly
-to clean snake form (``"cvc_abnormal"``) in :meth:`_build_labels` and define
-``LABEL_COLS`` as the clean names so ``_label_columns_for_output`` matches.
+The 11 binary labels say whether each catheter or line is placed right. The CSV names look like
+``"CVC - Abnormal"``. The base snake-case rule would give ``"cvc_-_abnormal"`` (with the dash).
+:meth:`_build_labels` renames them to ``"cvc_abnormal"``, and ``LABEL_COLS`` has the clean names.
 """
 
 import json
@@ -34,7 +28,7 @@ import pandas as pd
 from ..base import BaseHarmonizer
 
 
-# Mapping from raw CSV column name -> clean snake_case label name.
+# CSV column name and the clean label name.
 _RAW_TO_SNAKE = {
     "CVC - Abnormal": "cvc_abnormal",
     "CVC - Borderline": "cvc_borderline",
@@ -55,16 +49,14 @@ class RANZCRClipHarmonizer(BaseHarmonizer):
 
     Args:
         csv_path: Path to ``train.csv``.
-        base_image_dir: Root of the Kaggle download (contains ``train/`` and
-            ``test/`` JPEG dirs plus the CSVs).
-        annotations_csv_path: Path to ``train_annotations.csv``.  Required
-            only when masks are needed; pass ``None`` to skip mask building.
-        mask_line_thickness: Pixel width passed to ``cv2.polylines`` when
-            rasterizing polylines into masks.  Default 15 mirrors the kernel
-            used by the official challenge starter notebook.
-        include_test_split: When ``True`` (default), append rows for every
-            JPEG under ``<base_image_dir>/test/`` with ``split="test"`` and
-            NaN labels.
+        base_image_dir: Root of the Kaggle download (the ``train/`` and ``test/`` JPEG folders
+            and the CSVs).
+        annotations_csv_path: Path to ``train_annotations.csv``. Needed only for masks. Use
+            ``None`` for no masks.
+        mask_line_thickness: Line width in pixels for ``cv2.polylines`` when the polylines
+            become masks. The default 15 is the value of the official starter notebook.
+        include_test_split: If ``True`` (default), add a row with ``split="test"`` and NaN
+            labels for each JPEG in ``<base_image_dir>/test/``.
     """
 
     LABEL_COLS = [
@@ -121,14 +113,9 @@ class RANZCRClipHarmonizer(BaseHarmonizer):
         snap["include_test_split"] = self.include_test_split
         return snap
 
-    # ------------------------------------------------------------------
-    # Build hooks
-    # ------------------------------------------------------------------
-
     def _build_patient_id(self) -> None:
-        # Train rows have a real PatientID; test rows have it as NaN and
-        # fall back to study_id.  fillna must run *before* astype(str) — a
-        # NaN cast to str becomes "<NA>" / "nan" and then fillna is a no-op.
+        # A test row has no PatientID and uses the study ID. Run fillna before astype(str),
+        # because a NaN turns into the text "nan".
         if "PatientID" in self.df.columns:
             self.df["patient_id"] = (
                 self.df["PatientID"]
@@ -142,31 +129,29 @@ class RANZCRClipHarmonizer(BaseHarmonizer):
         self.df["study_id"] = self.df["StudyInstanceUID"].astype(str)
 
     def _build_image_path(self) -> None:
-        # split column is stamped before this hook runs in our custom harmonize().
+        # _read_source() sets the split column.
         self.df["image_path"] = (
             self.df["split"] + "/" + self.df["StudyInstanceUID"].astype(str) + ".jpg"
         )
 
     def _build_labels(self) -> None:
-        # Rename raw CSV cols (e.g. "CVC - Abnormal") to clean snake form so
-        # base._label_columns_for_output matches LABEL_COLS exactly.
+        # The names must match LABEL_COLS for ``_label_columns_for_output``.
         rename = {raw: snake for raw, snake in _RAW_TO_SNAKE.items() if raw in self.df.columns}
         if rename:
             self.df.rename(columns=rename, inplace=True)
 
     def _build_mask_path(self) -> None:
-        """Aggregate polylines per StudyInstanceUID into a JSON string in ``mask_path``.
+        """Put the polylines of each StudyInstanceUID into ``mask_path`` as JSON text.
 
-        ``train_annotations.csv`` has one row per (StudyInstanceUID, label,
-        polyline).  We collapse them into a list of lists of ``[x, y]`` pairs
-        per study and JSON-encode so the value can be carried as a single
-        string column through merges and ``_decode_mask``.
+        ``train_annotations.csv`` has one row for each (StudyInstanceUID, label, polyline).
+        The harmonizer makes one list of ``[x, y]`` lists for each study. One text column
+        carries it through the merges and into ``_decode_mask``.
         """
         if self.annotations_csv_path is None:
             return
 
         ann = pd.read_csv(self.annotations_csv_path)
-        # data column is a stringified Python list, e.g. "[[123, 456], [125, 460]]"
+        # ``data`` is list text, for example "[[123, 456], [125, 460]]".
         ann["polyline"] = ann["data"].apply(json.loads)
         agg = (
             ann.groupby("StudyInstanceUID")["polyline"]
@@ -180,12 +165,11 @@ class RANZCRClipHarmonizer(BaseHarmonizer):
         self.df = self.df.merge(agg, on="StudyInstanceUID", how="left")
 
     def _decode_mask(self, mask_str: str, width: int, height: int):
-        """Rasterize aggregated polylines into a binary (H, W) uint8 mask.
+        """Draw the polylines as a binary (H, W) uint8 mask.
 
-        ``mask_str`` is the JSON produced by :meth:`_build_mask_path` —
-        a list of polylines, each a list of ``[x, y]`` integer points in
-        original image pixel space.  Returns ``None`` for rows without
-        annotations (NaN / empty).
+        ``mask_str`` is the JSON of :meth:`_build_mask_path`: polylines of ``[x, y]`` integer
+        points in pixels of the original image. A row with no annotation (NaN or empty)
+        returns ``None``.
         """
         if not isinstance(mask_str, str) or not mask_str.strip() or mask_str == "nan":
             return None
@@ -212,15 +196,10 @@ class RANZCRClipHarmonizer(BaseHarmonizer):
             )
         return mask
 
-    # ------------------------------------------------------------------
-    # Test split discovery
-    # ------------------------------------------------------------------
-
     def _build_test_rows(self) -> pd.DataFrame:
-        """Walk ``<base_image_dir>/test/`` and return one row per JPEG.
+        """Return one row for each JPEG in ``<base_image_dir>/test/``.
 
-        All label columns are populated as NaN so the resulting rows align
-        with the train DataFrame's schema after concat.
+        All label columns are NaN, so the rows fit the train table.
         """
         test_dir = os.path.join(self.base_image_dir, "test") if self.base_image_dir else None
         if not test_dir or not os.path.isdir(test_dir):
@@ -240,25 +219,8 @@ class RANZCRClipHarmonizer(BaseHarmonizer):
         rows["split"] = "test"
         return rows
 
-    # ------------------------------------------------------------------
-    # Custom harmonize: combine train + test, build standard columns
-    # ------------------------------------------------------------------
-
-    def harmonize(
-        self,
-        mask_output_dir: str = None,
-        mask_num_cores: int = 1,
-        **kwargs,
-    ) -> pd.DataFrame:
-        """Read train.csv, optionally append test rows, build standard columns.
-
-        If ``mask_output_dir`` is given and ``annotations_csv_path`` was set,
-        polylines are rasterized and written as PNGs and ``mask_path`` is
-        rewritten to point at the saved files (mirrors the base class flow
-        for RLE-mask datasets).
-        """
-        self._harmonized_df_override = None
-
+    def _read_source(self) -> pd.DataFrame:
+        """Read ``train.csv``. Add the test rows if ``include_test_split``."""
         train_df = pd.read_csv(self.csv_path)
         train_df["split"] = "train"
 
@@ -267,31 +229,7 @@ class RANZCRClipHarmonizer(BaseHarmonizer):
             if not test_df.empty:
                 train_df = pd.concat([train_df, test_df], ignore_index=True)
 
-        self.df = train_df
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_image_path()
-        self._build_labels()
-        self._build_view_position()
-        self._build_mask_path()
-        self._build_bbox()
-        self._build_report()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
-
-        if mask_output_dir is not None and "mask_path" in self.df.columns:
-            self.preprocess_masks(
-                output_dir=mask_output_dir,
-                num_cores=mask_num_cores,
-            )
-
-        return self._select_harmonized_columns(self.df)
-
-    # ------------------------------------------------------------------
-    # Mask preprocessing convenience
-    # ------------------------------------------------------------------
+        return train_df
 
     def preprocess_masks(
         self,
@@ -299,7 +237,12 @@ class RANZCRClipHarmonizer(BaseHarmonizer):
         base_image_dir: str = None,
         num_cores: int = 1,
     ) -> None:
-        """Decode polyline JSON strings to PNGs, defaulting base_image_dir."""
+        """Decode the polyline JSON to PNG files. ``base_image_dir`` defaults to the own one.
+
+        With no ``annotations_csv_path``, the table has no ``mask_path``, so it does nothing.
+        """
+        if self.annotations_csv_path is None:
+            return
         super().preprocess_masks(
             output_dir=output_dir,
             base_image_dir=base_image_dir or self.base_image_dir,

@@ -1,9 +1,10 @@
 """Foundation-model downstream-task evaluators for RadHarmony.
 
-Ships classification evaluators (linear/kNN/SVM/prototype probe, zero-shot,
-minimal fine-tune), a frozen-feature segmentation linear probe, and a language
-evaluator (:class:`ReportGenerationEvaluator` — VLM report generation scored
-with the RadEval metric suite).
+This package has classification evaluators (linear, kNN, SVM and prototype
+probe, zero-shot, minimal fine-tune), frozen-feature segmentation probes, and
+a language evaluator. The language evaluator is
+:class:`ReportGenerationEvaluator`: VLM report generation scored with the
+RadEval metric suite.
 """
 
 from .base import BaseEvaluator

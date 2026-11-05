@@ -16,7 +16,7 @@ class ChestImaGenomeSilverDataset(BaseRadiologicalDataset):
     """2-D MONAI dataset for Chest ImaGenome silver (auto-generated scene graphs).
 
     The full ~240k-image auto-labeled release with official train/valid/test
-    splits.  Pixels come from the MIMIC-CXR **DICOM** tree; each sample carries
+    splits.  Pixels come from the MIMIC-CXR **DICOM** tree. Each sample carries
     up to ~36 anatomical-region bounding boxes with per-box anatomy
     (``bbox_labels``) and per-box findings (harmonized ``bbox_findings``
     column).  See
@@ -24,21 +24,21 @@ class ChestImaGenomeSilverDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Root of the MIMIC-CXR DICOM file tree (children are
-            ``p10/``, ``p11/`` ...), e.g. ``.../MIMIC-CXR-V2-AWS/files/``.
+            ``p10/``, ``p11/`` ...), for example ``.../MIMIC-CXR-V2-AWS/files/``.
         annotation_dir: Chest ImaGenome release root (contains
-            ``silver_dataset/``), e.g. ``/data/CHEST-IMAGENOME/``.
+            ``silver_dataset/``), for example ``/data/CHEST-IMAGENOME/``.
         split: One of ``"all"`` (default), ``"train"``, ``"valid"``, ``"test"``.
         transform: MONAI Compose transform. Defaults to standard 2-D pipeline.
         cache_dir: PersistentDataset cache directory. ``None`` disables caching.
         output_bbox: Yield boxes under ``bbox`` and anatomy under ``bbox_labels``
             (default ``True`` - boxes are this dataset's sole annotation).
-        dtype: Output tensor dtype. Default ``torch.bfloat16``.
+        dtype: Dtype of ``img``. The labels stay float32. Default ``torch.bfloat16``.
 
     Note:
         Instantiating a full split parses the scene-graph archive and reads one
-        DICOM header per image for bbox normalization - a one-time cost cached by
-        the harmonizer's ``save()``.  This is MIMIC-derived, PhysioNet data -
-        never commit the harmonized DataFrame, saved CSVs, or images.
+        DICOM header per image for bbox normalization. This is a one-time cost,
+        cached by the harmonizer's ``save()``.  The data comes from MIMIC and
+        PhysioNet. Never commit the harmonized DataFrame, saved CSVs, or images.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"bbox"})
@@ -56,6 +56,7 @@ class ChestImaGenomeSilverDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = True,
         harmonized_df=None,
         harmonizer=None,
@@ -70,7 +71,7 @@ class ChestImaGenomeSilverDataset(BaseRadiologicalDataset):
         _preset = harmonizer_path is not None or harmonized_df is not None or harmonizer is not None
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = ChestImaGenomeSilverHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if base_image_dir is None and not _preset:
@@ -104,6 +105,7 @@ class ChestImaGenomeSilverDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -114,7 +116,7 @@ class ChestImaGenomeSilverDataset(BaseRadiologicalDataset):
         preset = self._try_resolve_preset_harmonized()
         if preset is not None:
             return preset
-        return ChestImaGenomeSilverHarmonizer(
+        return self._HARMONIZER_CLS(
             annotation_dir=self._annotation_dir,
             base_image_dir=self.base_image_dir,
             split=self._split,

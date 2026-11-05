@@ -5,13 +5,13 @@ For the *report* task, the reportbench inference service writes one
 
     <results_dir>/<anon_study_id>/report.txt
 
-This dataset loads that predicted text into the sample's ``"img"`` key while the
-**reference** report — the free-text ground truth carried inline in the
-anonymized batch frame's ``report`` column — flows into the ``"report"`` key
-(via ``output_report=True``). Paired with :func:`identity_generator`, the
-existing :class:`ReportGenerationEvaluator` machinery (RadEval metric suite,
-bootstrap, ``generations.csv``) scores predicted-vs-reference with no model
-call — the generator forward pass becomes a pass-through of the predicted text.
+This dataset loads that predicted text into the sample's ``"img"`` key. The
+**reference** report goes into the ``"report"`` key (via ``output_report=True``).
+The reference is the free-text ground truth in the ``report`` column of the
+anonymized batch frame. With :func:`identity_generator`, the existing
+:class:`ReportGenerationEvaluator` code (RadEval metric suite, bootstrap,
+``generations.csv``) scores predicted-vs-reference with no model call. The
+generator forward pass becomes a pass-through of the predicted text.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ def perstudy_report_path(model: str, name: str = "report", ext: str = ".txt"):
     """Build a ``result_path`` for the real reportbench per-study report layout.
 
     The service writes one report per study as ``<study_id>/<model>_<name><ext>``
-    (e.g. ``.../model-a_report.txt``). Pass the returned function as
+    (for example ``.../model-a_report.txt``). Pass the returned function as
     ``result_path=`` to :class:`ReportResultsDataset`.
     """
 
@@ -102,7 +102,8 @@ class ReportResultsDataset(BaseRadiologicalDataset):
 
     @property
     def _cols(self) -> dict:
-        # Carry study_id through as a per-sample id (used for generations.csv).
+        # Carry study_id through to each sample as its id.
+        # Note: generations.csv names a pair by its image_path, not study_id (D-46).
         cols = super()._cols
         cols["study_id"] = "study_id"
         return cols
@@ -121,7 +122,7 @@ class ReportResultsDataset(BaseRadiologicalDataset):
         else:
             df["report"] = ""
         # Point image_path at the predicted report file. Default:
-        # <study_id>/report.txt; override via result_path for the real
+        # <study_id>/report.txt. Override via result_path for the real
         # <study_id>/<model>_report.txt layout.
         if self._result_path is not None:
             df["image_path"] = df.apply(self._result_path, axis=1).astype(str)

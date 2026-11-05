@@ -5,11 +5,11 @@ warehouse with a multi-modality DICOM tree.  This harmonizer targets the
 curated **X-ray subset** (``images_dicom_xray/``) and, by default, filters it
 down to **chest** radiographs only.
 
-Unlike every other RadHarmony dataset, CHORUS ships **no metadata CSV** — the
-study/series/image table has to be built by walking the DICOM tree and reading
-each file's header.  That scan is expensive (tens of thousands of headers), so
-the harmonizer caches the result to a manifest CSV (``csv_path``): the first
-harmonize scans and writes it; later runs read it back.
+Unlike every other RadHarmony dataset, CHORUS ships **no metadata CSV**.
+The harmonizer must build the study/series/image table: it walks the DICOM
+tree and reads each file's header.  That scan is slow (tens of thousands of
+headers). So the harmonizer caches the result to a manifest CSV (``csv_path``).
+The first harmonize scans and writes it. Later runs read it back.
 
 Layout::
 
@@ -26,9 +26,9 @@ The harmonized frame carries:
   ``age``, ``manufacturer``) so downstream code can filter / stratify without a
   rescan.
 
-No finding labels are produced (none ship with the subset; deriving them from
-the OMOP condition codes is a separate, future step), and there are no masks,
-bounding boxes, or reports.  The dataset is image-only.
+The harmonizer makes no finding labels, because none ship with the subset.
+A later, separate step can get them from the OMOP condition codes. There
+are no masks, bounding boxes, or reports.  The dataset is image-only.
 """
 
 from __future__ import annotations
@@ -85,7 +85,7 @@ def _read_chorus_header(args: tuple[str, str]) -> dict | None:
         "study_uid": g("StudyInstanceUID"),
         "series_uid": g("SeriesInstanceUID"),
         "sop_uid": g("SOPInstanceUID"),
-        "image_path": path,  # absolute; made relative to base_image_dir later
+        "image_path": path,  # absolute here, made relative to base_image_dir later
         "modality": g("Modality"),
         "view_position": g("ViewPosition"),
         "body_part": g("BodyPartExamined"),
@@ -108,32 +108,37 @@ class EmoryCHORUSHarmonizer(BaseHarmonizer):
         base_image_dir: Root of the DICOM tree (the ``images_dicom_xray``
             directory containing the per-patient sub-folders).
         csv_path: Path to the manifest CSV used as a scan cache.  When the file
-            exists it is read directly; otherwise the tree is scanned and the
-            manifest written here (parent dirs created as needed).  When
-            ``None``, the tree is scanned in memory on every ``harmonize()``
-            (slow — prefer passing a path).
+            exists, the harmonizer reads it directly. Otherwise it scans the
+            tree and writes the manifest here (it makes parent dirs as needed).
+            When ``None``, it scans the tree in memory on every ``harmonize()``
+            (slow, so pass a path).
         chest_only: Keep only chest radiographs (``Modality`` in ``{DX, CR}`` and
             ``"CHEST"`` in the body-part / study-description).  The subset also
-            contains abdomen, spine, skull, and extremity films; set ``False``
+            contains abdomen, spine, skull, and extremity films. Set ``False``
             to keep all of them.
         num_workers: Parallel worker processes for the header scan.
     """
 
     LABEL_COLS: list = []
 
-    #: view_position arrives already named from the manifest; no rename source.
+    #: view_position comes already named from the manifest, so it needs no rename source.
     VIEW_POSITION_SOURCE_COL = None
     VIEW_POSITION_JOIN_COLS = None
 
-    # series_id / view_position are core optional columns (populated below);
-    # these are the extra metadata columns carried through for filtering.
+    # series_id / view_position are core optional columns (filled below).
+    # These are the extra metadata columns kept for filtering.
     EXTRA_OUTPUT_COLS = [
         "body_part",
         "study_date",
-        "sex",
         "age",
         "manufacturer",
     ]
+    #: The base step maps the DICOM ``PatientSex`` (M, F, O) to ``sex`` (D-26).
+    SEX_SOURCE_COL = "sex"
+    #: The manifest ``age`` holds whole years (for example ``65``). It gives ``age_years``.
+    AGE_SOURCE_COL = "age"
+    AGE_SOURCE_UNIT = "years"
+    SERIES_ID_SOURCE_COL = "series_uid"
 
     #: Modalities kept by the chest filter.
     _CHEST_MODALITIES = frozenset({"DX", "CR"})
@@ -210,6 +215,11 @@ class EmoryCHORUSHarmonizer(BaseHarmonizer):
             df.to_csv(self.csv_path, index=False)
         return df
 
+    def _read_source(self) -> pd.DataFrame:
+        """Return the manifest (read or scanned), with chest images only when ``chest_only`` (D-30)."""
+        df = self._load_or_scan()
+        return self._filter_chest(df) if self.chest_only else df
+
     def _filter_chest(self, df: pd.DataFrame) -> pd.DataFrame:
         """Keep chest radiographs only (see ``chest_only``)."""
         modality = df["modality"].fillna("").str.upper()
@@ -229,26 +239,6 @@ class EmoryCHORUSHarmonizer(BaseHarmonizer):
     def _build_study_id(self) -> None:
         self.df["study_id"] = self.df["study_uid"].astype(str)
 
-    def _build_series_id(self) -> None:
-        self.df["series_id"] = self.df["series_uid"].astype(str)
-
     def _build_image_path(self) -> None:
         # Already relative to base_image_dir from the scan / manifest.
         self.df["image_path"] = self.df["image_path"].astype(str)
-
-    def harmonize(self, *args, **kwargs) -> pd.DataFrame:  # noqa: ARG002
-        self._harmonized_df_override = None
-        self.df = self._load_or_scan()
-
-        if self.chest_only:
-            self.df = self._filter_chest(self.df)
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_series_id()
-        self._build_image_path()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
-
-        return self._select_harmonized_columns(self.df)

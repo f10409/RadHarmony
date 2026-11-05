@@ -1,5 +1,5 @@
 {
-  "_comment": "NIH ChestX-ray14 dataset. 112,120 frontal CXR images from 30,805 patients. Labels are NLP-derived from radiology reports (pipe-separated in Finding Labels column). A subset of 984 images has radiologist-drawn bounding boxes.",
+  "_comment": "NIH ChestX-ray14 dataset. 112,120 frontal CXR images from 30,805 patients. Labels are NLP-derived from radiology reports (pipe-separated in Finding Labels column). 880 images have 984 radiologist-drawn bounding boxes.",
 
   "dataset_name": "ChestX-ray14",
   "registry_key": "chestxray14",
@@ -85,7 +85,7 @@
   },
 
   "bboxes": {
-    "_comment": "BBox_List_2017.csv has 984 bounding boxes for 8 pathologies. Header is malformed (Bbox [x,y,w,h] splits across columns). Coordinates are pixel-space (x, y, w, h). Image dimensions available in primary CSV (OriginalImage[Width, Height]).",
+    "_comment": "BBox_List_2017.csv has 984 bounding boxes for 8 pathologies. Header is malformed (Bbox [x,y,w,h] splits across columns). Coordinates are pixel-space (x, y, w, h) of the released 1024 x 1024 PNG. The harmonizer divides them by the PNG size, read from the file. The primary CSV columns OriginalImage[Width, Height] give the size before the resize, so the harmonizer does not use them.",
     "supported": true,
     "column": "BBox_List_2017.csv: Image Index, Finding Label, x, y, w, h"
   },
@@ -109,5 +109,44 @@
   },
 
   "hu_window": null,
-  "custom_preprocessing": "Labels must be one-hot encoded from pipe-separated Finding Labels. Image paths must be resolved by scanning images_*/images/ subdirectories. BBox CSV has malformed header requiring manual column assignment."
+  "custom_preprocessing": "Labels must be one-hot encoded from pipe-separated Finding Labels. Image paths must be resolved by scanning images_*/images/ subdirectories. BBox CSV has malformed header requiring manual column assignment.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: README_CHESTXRAY.pdf in the dataset folder (112,120 images, 30,805 patients, the split is by patient), and the raw files read with pandas (Data_Entry_2017.csv, train_val_list.txt, test_list.txt). Train + test = 112,120 images and 30,805 patients, as in the README. Each (Patient ID, Follow-up #) pair is unique, so studies = images. All 880 images in BBox_List_2017.csv are in test_list.txt, and the test class keeps them (D-09). The wiki page says that train and test are classification only, so they give no boxes. 16 source ages are over 100 (148 to 414), probably data errors. The age rule of radharmony/harmonizer/_age.py gives NaN for an age above 130, so age_years is NaN for 12 train and 4 test images (D-06).",
+    "patients_in_two_splits": 0,
+    "chestxray14_train": {
+      "images": 86524,
+      "studies": 86524,
+      "patients": 28008,
+      "positives": {
+        "atelectasis": 8280, "cardiomegaly": 1707, "consolidation": 2852, "edema": 1378,
+        "effusion": 8659, "emphysema": 1423, "fibrosis": 1251, "hernia": 141,
+        "infiltration": 13782, "mass": 4034, "no_finding": 50500, "nodule": 4708,
+        "pleural_thickening": 2242, "pneumonia": 876, "pneumothorax": 2637
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 38066, "M": 48458},
+      "age_years": [1, 95]
+    },
+    "chestxray14_test": {
+      "images": 25596,
+      "studies": 25596,
+      "patients": 2797,
+      "positives": {
+        "atelectasis": 3279, "cardiomegaly": 1069, "consolidation": 1815, "edema": 925,
+        "effusion": 4658, "emphysema": 1093, "fibrosis": 435, "hernia": 86,
+        "infiltration": 6112, "mass": 1748, "no_finding": 9861, "nodule": 1623,
+        "pleural_thickening": 1143, "pneumonia": 555, "pneumothorax": 2665
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 10714, "M": 14882},
+      "age_years": [1, 93]
+    }
+  }
 }

@@ -1,7 +1,7 @@
 """Conv-block segmentation probe over frozen dense backbone features.
 
-A natural step up from :class:`LinearProbeSegEvaluator`: instead of a single
-``1×1`` conv, the head is a small convolutional block that mixes channels
+This is the next step up from :class:`LinearProbeSegEvaluator`. The head is a
+small convolutional block, not a single ``1×1`` conv. It mixes channels
 and spatial context before the per-pixel classifier:
 
     Sequential(
@@ -13,7 +13,7 @@ and spatial context before the per-pixel classifier:
 
 then a ``1×1`` classifier and a bilinear upsample to the mask size.
 ``LayerNorm2d`` is channel-wise layer norm at each spatial position
-(canonical SAM / ViTDet impl) — works at any batch size, unlike BN.
+(the SAM / ViTDet version). It works at any batch size, unlike BN.
 
 Sits between :class:`LinearProbeSegEvaluator` (single ``1×1`` conv) and
 :class:`UPerNetSegEvaluator` (PSP + FPN top-down fuse) on the head-capacity
@@ -77,14 +77,14 @@ class _ConvProbeSegHead(nn.Module):
 class ConvProbeSegEvaluator(LinearProbeSegEvaluator):
     """Frozen-feature segmentation probe with a small conv-block head.
 
-    Same training loop, split modes, metrics, and prediction-dump behaviour
-    as :class:`LinearProbeSegEvaluator`; only the head differs. The head is
+    Same training loop, split modes, metrics, and prediction dump
+    as :class:`LinearProbeSegEvaluator`. Only the head differs. The head is
     a ``1×1 → LN2d → 3×3 → LN2d`` block followed by a ``1×1`` classifier
     and a bilinear upsample.
 
     Extra constructor arg on top of :class:`LinearProbeSegEvaluator`:
 
-    - ``conv_hidden_size`` — neck channel width (default 256).
+    - ``conv_hidden_size``: neck channel width (default 256).
     """
 
     def __init__(

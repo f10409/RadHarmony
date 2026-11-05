@@ -1,46 +1,44 @@
 """Harmonizer for MS-CXR-T Temporal Sentences and Image Pairs.
 
-Temporal benchmark built on top of MS-CXR. 1,045 longitudinal image pairs
-from MIMIC-CXR-JPG, annotated with progression labels (stable / improving /
-worsening) for up to 5 pathology findings. Each row links a *current* image
-to a *previous* image from the same patient.
+Temporal benchmark. Its image task extends the progression labels of
+Chest ImaGenome. It has 1,045 image pairs from
+MIMIC-CXR-JPG, with progression labels (stable, improving, worsening) for up
+to 5 findings. Each row links a current image to a previous image of the same
+patient.
 
-**Source (PhysioNet — requires MIMIC credentialed access):**
-  https://physionet.org/content/ms-cxr-t/
+Source: https://physionet.org/content/ms-cxr-t/ (MIMIC credentialed access).
+Cite: Bannur et al., Learning to Exploit Temporal Structure for Biomedical
+Vision-Language Processing, CVPR 2023. File needed:
+``MS_CXR_T_temporal_image_classification_v1.0.0.csv``.
 
-**Cite:**
-  Dalla Serra F, et al. Making the Most of Text Semantics to Improve
-  Biomedical Vision-Language Processing. ECCV 2022.
+Images: MIMIC-CXR-JPG 2.0.0. ``base_image_dir`` is its ``files/`` folder, the
+same as for MS-CXR and MIMIC-CXR-JPG (D-04).
 
-**Files needed:**
-  MS_CXR_T_temporal_image_classification_v1.0.0.csv
-
-**Images:** MIMIC-CXR-JPG 2.0.0 root (same as MS-CXR). ``base_image_dir``
-  must point at the directory containing ``files/``.
-
-**Layout:**
+Layout:
 
     <csv_path>   ← MS_CXR_T_temporal_image_classification_v1.0.0.csv
 
-    <base_image_dir>/
-      files/
-        p10/
-          p10002428/
-            s55758034/
-              3bea0373-....jpg
-          ...
+    <base_image_dir>/          ← MIMIC-CXR-JPG 2.0.0 files/
+      p10/
+        p10002428/
+          s55758034/
+            3bea0373-....jpg
+        ...
 
-**One row per image pair** (1,045 rows).
+One row for each image pair (1,045 rows).
 
-**Harmonized columns:**
+Harmonized columns:
   ``patient_id``, ``study_id``, ``image_path`` (current image),
   ``previous_image_path``, ``previous_study_id``,
   ``consolidation_progression``, ``edema_progression``,
   ``pleural_effusion_progression``, ``pneumonia_progression``,
-  ``pneumothorax_progression``  (int: -1=improving, 0=stable, 1=worsening, NaN=not annotated),
+  ``pneumothorax_progression``.
+  The progression columns are float, because of NaN: -1 improving, 0 stable, 1 worsening,
+  NaN not annotated.
   ``consolidation_label_quality``, ``edema_label_quality``,
   ``pleural_effusion_label_quality``, ``pneumonia_label_quality``,
-  ``pneumothorax_label_quality``  (str: one_expert / multiple_experts / disagreement / NaN)
+  ``pneumothorax_label_quality``.
+  The quality columns are str: one_expert, multiple_experts, disagreement or NaN.
 """
 
 import os
@@ -69,8 +67,8 @@ class MSCXRTHarmonizer(BaseHarmonizer):
 
     Args:
         csv_path: Path to ``MS_CXR_T_temporal_image_classification_v1.0.0.csv``.
-        mimic_base_dir: Root of MIMIC-CXR-JPG 2.0.0 (contains ``files/``).
-            Used only to resolve absolute image paths.
+        mimic_base_dir: The ``files/`` folder of MIMIC-CXR-JPG 2.0.0. The
+            harmonizer stores it for save and load. It does not read it.
     """
 
     LABEL_COLS = []
@@ -102,28 +100,32 @@ class MSCXRTHarmonizer(BaseHarmonizer):
 
     @staticmethod
     def _dicom_id_to_path(dicom_id: str) -> str:
-        """Convert ``p10/pXXX/sYYY/<hash>`` to ``files/p10/pXXX/sYYY/<hash>.jpg``."""
-        return "files/" + dicom_id + ".jpg"
+        """Convert ``p10/pXXX/sYYY/<hash>`` to ``p10/pXXX/sYYY/<hash>.jpg``.
 
-    def harmonize(self, *args, **kwargs) -> pd.DataFrame:
-        raw = pd.read_csv(self.csv_path)
+        The path is relative to the ``files/`` folder, like the other
+        MIMIC-based tables (D-04). Before 2026-10-28 it started with
+        ``files/`` (V-H2-8).
+        """
+        return dicom_id + ".jpg"
 
-        image_path = raw["dicom_id"].apply(self._dicom_id_to_path)
-        previous_image_path = raw["previous_dicom_id"].apply(self._dicom_id_to_path)
+    def _build_patient_id(self) -> None:
+        self.df["patient_id"] = self.df["subject_id"].astype(str)
 
-        df = pd.DataFrame({
-            "patient_id":           raw["subject_id"].astype(str),
-            "study_id":             raw["study_id"].astype(str),
-            "image_path":           image_path,
-            "previous_image_path":  previous_image_path,
-            "previous_study_id":    raw["previous_study_id"].astype(str),
-        })
+    def _build_study_id(self) -> None:
+        self.df["study_id"] = self.df["study_id"].astype(str)
+        self.df["previous_study_id"] = self.df["previous_study_id"].astype(str)
 
-        for finding in _PROGRESSION_FINDINGS:
-            prog_col = f"{finding}_progression"
-            qual_col = f"{finding}_label_quality"
-            df[prog_col] = raw[prog_col].map(_PROGRESSION_MAP)
-            df[qual_col] = raw[qual_col]
+    def _build_image_path(self) -> None:
+        self.df["image_path"] = self.df["dicom_id"].apply(self._dicom_id_to_path)
+        self.df["previous_image_path"] = self.df["previous_dicom_id"].apply(self._dicom_id_to_path)
 
-        self.df = df.reset_index(drop=True)
-        return self._select_harmonized_columns(self.df)
+    def _read_source(self) -> pd.DataFrame:
+        """Read the CSV. Map each progression word to its code (-1, 0, 1).
+
+        The map runs before the id filter, so a column keeps the dtype of the full table. The
+        quality columns keep the source text.
+        """
+        df = super()._read_source()
+        for col in _PROGRESSION_COLS:
+            df[col] = df[col].map(_PROGRESSION_MAP)
+        return df

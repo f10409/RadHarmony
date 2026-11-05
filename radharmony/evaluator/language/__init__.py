@@ -1,14 +1,16 @@
 """Language evaluators.
 
-Ships :class:`ReportGenerationEvaluator` — runs any vision-language model
-over a RadHarmony dataset and scores the generated reports with the RadEval
-metric suite — and :class:`VQAEvaluator` — runs a question-conditioned VLM
-over a VQA dataset and scores answers with tokenized-F1 / yes-no accuracy
-(MedGemma protocol).
+- :class:`ReportGenerationEvaluator` runs a vision-language model over a
+  RadHarmony dataset. It scores the generated reports with the RadEval metrics.
+- :func:`normalize_hypothesis` cleans a generated report before scoring (D-50).
+- :class:`VQAEvaluator` runs a VLM that answers the question of each VQA sample.
+  It scores the answers with token F1 and yes/no accuracy (MedGemma protocol).
+- :class:`GenerativeEvaluator` is the image-to-text loop of ``VQAEvaluator``.
 """
 
+from .hypothesis import normalize_hypothesis
 from .base_generative import GenerativeEvaluator
 from .report_generation import ReportGenerationEvaluator
 from .vqa import VQAEvaluator
 
-__all__ = ["GenerativeEvaluator", "ReportGenerationEvaluator", "VQAEvaluator"]
+__all__ = ["GenerativeEvaluator", "ReportGenerationEvaluator", "VQAEvaluator", "normalize_hypothesis"]

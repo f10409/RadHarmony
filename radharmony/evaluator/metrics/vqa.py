@@ -1,14 +1,14 @@
 """Metrics for visual question-answering (VQA) evaluation.
 
-Follows the MedGemma technical report (§3.4, Table 9): the headline numbers
+Follows the MedGemma technical report (§3.4, Table 9). The headline numbers
 are the average **tokenized F1** across *all* QAs and **accuracy on the
-yes/no subset**; SLAKE additionally reports open-ended **token recall**.
+yes/no subset**. SLAKE also reports open-ended **token recall**.
 
-"Tokenized F1" is the standard VQA-RAD / SLAKE token-overlap F1: normalize
-each string (lowercase, strip punctuation and articles, collapse
-whitespace), then compute the multiset token-overlap F1 between the
-prediction and the reference. These are the same normalization conventions
-used for SQuAD-style token F1.
+"Tokenized F1" is the standard VQA-RAD / SLAKE token-overlap F1. First,
+normalize each string (lowercase, strip punctuation and articles, collapse
+whitespace). Then compute the multiset token-overlap F1 between the
+prediction and the reference. SQuAD-style token F1 uses the same
+normalization rules.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ def tokenized_f1(pred, ref) -> float:
     """Token-overlap F1 between prediction and reference (SQuAD-style)."""
     p, r = normalize_answer(pred), normalize_answer(ref)
     if not p or not r:
-        # Both empty → perfect; one empty → zero.
+        # Both empty → perfect. One empty → zero.
         return float(p == r)
     common = _overlap(p, r)
     if common == 0:

@@ -13,19 +13,28 @@ from .rsna_abdominal_trauma_2023 import RSNAAbdominalTrauma2023Dataset
 
 @register_dataset("rsna_abdominal_trauma_2023_test")
 class RSNAAbdominalTrauma2023TestDataset(RSNAAbdominalTrauma2023Dataset):
-    """Test split of RSNA 2023 Abdominal Trauma — images only, no labels.
+    """Test split of RSNA 2023 Abdominal Trauma: images only, no labels.
 
     Reads ``test_series_meta.csv`` (``patient_id``, ``series_id``,
     ``aortic_hu``).  No patient-level label CSV, no join.  ``aortic_hu``
     is preserved as an extra output column.
 
+    This is a Kaggle code competition (D-25). The public download has only
+    sample test files: ``test_series_meta.csv`` lists 6 series, and
+    ``test_images/`` has 3 of them, with 1 slice each. The class is for a
+    Kaggle notebook of the competition, where the hidden test set has the same
+    layout.
+
     Args:
-        base_image_dir: Root of the test DICOM tree — typically
+        base_image_dir: Root of the test DICOM tree, typically
             ``<competition_root>/test_images/``.
         series_meta_csv_path: Path to ``test_series_meta.csv``.
             Auto-inferred when None.
         All other args identical to :class:`RSNAAbdominalTrauma2023Dataset`.
     """
+
+    _HARMONIZER_CLS = RSNAAbdominalTrauma2023TestHarmonizer  # the saved test harmonizer loads (V-H3-21)
+    SUPPORTED_OUTPUTS: frozenset = frozenset()  # no labels and no masks (D-11)
 
     def __init__(
         self,
@@ -38,6 +47,7 @@ class RSNAAbdominalTrauma2023TestDataset(RSNAAbdominalTrauma2023Dataset):
         output_cls=False,
         output_mask=False,
         output_report=False,
+        output_reg=False,
         output_bbox=False,
         harmonized_df=None,
         harmonizer=None,
@@ -46,7 +56,7 @@ class RSNAAbdominalTrauma2023TestDataset(RSNAAbdominalTrauma2023Dataset):
     ):
         for flag, name in [
             (output_cls, "output_cls"), (output_mask, "output_mask"),
-            (output_report, "output_report"), (output_bbox, "output_bbox"),
+            (output_report, "output_report"), (output_bbox, "output_bbox"), (output_reg, "output_reg"),
         ]:
             if flag:
                 warnings.warn(
@@ -62,10 +72,10 @@ class RSNAAbdominalTrauma2023TestDataset(RSNAAbdominalTrauma2023Dataset):
             and harmonized_df is None
             and harmonizer is None
             and base_image_dir is not None
-            and _test_meta_csv is None
         ):
-            _test_meta_csv = (
-                infer_path(base_image_dir, "test_series_meta.csv", user_path="") or None
+            _test_meta_csv = infer_path(
+                base_image_dir, "test_series_meta.csv", user_path=series_meta_csv_path or "",
+                required=True, arg="series_meta_csv_path",
             )
 
         # Pass both csv_path and series_meta_csv_path pointing to the test meta CSV
@@ -86,7 +96,7 @@ class RSNAAbdominalTrauma2023TestDataset(RSNAAbdominalTrauma2023Dataset):
             harmonizer_path=harmonizer_path,
             dtype=dtype,
         )
-        # Ensure the test meta CSV is stored regardless of infer_path outcome.
+        # The parent searched for the train meta CSV, so store the test meta CSV again.
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._series_meta_csv_path = _test_meta_csv
 

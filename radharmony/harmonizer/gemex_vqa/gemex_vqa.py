@@ -3,30 +3,22 @@
 Four question subtypes across 4 JSONL files:
   - open_ended_question.jsonl:    free-text answers, no choices
   - closed_ended_question.jsonl:  binary Yes./No. answers, no choices
-  - single_choice_question.jsonl: single-letter answer (e.g. "C"), has choices list
-  - multi_choice_question.jsonl:  multi-letter answer (e.g. ["A","B","D"]), has choices list
+  - single_choice_question.jsonl: single-letter answer (for example "C"), has choices list
+  - multi_choice_question.jsonl:  multi-letter answer (for example ["A","B","D"]), has choices list
 
-**Source (HuggingFace):**
-  https://huggingface.co/datasets/BoKelvin/GEMeX-VQA
-
-**Files needed (download from HuggingFace):**
-  closed_ended_question.jsonl
-  open_ended_question.jsonl
-  single_choice_question.jsonl
-  multi_choice_question.jsonl
+Source: https://huggingface.co/datasets/BoKelvin/GEMeX-VQA. Download the four
+JSONL files.
 
 .. note::
-   The JSONL files currently at ``/mnt/NAS4/datasets/external/gemex-vqa/`` are the
-   **sample/preview split** distributed on HuggingFace (20 questions per subtype =
-   80 total).  The full GEMeX-VQA benchmark contains substantially more samples —
-   check https://huggingface.co/datasets/BoKelvin/GEMeX-VQA for updated file
-   releases and re-download when a complete split becomes available.
+   The files in the local copy are the sample split on HuggingFace (20
+   questions for each subtype, 80 in total). The full benchmark has many more.
+   Check the HuggingFace page and download again when the full split is out.
 
-**Images:** MIMIC-CXR-JPG — image paths mirror the MIMIC-CXR-JPG layout, so
-  ``base_image_dir`` must point at the MIMIC-CXR-JPG ``files/`` directory, e.g.
-  ``/data/mimic-cxr-jpg/2.0.0/files``.
+Images: MIMIC-CXR-JPG. The image paths follow the MIMIC-CXR-JPG layout, so
+``base_image_dir`` is its ``files/`` folder, for example
+``/data/mimic-cxr-jpg/2.0.0/files``.
 
-**Layout:**
+Layout:
 
     <data_dir>/
       closed_ended_question.jsonl
@@ -49,7 +41,10 @@ Four question subtypes across 4 JSONL files:
   reason         (rationale string)
   ori_report     (original radiology report)
   visual_regions (list of anatomical region names)
-  visual_locations (list of [x, y, w, h] bounding boxes)
+  visual_locations (list of boxes)
+
+The boxes of ``visual_locations`` are ``[x1, y1, x2, y2]`` on a 224 x 224 (H x W) grid. They are not
+D-07 fractions.
 """
 
 import json
@@ -79,12 +74,12 @@ def _parse_ids(image_path: str):
     """Extract (patient_id, study_id) from a GEMeX/MIMIC-CXR image path.
 
     Path format: ``p{prefix}/p{patient_id}/s{study_id}/{dicom_id}.jpg``
-    Returns strings like ``"p10046166"`` and ``"s50051329"``.
+    Returns digits, the official MIMIC ids, like ``"10046166"`` and ``"50051329"`` (D-01, Q-12).
     """
     parts = image_path.replace("\\", "/").split("/")
     # parts: [prefix, patient_id, study_id, filename]
-    patient_id = parts[1] if len(parts) >= 3 else ""
-    study_id   = parts[2] if len(parts) >= 3 else ""
+    patient_id = parts[1].lstrip("p") if len(parts) >= 3 else ""
+    study_id   = parts[2].lstrip("s") if len(parts) >= 3 else ""
     return patient_id, study_id
 
 
@@ -101,8 +96,7 @@ class GEMeXVQAHarmonizer(BaseVQAHarmonizer):
     Args:
         data_dir: Directory containing the 4 GEMeX-VQA JSONL files.
         base_image_dir: Root of the MIMIC-CXR-JPG ``files/`` directory.
-            Used downstream for image loading; not required to build the
-            harmonized DataFrame.
+            It is used to load images. The harmonized table does not need it.
         question_subtypes: Which subtypes to include.  Default includes all
             four: ``["open_ended", "closed_ended", "single_choice",
             "multi_choice"]``.
@@ -138,7 +132,8 @@ class GEMeXVQAHarmonizer(BaseVQAHarmonizer):
             snap["question_subtypes"] = self.question_subtypes
         return snap
 
-    def harmonize(self) -> pd.DataFrame:
+    def _read_source(self) -> pd.DataFrame:
+        """Read the JSONL files of the chosen subtypes into one table, with one row per question."""
         if self.data_dir is None:
             raise ValueError("data_dir is required to harmonize from scratch.")
 
@@ -182,5 +177,4 @@ class GEMeXVQAHarmonizer(BaseVQAHarmonizer):
                         "choices":          choices,
                     })
 
-        self.df = pd.DataFrame(rows).reset_index(drop=True)
-        return self._select_harmonized_columns(self.df)
+        return pd.DataFrame(rows)

@@ -17,7 +17,7 @@ class CheXlocalizeDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Root of the CheXpert test image tree
-            (e.g. ``.../chexlocalize/CheXpert/test/``).
+            (for example ``.../chexlocalize/CheXpert/test/``).
         csv_path: Path to ``test_labels.csv``. Auto-inferred when ``None``.
         mask_json_path: Path to CheXlocalize's ``gt_segmentations_test.json``
             (COCO-RLE, per-pathology masks). Auto-inferred when ``None``.
@@ -29,6 +29,7 @@ class CheXlocalizeDataset(BaseRadiologicalDataset):
         cache_dir: Root directory for MONAI PersistentDataset cache.
         output_cls: Yield label vector under key ``cls``.
         output_mask: Yield the unioned segmentation mask under key ``mask``.
+        output_report / output_bbox / output_reg: Not supported. A warning, and no key (D-11).
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "mask"})
@@ -49,6 +50,9 @@ class CheXlocalizeDataset(BaseRadiologicalDataset):
         "support_devices",
     ]
     _HARMONIZER_CLS = CheXlocalizeHarmonizer
+    # Files of the split. The val class (chexlocalize_val) changes them.
+    _LABEL_CSV = "test_labels.csv"
+    _MASK_JSON = "gt_segmentations_test.json"
 
     def __init__(
         self,
@@ -65,9 +69,12 @@ class CheXlocalizeDataset(BaseRadiologicalDataset):
         harmonizer=None,
         harmonizer_path: str = None,
         dtype=torch.bfloat16,
+        output_report: bool = False,
+        output_reg: bool = False,
+        output_bbox: bool = False,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = CheXlocalizeHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = _h.base_image_dir
 
         if base_image_dir is None and harmonizer_path is None and harmonized_df is None and harmonizer is None:
@@ -87,10 +94,14 @@ class CheXlocalizeDataset(BaseRadiologicalDataset):
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._csv_path = infer_path(
-                base_image_dir, "test_labels.csv", user_path=csv_path or "",
+                base_image_dir, self._LABEL_CSV, user_path=csv_path or "", required=True, arg="csv_path",
             ) or csv_path
             self._mask_json_path = infer_path(
-                base_image_dir, "gt_segmentations_test.json", user_path=mask_json_path or "",
+                # The JSON is in the CheXlocalize folder next to the CheXpert folder (D-35).
+                base_image_dir, self._MASK_JSON, f"../CheXlocalize/{self._MASK_JSON}",
+                user_path=mask_json_path or "",
+                required=output_mask,
+                arg="mask_json_path",
             ) or mask_json_path
         else:
             self._csv_path = csv_path
@@ -116,6 +127,9 @@ class CheXlocalizeDataset(BaseRadiologicalDataset):
             cache_dir=cache_dir,
             output_cls=output_cls,
             output_mask=output_mask,
+            output_report=output_report,  # not in SUPPORTED_OUTPUTS: the base class warns
+            output_reg=output_reg,
+            output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
             harmonizer_path=harmonizer_path,
@@ -125,12 +139,12 @@ class CheXlocalizeDataset(BaseRadiologicalDataset):
         preset = self._try_resolve_preset_harmonized()
         if preset is not None:
             return preset
-        harmonizer = CheXlocalizeHarmonizer(
+        harmonizer = self._HARMONIZER_CLS(
             csv_path=self._csv_path,
             mask_json_path=self._mask_json_path if self.output_mask else None,
             base_image_dir=self.base_image_dir,
         )
         return harmonizer.harmonize(
-            mask_output_dir=self._mask_output_dir,
+            mask_output_dir=self._mask_output_dir if self.output_mask else None,
             mask_num_cores=self._mask_num_cores,
         )

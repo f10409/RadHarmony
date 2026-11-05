@@ -1,6 +1,7 @@
 import os
 
-_ROOT = "/mnt/efs/cxr" # "/mnt/NAS4/datasets/external"  # "/mnt/efs/cxr"
+# Root of the event data. Set DATATHON26_ROOT, or edit the default.
+_ROOT = os.environ.get("DATATHON26_ROOT", "/path/to/cxr")
 
 MONTGOMERY_DIR = f"{_ROOT}/Montgomery-CXR/MontgomerySet/CXR_png/"
 

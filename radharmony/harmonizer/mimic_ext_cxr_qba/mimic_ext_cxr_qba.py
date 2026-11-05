@@ -6,10 +6,13 @@ DataFrame keyed against MIMIC-CXR image paths.
 """
 
 import json
+import os
+import warnings
 import zipfile
 import pandas as pd
 from tqdm import tqdm
 
+from radharmony.harmonizer.base import BaseHarmonizer
 from radharmony.harmonizer.base_vqa import BaseVQAHarmonizer
 
 
@@ -24,9 +27,12 @@ def _image_relpath(patient_id: str, study_id: str, image_id: str, ext: str) -> s
 
 
 def _flatten_answer(answers: list) -> str:
-    """Flatten a list of top-level answer dicts into a single answer string."""
+    """Join the texts of the ``main_answer`` dicts of a question into one answer string (D-51).
+
+    The ``details`` and ``related_information`` texts stay only in ``answer_struct``.
+    """
     return " ".join(
-        a.get("text", "") for a in answers if a.get("text")
+        a["text"] for a in answers if a.get("answer_type") == "main_answer" and a.get("text")
     ).strip()
 
 
@@ -36,18 +42,33 @@ class MIMICExtCXRQBAHarmonizer(BaseVQAHarmonizer):
     Args:
         metadata_dir: Directory containing the parquet metadata files
             (``question_metadata.parquet``, ``question_image_metadata.parquet``,
-            ``image_metadata.parquet``).  Use one of the export subsets, e.g.
+            ``image_metadata.parquet``). Use one of the export subsets, for example
             ``.../exports/A_frontal/metadata/q1M``.
         qa_zip_path: Path to ``qa.zip`` for question/answer text extraction.
             When ``None``, ``question`` and ``answer`` columns are left empty.
-        base_image_dir: MIMIC-CXR ``files/`` root, e.g.
+        base_image_dir: MIMIC-CXR ``files/`` root, for example
             ``/data/mimic-cxr/2.1.0/files``.  Used downstream for resolving
             relative ``image_path`` values.
-        image_ext: Extension of image files on disk — ``".dcm"`` (default) for
-            MIMIC-CXR DICOMs or ``".jpg"`` for MIMIC-CXR-JPG.
+        image_ext: Image file extension: ``".dcm"`` (default) for MIMIC-CXR
+            DICOMs or ``".jpg"`` for MIMIC-CXR-JPG.
         max_studies: Cap on the number of unique studies to process.  Useful
             for fast iteration during development; ``None`` (default) reads all.
+            In a split class, it counts the studies of that split.
+
+    The ``split`` column is the official split of the patient in
+    ``patient_metadata.parquet``. This class mixes the splits, so it is not
+    for benchmarks. Use the split classes (D-09).
+
+    ``view_position`` is the ``img.view_position`` of the image in ``image_metadata.parquet``,
+    with the shared names PA, AP and LATERAL (D-01). The source has no age and no sex.
     """
+
+    #: The official split that a split class keeps (D-09). None keeps all rows.
+    SPLIT: str | None = None
+
+    EXTRA_OUTPUT_COLS = ["view_position"]
+    #: The shared 2-D view names of D-01, as for the image harmonizers.
+    VIEW_POSITION_NAMES = True
 
     def __init__(
         self,
@@ -75,7 +96,17 @@ class MIMICExtCXRQBAHarmonizer(BaseVQAHarmonizer):
     # Harmonize
     # ------------------------------------------------------------------
 
-    def harmonize(self) -> pd.DataFrame:
+    def _read_source(self, study_ids=None, patient_ids=None) -> pd.DataFrame:
+        """Read the source and return the table, one row per question.
+
+        ``harmonize(study_ids=..., patient_ids=...)`` passes the ids here. The id
+        filter runs before the slow ``qa.zip`` step, so a small set of studies is
+        fast. It gives the same rows as a filter after ``harmonize()`` (D-02).
+
+        Args:
+            study_ids: Keep only these studies, with or without the ``s`` (Q-12).
+            patient_ids: Keep only these patients, with or without the ``p`` (Q-12).
+        """
         if self.metadata_dir is None:
             raise ValueError("metadata_dir is required to harmonize from scratch.")
 
@@ -97,6 +128,17 @@ class MIMICExtCXRQBAHarmonizer(BaseVQAHarmonizer):
             qi_one, on=["patient_id", "study_id", "question_id"], how="inner"
         )
 
+        # The official split of each patient (V-H1-29). A split class keeps its own
+        # patients before the max_studies cut and before the slow qa.zip step.
+        pm_path = os.path.join(self.metadata_dir, "patient_metadata.parquet")
+        if self.SPLIT is not None and not os.path.isfile(pm_path):
+            raise FileNotFoundError(f"{type(self).__name__} needs {pm_path} for the official split (D-35).")
+        if os.path.isfile(pm_path):
+            split = pd.read_parquet(pm_path).reset_index()[["patient_id", "split"]]
+            df = df.merge(split, on="patient_id", how="left")
+            if self.SPLIT is not None:
+                df = df[df["split"] == self.SPLIT]
+
         if self.max_studies is not None:
             keep_studies = (
                 df[["patient_id", "study_id"]]
@@ -104,11 +146,19 @@ class MIMICExtCXRQBAHarmonizer(BaseVQAHarmonizer):
                 .head(self.max_studies)
             )
             df = df.merge(keep_studies, on=["patient_id", "study_id"], how="inner")
+        # After the max_studies cut, so the rows equal a filter after harmonize() (D-02).
+        if study_ids is not None:
+            df = df[df["study_id"].astype(str).isin({"s" + str(s).lstrip("s") for s in study_ids})]
+        if patient_ids is not None:
+            df = df[df["patient_id"].astype(str).isin({"p" + str(p).lstrip("p") for p in patient_ids})]
 
-        df["image_path"] = df.apply(
-            lambda r: _image_relpath(r["patient_id"], r["study_id"], r["image_id"], self.image_ext),
-            axis=1,
-        )
+        df = self._add_view_position(df)
+
+        # A list, not DataFrame.apply: apply on an empty table gives a table.
+        df["image_path"] = [
+            _image_relpath(p, s, i, self.image_ext)
+            for p, s, i in zip(df["patient_id"], df["study_id"], df["image_id"], strict=True)
+        ]
         df["question_type"] = df["question.question_type"].astype(str)
         df["quality"] = df["question.quality.rating"].astype(str)
 
@@ -123,15 +173,34 @@ class MIMICExtCXRQBAHarmonizer(BaseVQAHarmonizer):
         df["question"] = df["question"].fillna("")
         df["answer"] = df["answer"].fillna("")
 
-        self.df = df.reset_index(drop=True)
-        return self._select_harmonized_columns(self.df)
+        # MIMIC ids are digits in every harmonizer (D-01, Q-12). image_path keeps the p and s letters.
+        df["patient_id"] = df["patient_id"].astype(str).str.lstrip("p")
+        df["study_id"] = df["study_id"].astype(str).str.lstrip("s")
+        # The source question_id is a template name that repeats in each study (V-H1-30).
+        df["question_id"] = df["study_id"] + "_" + df["question_id"].astype(str)
+        return df
+
+    def _add_view_position(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Join ``img.view_position`` of ``image_metadata.parquet`` on the image of each question (D-01).
+
+        With no file, it warns and gives no ``view_position``.
+        """
+        path = os.path.join(self.metadata_dir, "image_metadata.parquet")
+        if not os.path.isfile(path):
+            warnings.warn(f"{path} is missing, so the table has no view_position.", UserWarning, stacklevel=2)
+            return df
+        views = (pd.read_parquet(path, columns=["img.view_position"]).reset_index()
+                 .rename(columns={"img.view_position": "view_position"}))
+        df = df.merge(views, on=["patient_id", "study_id", "image_id"], how="left")
+        # The same name step as the image harmonizers. It reads only VIEW_POSITION_NAMES of self.
+        return BaseHarmonizer._build_view_position_names(self, df)
 
     # ------------------------------------------------------------------
     # Text extraction from qa.zip
     # ------------------------------------------------------------------
 
     def _extract_text(self, keys: pd.DataFrame) -> pd.DataFrame:
-        """Read each unique study's qa.json once; return a (keys → text) DataFrame."""
+        """Read the qa.json of each study once. Return a DataFrame of the text for each key."""
         wanted = {
             (r["patient_id"], r["study_id"], r["question_id"])
             for _, r in keys.iterrows()

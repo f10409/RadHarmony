@@ -1,0 +1,134 @@
+{
+  "_comment": "MedSeg COVID-19 CT segmentation datasets — the CT counterpart to QaTa-COV19 and the source behind the 'MosMedData+' benchmark used by the LViT / DD-CMD text-guided segmentation line. Published by MedSeg (medicalsegmentation.com), mirrored on figshare under the MedSeg author account (https://figshare.com/authors/MedSeg/9940190). Two releases are wired, selected with `subset`: 'dataset1' (figshare 13521488) = tr_im.nii.gz + tr_mask.nii.gz, 100 annotated axial slices at 512x512, plus an unmasked val_im.nii.gz which is NOT used; 'dataset2' (figshare 13521509) = rp_im/{1..9}.nii.gz + rp_msk/{1..9}.nii.gz, 9 whole volumes totalling 829 slices. Masks are class-index volumes, not binary: 0=background, 1=ground-glass opacity, 2=consolidation, 3=pleural effusion (dataset1 only; dataset2 tops out at 2). CT volumes cannot be read by the 2-D pipeline, so the harmonizer materialises one PNG per slice into slice_output_dir on first use (idempotent), rendering images through a lung window and writing a binary any-lesion mask. Download: figshare article 13521488 and 13521509, or http://medicalsegmentation.com/covid19/ .",
+  "dataset_name": "MedSeg COVID-19 CT",
+  "registry_key": "medseg_covid_ct",
+  "modality": "2D",
+  "image_format": "PNG",
+  "base_image_dir": "<path_to_MedSeg-COVID-CT>/figshare_13521488/  (subset=dataset1, the folder holding tr_im.nii.gz)  |  <path_to_MedSeg-COVID-CT>/figshare_13521509/  (subset=dataset2, the folder holding rp_im/)",
+  "primary_csv": {
+    "_comment": "The rows come from the NIfTI volumes, one row for each slice. For dataset1, the harmonizer also joins this side file on the slice index: the SIRM case (patient_id), the age and the sex of each tr_im slice. Only the first row of a case has the age and sex. The last row, 'Not used', lists SIRM cases, not slices.",
+    "path": "Test-Images-Clinical-Details.csv (dataset1 only)",
+    "filename_variants": []
+  },
+  "patient_id": {
+    "_comment": "dataset2: the volume index (1..9) is a real patient group. dataset1: Test-Images-Clinical-Details.csv maps the 100 tr_im slices to 43 SIRM cases. The 10 val_im slices are not in that file, so each val slice is its own patient.",
+    "column": "SIRM Case (dataset1)",
+    "derivation": "dataset1: the SIRM case number. dataset2: the volume number. val_im: the slice stem."
+  },
+  "study_id": {
+    "_comment": "The per-slice stem, e.g. dataset2_1_0007.",
+    "column": null,
+    "derivation": "<subset>_<volume>_<slice index zero-padded to 4>"
+  },
+  "image_path": {
+    "_comment": "Bare filename of the materialised slice PNG. base_image_dir resolves to <slice_output_dir>/<subset>_hu<low>_<high>/images/, so no prefix is needed.",
+    "column": null,
+    "derivation": "<subset>_<volume>_<slice>.png",
+    "prefix_to_strip": null
+  },
+  "labels": {
+    "_comment": "Per-slice presence of each annotated lesion class, plus an any_lesion union. Unlike QaTa-COV19 these are genuinely informative rather than constant: dataset2 has 373 lesion-positive of 829 slices, so there is a real negative class. dataset1: any_lesion 99/100, ground_glass 96, consolidation 78, pleural_effusion 25. dataset2: any_lesion 373/829, ground_glass 298, consolidation 233, pleural_effusion 0 (that class is absent from the dataset2 masks by construction).",
+    "columns": [
+      "any_lesion",
+      "consolidation",
+      "ground_glass",
+      "pleural_effusion"
+    ],
+    "separate_csv": {
+      "_comment": "No label file — labels are read off the class-index mask volume.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Binary presence flags derived from the mask; no uncertainty, no NaN.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+  "view_position": {
+    "_comment": "All slices are axial CT; no view-position concept.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+  "masks": {
+    "_comment": "Binary any-lesion mask PNG written per slice next to the image PNG. mask_path is stored ABSOLUTE because get_data_dict prepends base_image_dir to image_path only, never to mask_path. Per-class masks are not exposed separately; the class breakdown lives in the label columns.",
+    "supported": true,
+    "column": "mask_path",
+    "format": "file_path"
+  },
+  "bboxes": {
+    "_comment": "Not provided.",
+    "supported": false,
+    "column": null
+  },
+  "reports": {
+    "_comment": "Not provided.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+  "extra_init_params": {
+    "slice_output_dir": "REQUIRED. Directory the per-slice image/mask PNGs are written into, as <slice_output_dir>/<subset>_hu<low>_<high>/{images,masks}/. Idempotent across runs.",
+    "subset": "'dataset1' (default) or 'dataset2'.",
+    "hu_window": "(low, high) Hounsfield window applied before 8-bit quantisation. Default (-1000, 400), a lung window. Lossy and deliberate — the raw HU values remain in the .nii.gz originals."
+  },
+  "hu_window": [
+    -1000,
+    400
+  ],
+  "custom_preprocessing": "No CSV. The harmonizer reads the NIfTI volumes with MONAI's LoadImage, windows each slice to the HU range, quantises to 8-bit PNG, and writes a binary any-lesion mask PNG alongside. Per-class presence flags come from the class-index values in the mask volume. Materialisation is skipped for slices whose PNGs already exist.",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources (2026-11-04): the NIfTI files of figshare 13521488 (dataset1) read with SimpleITK, one row for each axial slice, and its Test-Images-Clinical-Details.csv read with pandas. The CSV maps the 100 slices to 43 SIRM cases. Each case has its age and sex on its first row only. Cases 16, 18 and 19 have no age or sex. Cases 17 and 45 have an age but no sex. A label is 1 when the mask of the slice has its class value. The test writes the slices to a temporary folder. medseg_covid_ct_val is the val_im.nii.gz volume with no masks and no labels (D-25).",
+    "medseg_covid_ct": {
+      "variant": "dataset1",
+      "images": 100,
+      "studies": 100,
+      "patients": 43,
+      "positives": {
+        "any_lesion": 99,
+        "consolidation": 78,
+        "ground_glass": 96,
+        "pleural_effusion": 25
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 100,
+      "rows_with_report": 0,
+      "sex": {
+        "F": 34,
+        "M": 51
+      },
+      "age_years": [
+        27,
+        87
+      ],
+      "harmonizer_args": {
+        "base_dir": "base_image_dir"
+      }
+    },
+    "medseg_covid_ct_val": {
+      "images": 10,
+      "studies": 10,
+      "patients": 10,
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "harmonizer_args": {
+        "base_dir": "base_image_dir"
+      }
+    }
+  }
+}

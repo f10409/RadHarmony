@@ -118,7 +118,7 @@ def main():
             print(f"  Skipping — '{target_col}' column missing from harmonized DataFrame")
             continue
 
-        # Verify images (drops missing / multichannel)
+        # Verify images (drops missing or unreadable files)
         ds.verify_images()
 
         # Build train + val PersistentDatasets

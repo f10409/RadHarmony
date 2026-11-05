@@ -7,36 +7,36 @@ import numpy as np
 
 from ..base import BaseHarmonizer
 
+# The 10 findings that have masks, in snake case. The mask file calls Lung Opacity "Airspace Opacity".
+_MASKED_FINDINGS = ["atelectasis", "cardiomegaly", "consolidation", "edema", "enlarged_cardiomediastinum",
+                    "lung_lesion", "lung_opacity", "pleural_effusion", "pneumothorax", "support_devices"]
+
 
 class CheXlocalizeHarmonizer(BaseHarmonizer):
     """Harmonizer for the CheXlocalize dataset (CheXpert ``test`` split).
 
-    ``patient_id`` and ``study_id`` are extracted from the ``Path`` column
-    (e.g. ``test/patient64741/study1/view1_frontal.jpg`` -> patient_id
-    ``patient64741``, study_id ``patient64741_study1``); there is no
-    dedicated ID column in the CSV. Labels live in the same CSV and this
-    split is fully verified (no ``-1`` uncertainty values).
+    The CSV has no ID columns. The code takes ``patient_id`` and ``study_id``
+    from the ``Path`` column. Example: ``test/patient64741/study1/view1_frontal.jpg``
+    gives patient_id ``patient64741`` and study_id ``patient64741_study1``.
+    This split has no ``-1`` (uncertain) labels.
 
-    ``view_position`` is derived from the image filename (``frontal`` /
-    ``lateral``), since there is no dedicated CSV column.
+    ``view_position`` comes from the file name (``frontal`` or ``lateral``).
+    The table writes ``FRONTAL`` or ``LATERAL`` (Q-13).
 
-    Segmentation masks (optional) come from CheXlocalize's
-    ``gt_segmentations_test.json`` -- COCO-RLE, keyed by
-    ``<study_id>_<image_basename>``, with one mask PER PATHOLOGY (up to 10)
-    per image, covering 499 of 668 test images. RadHarmony's mask pipeline
-    (``BaseHarmonizer.preprocess_masks``) supports only a single combined
-    mask per image, so all per-pathology masks for an image are unioned
-    (bitwise OR) into one binary "any abnormal region" mask -- the same
-    pattern SIIM-ACR uses to union multiple annotator rows. Pass
-    ``mask_json_path`` to enable; leave it ``None`` to skip loading the
-    (several-MB) JSON when only classification labels are needed.
+    Segmentation masks are optional. They come from
+    ``gt_segmentations_test.json`` (COCO-RLE, keyed by
+    ``<study_id>_<image_basename>``). The file has up to 10 masks per image
+    (one for each pathology) for 499 of the 668 test images. The mask
+    pipeline needs one mask per image, so the code joins them with a bitwise
+    OR (SIIM-ACR does the same). Pass ``mask_json_path`` to turn this on.
+    With ``None`` the code does not load the JSON (several MB).
 
     Args:
         csv_path: Path to ``test_labels.csv``.
         mask_json_path: Path to ``gt_segmentations_test.json``. Leave
             ``None`` to omit the ``mask_path`` column entirely.
-        base_image_dir: Root of the CheXpert ``test/`` image tree. Only
-            used as the default ``base_image_dir`` for ``preprocess_masks``.
+        base_image_dir: Root of the CheXpert ``test/`` image tree. It is
+            the default ``base_image_dir`` of ``preprocess_masks``.
     """
 
     LABEL_COLS = [
@@ -66,6 +66,15 @@ class CheXlocalizeHarmonizer(BaseHarmonizer):
     REPORT_JOIN_COLS = []
     REPORT_PATH_COL = None
 
+    # val_labels.csv has the CheXpert columns Sex and Age (years). test_labels.csv
+    # has neither, so the test table has no sex and no age_years (D-06, D-26).
+    AGE_SOURCE_COL = "Age"
+    AGE_SOURCE_UNIT = "years"
+    SEX_SOURCE_COL = "Sex"
+
+    # Prefix of the Path column before the patient folder (the split folder).
+    _PATH_PREFIX = r"^test/"
+
     def __init__(self, csv_path: str, mask_json_path: str = None, base_image_dir: str = None):
         super().__init__(csv_path=csv_path)
         self.mask_json_path = mask_json_path
@@ -89,9 +98,9 @@ class CheXlocalizeHarmonizer(BaseHarmonizer):
         self.df["study_id"] = self.df["patient_id"] + "_" + study_raw
 
     def _build_image_path(self) -> None:
-        # Path values look like "test/patient64741/study1/view1_frontal.jpg";
-        # base_image_dir points at the "test/" directory, so strip that prefix.
-        self.df["image_path"] = self.df["Path"].str.replace(r"^test/", "", regex=True)
+        # base_image_dir is the "test/" folder, so remove that prefix from
+        # paths such as "test/patient64741/study1/view1_frontal.jpg".
+        self.df["image_path"] = self.df["Path"].str.replace(self._PATH_PREFIX, "", regex=True)
 
     def _build_labels(self) -> None:
         for col in self.LABEL_COLS:
@@ -106,14 +115,17 @@ class CheXlocalizeHarmonizer(BaseHarmonizer):
 
     def _build_mask_path(self) -> None:
         if self._mask_json is None:
-            return  # mask support not requested
+            return  # no masks requested
 
-        def _key(row) -> str:
-            base = os.path.splitext(os.path.basename(row["image_path"]))[0]
-            return f"{row['study_id']}_{base}"
-
-        keys = self.df.apply(_key, axis=1)
-        self.df["mask_path"] = keys.where(keys.isin(self._mask_json.keys()), None)
+        # Column steps, not DataFrame.apply: apply on an empty table gives a table (V-H1-38).
+        stems = self.df["image_path"].map(lambda p: os.path.splitext(os.path.basename(p))[0])
+        keys = self.df["study_id"].astype(str) + "_" + stems
+        # A labeled negative (0 for all 10 masked findings) is annotated with no finding. Its key is not
+        # in the mask file, so preprocess_masks writes an all-zero mask for it (D-33, Q-10).
+        negative = False
+        if all(c in self.df.columns for c in _MASKED_FINDINGS):
+            negative = (self.df[_MASKED_FINDINGS] == 0).all(axis=1)
+        self.df["mask_path"] = keys.where(keys.isin(self._mask_json.keys()) | negative, None)
 
     def _decode_mask(self, key, width: int, height: int):
         """Union every per-pathology COCO-RLE mask for one image into a single binary mask."""

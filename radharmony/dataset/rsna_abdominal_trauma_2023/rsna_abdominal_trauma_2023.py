@@ -16,7 +16,7 @@ import pandas as pd
 from radharmony.harmonizer import RSNAAbdominalTrauma2023Harmonizer
 from radharmony.registry import register_dataset
 from radharmony.utils.infer import infer_path
-from ..base import BaseRadiologicalDataset
+from ..base import BaseRadiologicalDataset, _require_image_folder
 from ..transforms import RadiologyTransform3D
 
 
@@ -25,7 +25,7 @@ class RSNAAbdominalTrauma2023Dataset(BaseRadiologicalDataset):
     """3-D MONAI PersistentDataset for RSNA 2023 Abdominal Trauma Detection.
 
     Args:
-        base_image_dir: Root of the DICOM tree — typically
+        base_image_dir: Root of the DICOM tree, typically
             ``.../rsna-2023-abdominal-trauma-detection/train_images/``.
         csv_path: Path to ``train_2024.csv`` (patient-level labels).
             Auto-inferred via ``infer_path`` from ``base_image_dir`` when
@@ -37,16 +37,14 @@ class RSNAAbdominalTrauma2023Dataset(BaseRadiologicalDataset):
             resize/pad).
         cache_dir: PersistentDataset cache directory.  ``None`` disables.
         hu_window: ``(min_HU, max_HU)`` clipping window applied before
-            percentile normalisation.  Default ``(-150, 250)`` covers the
-            soft-tissue / contrast-enhanced abdomen — different from CTPA.
+            percentile normalization.  Default ``(-150, 250)`` covers the
+            soft-tissue / contrast-enhanced abdomen, different from CTPA.
         output_cls: Yield the 14-D label vector under key ``cls``.
-        output_mask: Not supported in this initial integration; silently
-            ignored with a warning.  See the dataset's ``segmentations/``
+        output_mask: Not supported. Gives a warning and no key. See the dataset's ``segmentations/``
             directory for organ masks if you need them.
         output_report: Not supported (no reports in this release).
-        output_bbox: Not supported in this initial integration; the
-            ``image_level_labels_2024.csv`` Active_Extravasation point
-            annotations could be wired as bbox dots in a follow-up.
+        output_bbox: Not supported. ``image_level_labels_2024.csv`` has slice
+            labels (Active_Extravasation and Bowel), but the class does not read them.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls"})
@@ -79,6 +77,7 @@ class RSNAAbdominalTrauma2023Dataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -93,7 +92,7 @@ class RSNAAbdominalTrauma2023Dataset(BaseRadiologicalDataset):
             series_meta_csv_path = os.path.expanduser(series_meta_csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RSNAAbdominalTrauma2023Harmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -123,7 +122,9 @@ class RSNAAbdominalTrauma2023Dataset(BaseRadiologicalDataset):
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._csv_path = (
-                infer_path(base_image_dir, "train_2024.csv", user_path=csv_path or "")
+                infer_path(
+                    base_image_dir, "train_2024.csv", user_path=csv_path or "", required=True, arg="csv_path",
+                )
                 or csv_path
             )
             self._series_meta_csv_path = (
@@ -131,6 +132,8 @@ class RSNAAbdominalTrauma2023Dataset(BaseRadiologicalDataset):
                     base_image_dir,
                     "train_series_meta.csv",
                     user_path=series_meta_csv_path or "",
+                    required=True,
+                    arg="series_meta_csv_path",
                 )
                 or series_meta_csv_path
             )
@@ -156,6 +159,7 @@ class RSNAAbdominalTrauma2023Dataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -178,8 +182,12 @@ class RSNAAbdominalTrauma2023Dataset(BaseRadiologicalDataset):
 
         Overrides the base implementation because ``image_path`` points at a
         series directory, not a single file.
+
+        Raises:
+            ValueError: If ``image_path`` is relative and ``base_image_dir`` is ``None``.
         """
         df = self._get_harmonized_df()
+        _require_image_folder(df, self.base_image_dir)
 
         def _exists(p):
             fp = (

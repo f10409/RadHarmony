@@ -1,9 +1,9 @@
 """UPerNet head over frozen dense backbone features.
 
 Wraps HuggingFace's :class:`UperNetHead` (PSP + FPN top-down fuse) on top
-of a small **Simple Feature Pyramid** adapter that synthesises strides
-{4, 8, 16, 32} from a single-scale ViT feature map (stride 16). Only the
-SFP + UPerNet head are trainable; the backbone stays frozen.
+of a small **Simple Feature Pyramid** adapter. The adapter builds strides
+{4, 8, 16, 32} from one ViT feature map (stride 16). Only the SFP and the
+UPerNet head train. The backbone stays frozen.
 
 Reuses the train / predict / split / metric / PNG-dump machinery from
 :class:`LinearProbeSegEvaluator` by overriding only ``_make_head``.
@@ -31,9 +31,9 @@ from .linear_probe import LinearProbeSegEvaluator
 class _SimpleFeaturePyramid(nn.Module):
     """ViTDet-style multi-scale synthesis from a single stride-16 feature map.
 
-    Produces four feature maps at strides {4, 8, 16, 32} via 2× / 1× /
-    0.5× spatial rescaling, each with the same channel count as the
-    input (so downstream UPerNet sees uniform ``in_channels``).
+    Gives four feature maps at strides {4, 8, 16, 32} with 2× / 1× /
+    0.5× spatial rescaling. Each has the same channel count as the
+    input, so UPerNet sees one ``in_channels``.
     """
 
     def __init__(self, in_channels: int):
@@ -69,7 +69,7 @@ class _UPerNetSegHead(nn.Module):
         pool_scales: tuple[int, ...] = (1, 2, 3, 6),
     ):
         super().__init__()
-        # Lazy import — only required when this head is constructed.
+        # Lazy import: needed only when this head is built.
         from transformers import UperNetConfig
         from transformers.models.upernet.modeling_upernet import UperNetHead
 
@@ -98,15 +98,14 @@ class _UPerNetSegHead(nn.Module):
 class UPerNetSegEvaluator(LinearProbeSegEvaluator):
     """Frozen-feature segmentation probe with a UPerNet head.
 
-    Same training loop, split modes, metrics, and prediction-dump
-    behaviour as :class:`LinearProbeSegEvaluator`; the only change is
-    that the head is a small ViTDet-style SFP feeding HF's
-    ``UperNetHead`` (PSP + FPN fuse).
+    Same training loop, split modes, metrics, and prediction dump
+    as :class:`LinearProbeSegEvaluator`. Only the head differs: a small
+    ViTDet-style SFP that feeds HF's ``UperNetHead`` (PSP + FPN fuse).
 
     Extra constructor args on top of :class:`LinearProbeSegEvaluator`:
 
-    - ``upernet_hidden_size`` — UPerNet fuse channels (default 256).
-    - ``upernet_pool_scales`` — PSP pool grid scales (default ``(1,2,3,6)``).
+    - ``upernet_hidden_size``: UPerNet fuse channels (default 256).
+    - ``upernet_pool_scales``: PSP pool grid scales (default ``(1,2,3,6)``).
     """
 
     def __init__(

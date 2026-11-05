@@ -1,0 +1,38 @@
+{
+  "_comment": "RSNA Pneumonia Detection Challenge, Kaggle Stage 2 files. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+
+  "dataset_name": "RSNA Pneumonia (Kaggle)",
+  "registry_key": "rsna_pneumonia_kaggle",
+  "modality": "2D",
+  "image_format": "DICOM",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: the Kaggle data page (26,684 train images, 3,000 stage 2 test images), and the raw files read with pandas and pydicom (stage_2_detailed_class_info.csv, stage_2_train_labels.csv, the DICOM headers). Both CSVs have one line per box, and one line for each image with no box (9,555 + 20,672 = 30,227 lines). Each patientId has one class and one Target, so the table has one row per image (D-03). The patientId is the file name and the DICOM PatientID, so patients = studies = images. Sex and age are only in the DICOM headers. 5 train ages and 1 test age are over 100 (148 to 412), probably data errors. The age rule of radharmony/harmonizer/_age.py gives NaN for an age above 130, so age_years has no such value (D-06). The test images have no labels (D-25).",
+    "patients_in_two_splits": 0,
+    "rsna_pneumonia_kaggle_train": {
+      "harmonizer": "RSNAPneumoniaKaggleTrainHarmonizer",
+      "images": 26684,
+      "studies": 26684,
+      "patients": 26684,
+      "positives": {"lung_opacity": 6012, "no_lung_opacity_/_not_normal": 11821, "normal": 8851},
+      "uncertain": {},
+      "rows_with_bbox": 6012,
+      "boxes": 9555,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 11518, "M": 15166},
+      "age_years": [1, 92]
+    },
+    "rsna_pneumonia_kaggle_test": {
+      "harmonizer": "RSNAPneumoniaKaggleTestHarmonizer",
+      "images": 3000,
+      "studies": 3000,
+      "patients": 3000,
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 1286, "M": 1714},
+      "age_years": [1, 90]
+    }
+  }
+}

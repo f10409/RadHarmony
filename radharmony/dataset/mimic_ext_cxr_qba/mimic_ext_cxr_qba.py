@@ -11,17 +11,21 @@ from ..base_vqa import BaseVQADataset
 class MIMICExtCXRQBADataset(BaseVQADataset):
     """VQA dataset over MIMIC-CXR studies.
 
+    This class mixes the official splits, so it is not for benchmarks. Use the
+    split classes, for example :class:`MIMICExtCXRQBATestDataset` (D-09).
+
     Args:
-        base_image_dir: MIMIC-CXR image root, e.g.
+        base_image_dir: MIMIC-CXR image root, for example
             ``/data/mimic-cxr/2.1.0/files``.
         metadata_dir: Directory containing the QBA parquet metadata files.
         qa_zip_path: Path to ``qa.zip`` for question/answer text extraction.
         image_ext: ``".dcm"`` (default) or ``".jpg"``.
         max_studies: Limit the number of studies processed.  ``None`` reads all.
+            In a split class, it counts the studies of that split.
         transform, cache_dir, output_struct, output_question_type:
             See :class:`BaseVQADataset`.
         harmonized_df, harmonizer, harmonizer_path: Standard harmonizer
-            resolution paths; when used, ``metadata_dir`` / ``qa_zip_path``
+            resolution paths. When used, ``metadata_dir`` / ``qa_zip_path``
             are not required.
     """
 
@@ -45,7 +49,7 @@ class MIMICExtCXRQBADataset(BaseVQADataset):
     ):
         # When loading from a saved harmonizer, infer base_image_dir.
         if harmonizer_path is not None and base_image_dir is None:
-            _h = MIMICExtCXRQBAHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = _h.base_image_dir
 
         if (
@@ -81,7 +85,7 @@ class MIMICExtCXRQBADataset(BaseVQADataset):
                     "metadata_dir is required when constructing the harmonizer "
                     "from scratch."
                 )
-            self._harmonizer = MIMICExtCXRQBAHarmonizer(
+            self._harmonizer = self._HARMONIZER_CLS(
                 metadata_dir=metadata_dir,
                 qa_zip_path=qa_zip_path,
                 base_image_dir=base_image_dir,

@@ -1,40 +1,29 @@
 """Harmonizer for the RSNA 2023 Abdominal Trauma Detection Challenge.
 
-Per-series CT volumes from a multi-institution release.  On disk each patient
-has one or more series, stored as a directory of per-slice DICOM files::
+Per-series CT volumes. Each series is a folder of per-slice DICOM files,
+``train_images/<patient_id>/<series_id>/<instance_number>.dcm``.
 
-    <base_image_dir>/                                  # train_images/
-      <patient_id>/
-        <series_id>/
-          <instance_number>.dcm
-          ...
+The harmonizer uses two CSVs:
 
-The release ships two CSVs we care about for the basic harmonized table:
+- ``train_2024.csv``: one row for each patient (3,147 rows), with 14 binary label columns for
+  5 organs. ``bowel`` and ``extravasation`` have healthy and injury columns. ``kidney``,
+  ``liver`` and ``spleen`` have healthy, low and high columns. ``any_injury`` is a summary flag.
+- ``train_series_meta.csv``: one row for each series (4,711 rows), with ``aortic_hu`` (contrast
+  phase) and ``incomplete_organ``.
 
-- ``train_2024.csv`` — one row per *patient* (3,147 rows), with 14 binary
-  label columns covering 5 organs.  ``bowel`` and ``extravasation`` are
-  binary (healthy vs. injury); ``kidney``, ``liver``, ``spleen`` each have
-  three one-hot columns (healthy / low-grade / high-grade); plus an
-  ``any_injury`` summary flag.
-- ``train_series_meta.csv`` — one row per *series* (4,711 rows), with
-  ``aortic_hu`` (contrast-phase indicator) and ``incomplete_organ``.
+A patient has about 1.5 series (often one non-contrast and one portal-venous scan). The table
+has one row for each series, and the patient labels repeat on each series of the patient.
 
-Patients can have multiple series (mean ~1.5/patient) — typically one
-non-contrast and one portal-venous-phase scan.  We emit one harmonized
-row per series and replicate the patient-level labels across that
-patient's series, matching the way the original challenge framed the
-task ("predict patient-level injury from any of the patient's series").
+The release also has ``image_level_labels_2024.csv`` (15,632 slice labels: 8,400
+``Active_Extravasation`` and 7,232 ``Bowel``) and ``segmentations/`` (organ masks for some
+series). The harmonizer does not use them.
 
-The dataset also ships ``image_level_labels_2024.csv`` (15,632 rows of
-per-slice ``Active_Extravasation`` point annotations) and
-``segmentations/`` (organ segmentation masks for a subset of series)
-— neither is wired into this initial harmonizer.  See
-``docs/proposals/`` for follow-up work if these become useful.
-
-See: https://www.kaggle.com/competitions/rsna-2023-abdominal-trauma-detection
+Source: https://www.kaggle.com/competitions/rsna-2023-abdominal-trauma-detection
+Details: ``docs/wiki/reference/datasets/ct-mri-other/rsna_abdominal_trauma_2023.md``.
 """
 
 import os
+import warnings
 
 import pandas as pd
 
@@ -44,23 +33,19 @@ from ..base import BaseHarmonizer
 class RSNAAbdominalTrauma2023Harmonizer(BaseHarmonizer):
     """Harmonize RSNA 2023 Abdominal Trauma Detection into the standard format.
 
-    Emits one row per series.  Patient-level labels from ``train_2024.csv``
-    are joined onto each of that patient's series by ``patient_id``.
-    Series-level metadata (``aortic_hu``, ``incomplete_organ``) is joined
+    It gives one row for each series. The patient labels of ``train_2024.csv`` join to each
+    series of the patient by ``patient_id``. ``aortic_hu`` and ``incomplete_organ`` come
     from ``train_series_meta.csv``.
 
     Args:
-        csv_path: Path to ``train_2024.csv`` (the patient-level label CSV).
-        series_meta_csv_path: Path to ``train_series_meta.csv``.  Required —
-            no fallback, since the per-series row enumeration comes from here.
-        base_image_dir: Root of the DICOM tree (typically ``train_images/``).
-            Retained on the instance for ``save()`` / ``load_from_saved()``
-            round-trips and for ``verify_images``.
+        csv_path: Path to ``train_2024.csv`` (the patient labels).
+        series_meta_csv_path: Path to ``train_series_meta.csv``. Required, because it lists
+            the series.
+        base_image_dir: Root of the DICOM tree, usually ``train_images/``. ``save()``,
+            ``load_from_saved()`` and ``verify_images`` use it.
     """
 
     LABEL_COLS = [
-        # Sorted alphabetically — order is normalized to a deterministic
-        # output column order in the harmonized df.
         "any_injury",
         "bowel_healthy",
         "bowel_injury",
@@ -77,12 +62,16 @@ class RSNAAbdominalTrauma2023Harmonizer(BaseHarmonizer):
         "spleen_low",
     ]
 
-    # Frank's series_id refactor (commit ef8f089) — automatic via base class.
     SERIES_ID_SOURCE_COL = "series_id"
 
-    # Surface aortic_hu + incomplete_organ as extra output columns so they
-    # ride along in the harmonized df without being label/reg columns.
+    # These columns are in the output but are not labels.
     EXTRA_OUTPUT_COLS = ("aortic_hu", "incomplete_organ")
+
+    # Age and sex come from train_demographics_2024.csv, next to csv_path (D-06, V-H3-32).
+    AGE_SOURCE_COL = "Age"
+    AGE_SOURCE_UNIT = "years"
+    SEX_SOURCE_COL = "Sex"
+    DEMOGRAPHICS_FILE = "train_demographics_2024.csv"
 
     LABEL_JOIN_COLS = None
     VIEW_POSITION_SOURCE_COL = None
@@ -124,63 +113,60 @@ class RSNAAbdominalTrauma2023Harmonizer(BaseHarmonizer):
         self.df["patient_id"] = self.df["patient_id"].astype(str)
 
     def _build_study_id(self) -> None:
-        # No separate study UID in this release — the patient is the study
-        # for harmonized-df purposes.  Patient-level splits stay correct
-        # because get_datasets() splits on patient_id.
+        # The release has no study ID. The patient is the study.
         self.df["study_id"] = self.df["patient_id"].astype(str)
 
     def _build_image_path(self) -> None:
-        # DICOM series DIRECTORY: <patient_id>/<series_id>/.  MONAI's
-        # ITKReader assembles the per-slice .dcm files into a 3-D volume.
+        # A series folder, not one file.
         self.df["image_path"] = (
             self.df["patient_id"].astype(str)
             + "/"
             + self.df["series_id"].astype(str)
         )
 
-    # ------------------------------------------------------------------
-    # Custom harmonize — join patient labels onto per-series rows
-    # ------------------------------------------------------------------
+    def _add_demographics(self) -> None:
+        """Join ``Age`` and ``Sex`` from the demographics file next to ``csv_path``, if it is there.
 
-    def harmonize(self, **kwargs) -> pd.DataFrame:
-        """Read both CSVs, join patient labels onto each series, build paths."""
-        self._harmonized_df_override = None
+        "90+" (an age that the release caps at 90) gives 90. "Unknown" gives NaN (D-06).
+        A missing file gives a warning and no age or sex columns.
+        """
+        age, sex = self.AGE_SOURCE_COL, self.SEX_SOURCE_COL
+        path = os.path.join(os.path.dirname(self.csv_path), self.DEMOGRAPHICS_FILE)
+        if not os.path.isfile(path):
+            warnings.warn(f"RSNA 2023 abdominal trauma: {path} not found, so the table has no age_years "
+                          "and no sex.", UserWarning, stacklevel=4)
+            return
+        demo = pd.read_csv(path, dtype={age: str, sex: str})[["patient_id", age, sex]]
+        demo = demo.drop_duplicates("patient_id")  # one row per patient, so the merge keeps the row count
+        demo[age] = demo[age].str.strip().replace({"90+": "90"})
+        self.df = self.df.merge(demo, on="patient_id", how="left")
 
-        labels = pd.read_csv(self.csv_path)        # one row per patient
-        series = pd.read_csv(self.series_meta_csv_path)  # one row per series
+    def _read_source(self) -> pd.DataFrame:
+        """Join the patient labels to each series, then add age and sex."""
+        labels = pd.read_csv(self.csv_path)        # one row for each patient
+        series = pd.read_csv(self.series_meta_csv_path)  # one row for each series
 
-        # Series-level table is the row spine — merge patient labels onto it.
-        # Inner join: drop series whose patient has no label row (shouldn't
-        # happen in this release but defensive).
+        # The inner join drops a series whose patient has no label row.
+        # _add_demographics() reads and changes self.df.
         self.df = series.merge(labels, on="patient_id", how="inner")
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_series_id()
-        self._build_image_path()
-        self.LABEL_COLS = sorted(self.LABEL_COLS)
-        self._build_labels()
-        self._build_view_position()
-        self._build_mask_path()
-        self._build_bbox()
-        self._build_report()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
-
-        return self._select_harmonized_columns(self.df)
+        self._add_demographics()
+        return self.df
 
     def verify_images(
         self, base_image_dir: str = None, drop_missing: bool = True
     ) -> pd.DataFrame:
-        """Check that every ``image_path`` **directory** exists.
+        """Check that each ``image_path`` folder exists.
 
-        Overrides the base implementation because ``image_path`` is a DICOM
-        series *directory*, not a single file (so ``os.path.isfile`` would
-        always return ``False``).
+        The base method checks files. Here ``image_path`` is a series folder.
         """
         df = self.harmonized_df
-        base = base_image_dir or self.base_image_dir
+        base = base_image_dir or getattr(self, "base_image_dir", None)
+        # The folder rule of the base verify_images (D-04, V-H3-22).
+        if not base and not df["image_path"].astype(str).map(os.path.isabs).all():
+            raise ValueError(
+                "image_path is relative to base_image_dir (D-04). Pass "
+                "verify_images(base_image_dir=...), or every row looks missing."
+            )
 
         def _exists(p):
             fp = os.path.join(base, p) if base else p

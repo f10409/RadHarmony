@@ -4,9 +4,10 @@ A thin :class:`ReportGenerationEvaluator` subclass that scores the reportbench
 service's generated reports instead of calling a VLM. The paired
 :class:`~radharmony.datathon26.dataset.report_dataset.ReportResultsDataset`
 serves the **predicted** report under ``"img"`` and the **reference** report
-under ``"report"``; :func:`identity_generator` passes the predicted text through
-as the hypothesis. Everything downstream — the RadEval metric suite,
-``n_bootstrap`` resampling, and ``generations.csv`` — is inherited unchanged.
+under ``"report"``. The generator of this class passes the predicted text
+through as the hypothesis. The rest comes from the parent class unchanged: the
+RadEval metrics, the cleaning of the hypothesis (D-50), the bootstrap by
+patient (``n_bootstrap``, D-32), and ``generations.csv``.
 
 Both reference and hypothesis are parsed to the same ``ref_section`` so the
 comparison is symmetric (findings-vs-findings by default).
@@ -32,8 +33,6 @@ from ._identity import identity_generator
 class DatathonReportGenerationEvaluator(ReportGenerationEvaluator):
     """Score pre-computed generated reports with RadEval (no model call)."""
 
-    _progress_desc = "scoring reports"
-
     def __init__(
         self,
         *,
@@ -42,24 +41,15 @@ class DatathonReportGenerationEvaluator(ReportGenerationEvaluator):
         ref_section: str = "findings",
         **kwargs,
     ):
+        def prediction_section(preds):
+            # The predicted text comes under 'img'. Parse it to the same section as the
+            # reference, so both sides hold the same kind of content.
+            return [parse_report_section(str(p), ref_section) for p in identity_generator(preds)]
+
         super().__init__(
-            identity_generator,
+            prediction_section,
             dataset=dataset,
             metrics=metrics,
             ref_section=ref_section,
             **kwargs,
         )
-
-    def _prepare_batch(self, batch):
-        if "report" not in batch or "img" not in batch:
-            raise KeyError(
-                "DatathonReportGenerationEvaluator expects a ReportResultsDataset "
-                "sample with 'report' (reference) and 'img' (predicted) keys."
-            )
-        refs = [parse_report_section(str(r), self.ref_section) for r in batch["report"]]
-        # Predicted text arrives under 'img'; parse to the same section so the
-        # hypothesis and reference are compared on like content. These become
-        # the generator input; identity_generator returns them as hypotheses.
-        preds = [parse_report_section(str(p), self.ref_section) for p in batch["img"]]
-        ids = [str(s) for s in batch.get("study_id", range(len(refs)))]
-        return preds, [None] * len(refs), refs, ids

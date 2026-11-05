@@ -1,15 +1,15 @@
 """Segmentation evaluators over pre-extracted patch features (datathon26).
 
 Thin subclasses of the standard frozen-feature segmentation probes that default
-their ``image_encoder`` to :class:`IdentityEncoder`. Paired with
-:class:`~radharmony.datathon26.dataset.seg_dataset.PatchSegResultsDataset`
-(which serves the reportbench ``patches`` folded to a dense ``[D, H, W]`` map
-under the ``"img"`` key), the encoder forward in
-``BaseSegEvaluator`` becomes a pass-through, so the pre-extracted patch features
-flow straight into the segmentation head (1×1 conv / conv block / UPerNet) and
-are scored with Dice/IoU. Every feature of the originals is inherited unchanged —
-patient-grouped k-fold, early stopping, bootstrap, ``macro_average``, prediction
-dumps, and head save/load.
+their ``image_encoder`` to :class:`IdentityEncoder`. Use them with
+:class:`~radharmony.datathon26.dataset.seg_dataset.PatchSegResultsDataset`.
+It serves the reportbench ``patches``, folded to a dense ``[D, H, W]`` map,
+under the ``"img"`` key. Then the encoder forward pass in ``BaseSegEvaluator`` is a
+pass-through. The pre-extracted patch features go straight into the
+segmentation head (1×1 conv / conv block / UPerNet), and Dice/IoU scores them.
+The subclasses keep every feature of the originals unchanged: patient-grouped
+k-fold, early stopping, bootstrap, ``macro_average``, prediction dumps, and
+head save/load.
 
 Usage::
 

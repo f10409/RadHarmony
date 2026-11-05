@@ -40,21 +40,21 @@ class EmoryCHORUSDataset(BaseRadiologicalDataset):
         base_image_dir: Root of the DICOM tree (the ``images_dicom_xray``
             directory holding per-patient sub-folders).
         manifest_csv_path: Path to the manifest CSV used as a scan cache.  When
-            it exists it is read directly; otherwise the tree is scanned and the
-            manifest written here.  When ``None``, the tree is scanned in memory
-            on every construction (slow — prefer passing a path).
+            it exists, the dataset reads it directly. Otherwise the dataset scans
+            the tree and writes the manifest here.  When ``None``, the dataset
+            scans the tree in memory on every construction (slow, so pass a path).
         chest_only: Keep only chest radiographs (the subset also contains
             abdomen, spine, skull, and extremity films).  ``True`` by default.
         num_workers: Parallel worker processes for the header scan.
         transform: MONAI Compose transform.  Defaults to the standard 2-D
-            pipeline (224 px, ImageNet normalisation) with DICOM VOI-LUT /
+            pipeline (224 px, ImageNet normalization) with DICOM VOI-LUT /
             MONOCHROME handling from the base transforms.
         cache_dir: PersistentDataset cache directory.  ``None`` disables caching.
-        output_cls / output_mask / output_report / output_bbox: Not supported
-            (no labels/masks/boxes/reports in this release); silently ignored
-            with a warning.
+        output_cls / output_mask / output_report / output_bbox / output_reg: Not
+            supported (no labels, masks, boxes, reports or regression targets in
+            this release). ``True`` gives a warning and has no other effect.
         harmonized_df / harmonizer / harmonizer_path: Standard harmonizer preset
-            hooks; see :class:`BaseRadiologicalDataset`.
+            hooks. See :class:`BaseRadiologicalDataset`.
         dtype: Tensor dtype for image data (default: ``torch.bfloat16``).
     """
 
@@ -74,6 +74,7 @@ class EmoryCHORUSDataset(BaseRadiologicalDataset):
         output_mask: bool = False,
         output_report: bool = False,
         output_bbox: bool = False,
+        output_reg: bool = False,
         harmonized_df=None,
         harmonizer=None,
         harmonizer_path: str = None,
@@ -100,6 +101,7 @@ class EmoryCHORUSDataset(BaseRadiologicalDataset):
             (output_mask, "output_mask"),
             (output_report, "output_report"),
             (output_bbox, "output_bbox"),
+            (output_reg, "output_reg"),
         ):
             if flag:
                 warnings.warn(

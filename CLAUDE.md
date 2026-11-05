@@ -2,6 +2,18 @@
 
 These rules apply to every task (new datasets, bug fixes, refactors, PR reviews), for every user.
 
+## Data paths
+
+Data paths: `configs/data_paths.json` (read with `scripts/dataset_paths.py`). Do not hard-code NAS
+paths in scripts, tests or docs.
+
+## Design decisions and rules
+
+- Before you change code, read the entries in `docs/wiki/design.md` for that code. If no entry covers a
+  behavior, ask the user, one question at a time (`.claude/skills/evaluate/references/decisions.md`).
+- `eval/RULES.md` lists the project rules. The automatic checks (`scripts/evalkit/run_all.py`) and
+  `/evaluate` enforce them.
+
 ## Base code needs explicit approval
 
 Base code is shared by every dataset or evaluator, so a small change can silently change results

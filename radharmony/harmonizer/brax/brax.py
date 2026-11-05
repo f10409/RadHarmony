@@ -1,43 +1,14 @@
 """Harmonizer for the BRAX (Brazilian Chest X-Ray) v1.1.0 release.
 
-PhysioNet credentialed-access release (~24,959 studies, ~40,967 images,
-19,351 patients) with both DICOM and PNG variants in the same download.
-Labels are CheXpert-aligned (14 classes), NLP-derived from Portuguese
-radiology reports using the original CheXpert labeller.  Per the BRAX
-documentation, label cells use the encoding **``1`` = positive,
-``0`` = negation, ``-1`` = uncertainty**, with blank cells indicating
-that the labeller did not extract a mention.
+BRAX has DICOM and PNG images in one download. Labels are CheXpert-aligned
+(14 classes) and come from Portuguese reports. A label cell is ``1``
+(positive), ``0`` (negation), ``-1`` (uncertain) or blank (not mentioned).
+The ``image_format`` argument picks the DICOM or the PNG path column.
+Reports are not in the public release, so ``output_report`` is unsupported.
+The ``uncertain_strategy`` argument sets how ``-1`` cells are mapped:
+``raw`` (default), ``u_zeros``, ``u_ones``, ``u_ignore`` or ``drop``.
 
-Layout::
-
-    <base_image_dir>/                # the BRAX root, e.g. .../physionet.org/files/brax/1.1.0/
-      master_spreadsheet.csv         # primary metadata
-      Anonymized_DICOMs/
-        id_<PatientID>/Study_<UID>/Series_<UID>/image-<UID>.dcm
-      images/
-        id_<PatientID>/Study_<UID>/Series_<UID>/image-<UID>.png
-
-Both DICOM and PNG variants are produced from the same harmonizer; the
-``image_format`` parameter selects which path column to surface as
-``image_path``.  Reports are NOT distributed in the public release;
-``output_report`` is unsupported.
-
-Uncertain-label handling — five options.  ``"raw"`` is the default so the
-harmonized DataFrame mirrors the source CSV cell-for-cell.  The other
-four match the CheXpert-paper ablations and exist for callers who need
-training-ready 0/1 tensors:
-
-* ``"raw"`` (default) — preserve cells exactly: ``1`` / ``0`` / ``-1`` /
-  ``NaN``.  No coercion, no row drops.  Use when faithfulness to the
-  source matters (e.g. building label-uncertainty diagnostics) or when
-  your loss function explicitly handles ``-1``.
-* ``"u_zeros"`` — ``NaN`` → ``0``, then ``-1`` → ``0``.  Retains every row.
-* ``"u_ones"``  — ``NaN`` → ``0``, then ``-1`` → ``1``.  Retains every row.
-* ``"u_ignore"`` — ``NaN`` → ``0``, then ``-1`` → ``NaN``.  Retains every
-  row; downstream loss must mask the resulting ``NaN`` entries.
-* ``"drop"`` — ``NaN`` → ``0``, then ``-1`` → ``NaN``, then drop any row
-  whose label vector still contains a ``NaN``.  Matches the legacy
-  ``CheXpertHarmonizer(drop_uncertain=True)`` behaviour.
+Counts, layout and strategy table: ``docs/wiki/reference/datasets/cxr-labels/brax.md``.
 """
 
 import os
@@ -46,6 +17,7 @@ import re
 import numpy as np
 import pandas as pd
 
+from .._ids import warn_shared_study_ids
 from ..base import BaseHarmonizer
 
 
@@ -65,8 +37,8 @@ class BRAXHarmonizer(BaseHarmonizer):
             to this directory.
         image_format: ``"dicom"`` (default) selects ``DicomPath``;
             ``"png"`` selects ``PngPath``.
-        uncertain_strategy: How to map ``-1`` (uncertain) cells.  See
-            module docstring for the four options.
+        uncertain_strategy: How to map ``-1`` (uncertain) cells. See the
+            module docstring for the five options.
     """
 
     LABEL_COLS = [
@@ -105,6 +77,15 @@ class BRAXHarmonizer(BaseHarmonizer):
         "columns",
     ]
 
+
+    #: PatientAge is the low edge of a 5-year group ("0", "5", ... "80", or
+    #: "85 or more" for 2,299 of 40,967 images). See ``_age.py``.
+    AGE_SOURCE_COL = "patient_age"
+    AGE_SOURCE_UNIT = "years"
+
+    #: PatientSex (M or F), renamed to ``patient_sex``. The base step makes ``sex`` (D-26).
+    SEX_SOURCE_COL = "patient_sex"
+
     def __init__(
         self,
         csv_path: str,
@@ -140,11 +121,39 @@ class BRAXHarmonizer(BaseHarmonizer):
     # Build hooks
     # ------------------------------------------------------------------
 
+    def _read_source(self) -> pd.DataFrame:
+        """Read ``master_spreadsheet.csv``.
+
+        Rename the extra metadata columns (PatientSex, Rows, ...) to the names in ``EXTRA_OUTPUT_COLS``.
+        """
+        df = super()._read_source()
+        rename = {
+            "PatientSex": "patient_sex",
+            "PatientAge": "patient_age",
+            "Manufacturer": "manufacturer",
+            "StudyDate": "study_date",
+            "Rows": "rows",
+            "Columns": "columns",
+        }
+        return df.rename(columns=rename)
+
+    def _build_age_years(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Give the low edge of each 5-year age group, so ``"85 or more"`` gives 85 (D-06).
+
+        ``patient_age`` keeps the source value.
+        """
+        df = super()._build_age_years(df)
+        if "age_years" in df.columns:
+            df.loc[df[self.AGE_SOURCE_COL].astype(str).str.strip().eq("85 or more"), "age_years"] = 85.0
+        return df
+
     def _build_patient_id(self) -> None:
         self.df["patient_id"] = self.df["PatientID"].astype(str)
 
     def _build_study_id(self) -> None:
         self.df["study_id"] = self.df["AccessionNumber"].astype(str)
+        # BRAX 1.1.0 gives 2 AccessionNumbers to 2 patients each (V-H1-9).
+        warn_shared_study_ids(self.df, "BRAX", "AccessionNumber")
 
     def _build_image_path(self) -> None:
         path_col = "DicomPath" if self.image_format == "dicom" else "PngPath"
@@ -154,24 +163,21 @@ class BRAXHarmonizer(BaseHarmonizer):
                 f"(image_format={self.image_format!r}). "
                 f"Available columns: {list(self.df.columns)[:20]}"
             )
-        # Paths in the CSV are relative to the BRAX root and include the
-        # 'Anonymized_DICOMs/' or 'images/' prefix.  base_image_dir is the
-        # BRAX root itself, so no prefix stripping is needed.
+        # CSV paths start at the BRAX root and keep the 'Anonymized_DICOMs/'
+        # or 'images/' prefix, so base_image_dir needs no stripping.
         self.df["image_path"] = self.df[path_col].astype(str)
 
-        # Extract Series_<UID> from the path so series_id is stable across
-        # multi-series studies.  Falls back to None if the pattern is absent.
+        # Take Series_<UID> from the path. It is None if the path has none.
         self.df["series_id"] = self.df["image_path"].apply(
             lambda p: (m.group(0) if (m := _SERIES_RE.search(p)) else None)
         )
 
     def _build_series_id(self) -> None:
-        # Already populated by _build_image_path; suppress the base-class default.
+        # _build_image_path sets series_id. Skip the base default.
         pass
 
     def _build_labels(self) -> None:
-        # Snake-case the 14 label columns first.  Source CSV uses Title Case
-        # ('Atelectasis', 'No Finding', etc.) per the BRAX documentation.
+        # The CSV uses Title Case names such as 'No Finding'. Make them snake case.
         for col in self.LABEL_COLS:
             if col in self.df.columns:
                 self.df.rename(
@@ -181,14 +187,12 @@ class BRAXHarmonizer(BaseHarmonizer):
         snake_cols = [c.lower().replace(" ", "_") for c in self.LABEL_COLS]
         present = [c for c in snake_cols if c in self.df.columns]
 
-        # 'raw' preserves the source encoding exactly (1 / 0 / -1 / NaN) per
-        # the BRAX paper specification.  No coercion, no fillna, no row drops.
+        # 'raw' keeps the source values (1 / 0 / -1 / NaN) and drops no row.
         if self.uncertain_strategy == "raw":
             return
 
-        # All other strategies start with the standard CheXpert convention
-        # of treating "mention not extracted" (NaN) as negation (0); they
-        # differ only in how the explicit -1 (uncertainty) cells are mapped.
+        # Other strategies map NaN ("not mentioned") to 0, as CheXpert does.
+        # They differ only in how they map -1.
         self.df[present] = self.df[present].fillna(0.0)
 
         if self.uncertain_strategy == "u_zeros":
@@ -200,52 +204,3 @@ class BRAXHarmonizer(BaseHarmonizer):
         elif self.uncertain_strategy == "drop":
             self.df[present] = self.df[present].replace({-1: np.nan})
             self.df.dropna(subset=present, inplace=True)
-
-    def _build_view_position(self) -> None:
-        super()._build_view_position()
-        # Some BRAX rows have NaN ViewPosition for legacy series; preserve
-        # them as 'Unknown' rather than dropping (we have no clean signal).
-        if "view_position" in self.df.columns:
-            self.df["view_position"] = self.df["view_position"].fillna("Unknown")
-
-    # ------------------------------------------------------------------
-    # Extra demographic/scanner metadata
-    # ------------------------------------------------------------------
-
-    def _build_extras(self) -> None:
-        """Map the extra metadata columns to the snake_case names declared in EXTRA_OUTPUT_COLS."""
-        rename = {
-            "PatientSex": "patient_sex",
-            "PatientAge": "patient_age",
-            "Manufacturer": "manufacturer",
-            "StudyDate": "study_date",
-            "Rows": "rows",
-            "Columns": "columns",
-        }
-        for src, dst in rename.items():
-            if src in self.df.columns:
-                self.df.rename(columns={src: dst}, inplace=True)
-
-    def harmonize(self, *args, **kwargs) -> pd.DataFrame:
-        # Override to call _build_extras between standard hooks; the base
-        # flow doesn't know about them.
-        self._harmonized_df_override = None
-        self.df = pd.read_csv(self.csv_path)
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_image_path()
-        self.LABEL_COLS = sorted(
-            self.LABEL_COLS, key=lambda c: c.lower().replace(" ", "_")
-        )
-        self._build_labels()
-        self._build_view_position()
-        self._build_extras()
-        self._build_mask_path()
-        self._build_bbox()
-        self._build_report()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
-
-        return self._select_harmonized_columns(self.df)

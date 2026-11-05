@@ -6,6 +6,8 @@ repo_url: https://github.com/f10409/RadHarmony
 repo_name: f10409/RadHarmony
 
 docs_dir: docs/wiki
+exclude_docs: |
+  .ipynb_checkpoints/
 
 theme:
   name: material
@@ -32,89 +34,195 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - Quickstart: quickstart.md
-    - Architecture: architecture.md
-  - Datasets:
-    - Overview: datasets.md
-    - Acquiring Datasets: acquiring-datasets.md
-    - Phase Grounding (Label Extraction): phase-grounding.md
-    - CheXpert: datasets/chexpert.md
-    - CheXpert-Plus: datasets/chexpert_plus.md
-    - CheXlocalize: datasets/chexlocalize.md
-    - MIMIC-CXR (DICOM): datasets/mimic_cxr.md
-    - MIMIC-CXR-JPG: datasets/mimic_cxr_jpg.md
-    - ChestX-ray14: datasets/chestxray14.md
-    - PadChest: datasets/padchest.md
-    - ReXGradient-160K: datasets/rexgradient.md
-    - VinDr-CXR: datasets/vindr_cxr.md
-    - Chest ImaGenome: datasets/chest_imagenome.md
-    - VinDr-PCXR: datasets/vindr_pcxr.md
-    - BRAX: datasets/brax.md
-    - RANZCR CLiP: datasets/ranzcr_clip.md
-    - SIIM-ACR Pneumothorax: datasets/siim_acr_ptx.md
-    - SIIM COVID-19: datasets/siim_covid19.md
-    - RSNA Pneumonia (Adjudicated JSON): datasets/rsna_pneumonia.md
-    - RSNA Pneumonia (Kaggle): datasets/rsna_pneumonia_kaggle.md
-    - RSNA PE Detection <sup class="beta">beta</sup>: datasets/rsna_pe_detection.md
-    - RSNA Pediatric Bone Age <sup class="beta">beta</sup>: datasets/rsna_bone_age.md
-    - RSNA 2024 Lumbar Spine <sup class="beta">beta</sup>: datasets/rsna_2024_lumbar_spine.md
-    - CT-RATE <sup class="beta">beta</sup>: datasets/ct_rate.md
-    - RAD-ChestCT <sup class="beta">beta</sup>: datasets/radchestct.md
-    - TAIX-Ray: datasets/taix_ray.md
-    - RSNA 2022 Cervical Spine <sup class="beta">beta</sup>: datasets/rsna_2022_cervical_spine.md
-    - RSNA 2023 Abdominal Trauma <sup class="beta">beta</sup>: datasets/rsna_abdominal_trauma_2023.md
-    - Montgomery County CXR: datasets/montgomery_cxr.md
-    - Shenzhen Hospital CXR: datasets/shenzhen_cxr.md
-    - OpenI IU CXR: datasets/openi_cxr.md
-    - VQA-RAD: datasets/vqa_rad.md
-    - GEMeX-VQA: datasets/gemex_vqa.md
-    - MIMIC-Ext-CXR-QBA: datasets/mimic_ext_cxr_qba.md
-    - ROCO: datasets/roco.md
-    - EmoryCXR v2: datasets/emory_cxr.md
-    - Emory CHORUS (X-ray subset): datasets/emory_chorus.md
-    - MS-CXR: datasets/ms_cxr.md
-    - MS-CXR-T: datasets/ms_cxr_t.md
-  - Dataset API:
-    - Dataset API: api.md
-    - Transforms: transforms.md
-  - Evaluator API:
-    - Overview: evaluator/index.md
-    - Linear Probe: evaluator/linear_probe.md
-    - k-NN Probe: evaluator/knn_probe.md
-    - SVM Probe: evaluator/svm_probe.md
-    - Prototype Probe: evaluator/prototype_probe.md
-    - Zero-Shot: evaluator/zero_shot.md
-    - Fine-tune: evaluator/finetune.md
-    - Linear Probe (Segmentation): evaluator/linear_probe_seg.md
-    - Conv Probe (Segmentation): evaluator/conv_probe_seg.md
-    - UPerNet (Segmentation): evaluator/upernet_seg.md
-    - Report Generation: evaluator/report_generation.md
-    - Visual Question Answering: evaluator/vqa.md
-  - Backbones:
-    - Overview: backbones/index.md
-    - RAD-DINO: backbones/raddino.md
-    - BiomedCLIP: backbones/biomed_clip.md
-    - CheXagent: backbones/chexagent.md
-    - MedSigLIP: backbones/medsiglip.md
-    - MedImageInsights: backbones/medimageinsights.md
-    - CheXFound: backbones/chexfound.md
-    - DINOv3: backbones/dinov3.md
-    - EVA-X: backbones/eva_x.md
-    - Ark+: backbones/ark_plus.md
-    - Medical MAE: backbones/medical_mae.md
-    - SigLIP2: backbones/siglip2.md
-    - CheXagent (Generative): backbones/chexagent_gen.md
-    - MAIRA-2 (Generative): backbones/maira2_gen.md
-    - Custom Backbones: backbones/custom_backbones.md
-  - App Guide:
-    - Using the App: app.md
-    - Extending the App: app-extend.md
-  - Datathon26:
-    - Overview: datathon26.md
+  - Get started:
+    - Install: get-started/install.md
+    - Your first benchmark in 10 minutes: get-started/first-benchmark.md
+    - Concepts: get-started/concepts.md
+  - How-to guides:
+    - Get the data: how-to/get-the-data.md
+    - Load a dataset and pick outputs: how-to/load-a-dataset.md
+    - Save and reuse a harmonized table: how-to/save-and-reuse.md
+    - Split data: how-to/split-data.md
+    - Cache the samples: how-to/cache.md
+    - Run a probe: how-to/run-a-probe.md
+    - Run segmentation: how-to/run-segmentation.md
+    - Run report generation: how-to/run-report-generation.md
+    - Compare backbones: how-to/compare-backbones.md
+    - Add a dataset: how-to/add-a-dataset.md
+    - Add a backbone: how-to/add-a-backbone.md
+    - Use the app: how-to/use-the-app.md
+  - Reference:
+    - Dataset catalog: reference/datasets/index.md
+    - "Datasets - chest X-ray, labels":
+      - CheXpert: reference/datasets/cxr-labels/chexpert.md
+      - CheXpert-Plus: reference/datasets/cxr-labels/chexpert_plus.md
+      - CheXphoto: reference/datasets/cxr-labels/chexphoto.md
+      - MIMIC-CXR (DICOM): reference/datasets/cxr-labels/mimic_cxr.md
+      - MIMIC-CXR-JPG: reference/datasets/cxr-labels/mimic_cxr_jpg.md
+      - ChestX-ray14: reference/datasets/cxr-labels/chestxray14.md
+      - PadChest: reference/datasets/cxr-labels/padchest.md
+      - ReXGradient-160K: reference/datasets/cxr-labels/rexgradient.md
+      - BRAX: reference/datasets/cxr-labels/brax.md
+      - TAIX-Ray: reference/datasets/cxr-labels/taix_ray.md
+      - EmoryCXR v2: reference/datasets/cxr-labels/emory_cxr.md
+      - Emory CHORUS (X-ray subset): reference/datasets/cxr-labels/emory_chorus.md
+      - MS-CXR-T: reference/datasets/cxr-labels/ms_cxr_t.md
+    - "Datasets - chest X-ray, boxes and masks":
+      - CheXlocalize: reference/datasets/cxr-boxes-masks/chexlocalize.md
+      - ChestX-Det10: reference/datasets/cxr-boxes-masks/chestxdet10.md
+      - NODE21: reference/datasets/cxr-boxes-masks/node21.md
+      - PadChest-GR: reference/datasets/cxr-boxes-masks/padchest_gr.md
+      - VinDr-CXR: reference/datasets/cxr-boxes-masks/vindr_cxr.md
+      - Chest ImaGenome: reference/datasets/cxr-boxes-masks/chest_imagenome.md
+      - VinDr-PCXR: reference/datasets/cxr-boxes-masks/vindr_pcxr.md
+      - RANZCR CLiP: reference/datasets/cxr-boxes-masks/ranzcr_clip.md
+      - SIIM-ACR Pneumothorax: reference/datasets/cxr-boxes-masks/siim_acr_ptx.md
+      - SIIM COVID-19: reference/datasets/cxr-boxes-masks/siim_covid19.md
+      - RSNA Pneumonia (Adjudicated JSON): reference/datasets/cxr-boxes-masks/rsna_pneumonia.md
+      - RSNA Pneumonia (Kaggle): reference/datasets/cxr-boxes-masks/rsna_pneumonia_kaggle.md
+      - Montgomery County CXR: reference/datasets/cxr-boxes-masks/montgomery_cxr.md
+      - Shenzhen Hospital CXR: reference/datasets/cxr-boxes-masks/shenzhen_cxr.md
+      - QaTa-COV19 v2: reference/datasets/cxr-boxes-masks/qata_cov19.md
+      - MS-CXR: reference/datasets/cxr-boxes-masks/ms_cxr.md
+    - "Datasets - CT, MRI and other":
+      - RSNA PE Detection <sup class="beta">beta</sup>: reference/datasets/ct-mri-other/rsna_pe_detection.md
+      - RSNA Pediatric Bone Age <sup class="beta">beta</sup>: reference/datasets/ct-mri-other/rsna_bone_age.md
+      - RSNA 2024 Lumbar Spine <sup class="beta">beta</sup>: reference/datasets/ct-mri-other/rsna_2024_lumbar_spine.md
+      - CT-RATE <sup class="beta">beta</sup>: reference/datasets/ct-mri-other/ct_rate.md
+      - RAD-ChestCT <sup class="beta">beta</sup>: reference/datasets/ct-mri-other/radchestct.md
+      - RSNA 2022 Cervical Spine <sup class="beta">beta</sup>: reference/datasets/ct-mri-other/rsna_2022_cervical_spine.md
+      - RSNA 2023 Abdominal Trauma <sup class="beta">beta</sup>: reference/datasets/ct-mri-other/rsna_abdominal_trauma_2023.md
+      - MedSeg COVID-19 CT: reference/datasets/ct-mri-other/medseg_covid_ct.md
+    - "Datasets - VQA, reports and text":
+      - OpenI IU CXR: reference/datasets/vqa-text/openi_cxr.md
+      - VQA-RAD: reference/datasets/vqa-text/vqa_rad.md
+      - GEMeX-VQA: reference/datasets/vqa-text/gemex_vqa.md
+      - MIMIC-Ext-CXR-QBA: reference/datasets/vqa-text/mimic_ext_cxr_qba.md
+      - ROCO: reference/datasets/vqa-text/roco.md
+      - MedPMC: reference/datasets/vqa-text/medpmc.md
+      - CheXinstruct VQA: reference/datasets/vqa-text/chexinstruct_vqa.md
+    - Evaluators:
+      - Overview: reference/evaluators/index.md
+      - Linear Probe: reference/evaluators/linear_probe.md
+      - k-NN Probe: reference/evaluators/knn_probe.md
+      - SVM Probe: reference/evaluators/svm_probe.md
+      - Prototype Probe: reference/evaluators/prototype_probe.md
+      - Zero-Shot: reference/evaluators/zero_shot.md
+      - Fine-tune: reference/evaluators/finetune.md
+      - Linear Probe (Segmentation): reference/evaluators/linear_probe_seg.md
+      - Conv Probe (Segmentation): reference/evaluators/conv_probe_seg.md
+      - UPerNet (Segmentation): reference/evaluators/upernet_seg.md
+      - Report Generation: reference/evaluators/report_generation.md
+      - Visual Question Answering: reference/evaluators/vqa.md
+    - Backbones:
+      - Overview: reference/backbones/index.md
+      - RAD-DINO: reference/backbones/raddino.md
+      - BiomedCLIP: reference/backbones/biomed_clip.md
+      - CheXagent (XraySigLIP): reference/backbones/chexagent.md
+      - MedSigLIP: reference/backbones/medsiglip.md
+      - MedImageInsight: reference/backbones/medimageinsights.md
+      - CheXFound: reference/backbones/chexfound.md
+      - DINOv3: reference/backbones/dinov3.md
+      - EVA-X: reference/backbones/eva_x.md
+      - Ark+: reference/backbones/ark_plus.md
+      - Medical MAE: reference/backbones/medical_mae.md
+      - SigLIP 2: reference/backbones/siglip2.md
+      - CheXagent-2 (generator): reference/backbones/chexagent_gen.md
+      - MAIRA-2 (generator): reference/backbones/maira2_gen.md
+    - Dataset API: reference/api-datasets.md
+    - Transforms: reference/transforms.md
+    - Datathon26 module: reference/datathon26.md
+  - Explanation:
+    - Design decisions: design.md
+    - Label policy: explanation/label-policy.md
+    - MIMIC-CXR label extraction: explanation/phase-grounding.md
+    - DICOM loading: explanation/dicom-loading.md
 
 plugins:
   - search
+  - redirects:
+      redirect_maps:
+        'quickstart.md': 'get-started/install.md'
+        'architecture.md': 'get-started/concepts.md'
+        'acquiring-datasets.md': 'how-to/get-the-data.md'
+        'app.md': 'how-to/use-the-app.md'
+        'app-extend.md': 'how-to/add-a-dataset.md'
+        'how-to/extend-the-app.md': 'how-to/add-a-dataset.md'
+        'backbones/custom_backbones.md': 'how-to/add-a-backbone.md'
+        'datasets.md': 'reference/datasets/index.md'
+        'api.md': 'reference/api-datasets.md'
+        'transforms.md': 'reference/transforms.md'
+        'phase-grounding.md': 'explanation/phase-grounding.md'
+        'datathon26.md': 'reference/datathon26.md'
+        'evaluator/conv_probe_seg.md': 'reference/evaluators/conv_probe_seg.md'
+        'evaluator/finetune.md': 'reference/evaluators/finetune.md'
+        'evaluator/index.md': 'reference/evaluators/index.md'
+        'evaluator/knn_probe.md': 'reference/evaluators/knn_probe.md'
+        'evaluator/linear_probe.md': 'reference/evaluators/linear_probe.md'
+        'evaluator/linear_probe_seg.md': 'reference/evaluators/linear_probe_seg.md'
+        'evaluator/prototype_probe.md': 'reference/evaluators/prototype_probe.md'
+        'evaluator/report_generation.md': 'reference/evaluators/report_generation.md'
+        'evaluator/svm_probe.md': 'reference/evaluators/svm_probe.md'
+        'evaluator/upernet_seg.md': 'reference/evaluators/upernet_seg.md'
+        'evaluator/zero_shot.md': 'reference/evaluators/zero_shot.md'
+        'evaluator/vqa.md': 'reference/evaluators/vqa.md'
+        'backbones/ark_plus.md': 'reference/backbones/ark_plus.md'
+        'backbones/biomed_clip.md': 'reference/backbones/biomed_clip.md'
+        'backbones/chexagent.md': 'reference/backbones/chexagent.md'
+        'backbones/chexagent_gen.md': 'reference/backbones/chexagent_gen.md'
+        'backbones/chexfound.md': 'reference/backbones/chexfound.md'
+        'backbones/dinov3.md': 'reference/backbones/dinov3.md'
+        'backbones/eva_x.md': 'reference/backbones/eva_x.md'
+        'backbones/index.md': 'reference/backbones/index.md'
+        'backbones/maira2_gen.md': 'reference/backbones/maira2_gen.md'
+        'backbones/medical_mae.md': 'reference/backbones/medical_mae.md'
+        'backbones/medimageinsights.md': 'reference/backbones/medimageinsights.md'
+        'backbones/medsiglip.md': 'reference/backbones/medsiglip.md'
+        'backbones/raddino.md': 'reference/backbones/raddino.md'
+        'backbones/siglip2.md': 'reference/backbones/siglip2.md'
+        'datasets/brax.md': 'reference/datasets/cxr-labels/brax.md'
+        'datasets/chestxray14.md': 'reference/datasets/cxr-labels/chestxray14.md'
+        'datasets/chexpert.md': 'reference/datasets/cxr-labels/chexpert.md'
+        'datasets/chexpert_plus.md': 'reference/datasets/cxr-labels/chexpert_plus.md'
+        'datasets/chexphoto.md': 'reference/datasets/cxr-labels/chexphoto.md'
+        'datasets/emory_cxr.md': 'reference/datasets/cxr-labels/emory_cxr.md'
+        'datasets/emory_chorus.md': 'reference/datasets/cxr-labels/emory_chorus.md'
+        'datasets/mimic_cxr.md': 'reference/datasets/cxr-labels/mimic_cxr.md'
+        'datasets/mimic_cxr_jpg.md': 'reference/datasets/cxr-labels/mimic_cxr_jpg.md'
+        'datasets/ms_cxr_t.md': 'reference/datasets/cxr-labels/ms_cxr_t.md'
+        'datasets/padchest.md': 'reference/datasets/cxr-labels/padchest.md'
+        'datasets/rexgradient.md': 'reference/datasets/cxr-labels/rexgradient.md'
+        'datasets/taix_ray.md': 'reference/datasets/cxr-labels/taix_ray.md'
+        'datasets/chest_imagenome.md': 'reference/datasets/cxr-boxes-masks/chest_imagenome.md'
+        'datasets/chestxdet10.md': 'reference/datasets/cxr-boxes-masks/chestxdet10.md'
+        'datasets/chexlocalize.md': 'reference/datasets/cxr-boxes-masks/chexlocalize.md'
+        'datasets/montgomery_cxr.md': 'reference/datasets/cxr-boxes-masks/montgomery_cxr.md'
+        'datasets/ms_cxr.md': 'reference/datasets/cxr-boxes-masks/ms_cxr.md'
+        'datasets/node21.md': 'reference/datasets/cxr-boxes-masks/node21.md'
+        'datasets/padchest_gr.md': 'reference/datasets/cxr-boxes-masks/padchest_gr.md'
+        'datasets/qata_cov19.md': 'reference/datasets/cxr-boxes-masks/qata_cov19.md'
+        'datasets/ranzcr_clip.md': 'reference/datasets/cxr-boxes-masks/ranzcr_clip.md'
+        'datasets/rsna_pneumonia.md': 'reference/datasets/cxr-boxes-masks/rsna_pneumonia.md'
+        'datasets/rsna_pneumonia_kaggle.md': 'reference/datasets/cxr-boxes-masks/rsna_pneumonia_kaggle.md'
+        'datasets/shenzhen_cxr.md': 'reference/datasets/cxr-boxes-masks/shenzhen_cxr.md'
+        'datasets/siim_acr_ptx.md': 'reference/datasets/cxr-boxes-masks/siim_acr_ptx.md'
+        'datasets/siim_covid19.md': 'reference/datasets/cxr-boxes-masks/siim_covid19.md'
+        'datasets/vindr_cxr.md': 'reference/datasets/cxr-boxes-masks/vindr_cxr.md'
+        'datasets/vindr_pcxr.md': 'reference/datasets/cxr-boxes-masks/vindr_pcxr.md'
+        'datasets/ct_rate.md': 'reference/datasets/ct-mri-other/ct_rate.md'
+        'datasets/medseg_covid_ct.md': 'reference/datasets/ct-mri-other/medseg_covid_ct.md'
+        'datasets/radchestct.md': 'reference/datasets/ct-mri-other/radchestct.md'
+        'datasets/rsna_2022_cervical_spine.md': 'reference/datasets/ct-mri-other/rsna_2022_cervical_spine.md'
+        'datasets/rsna_2024_lumbar_spine.md': 'reference/datasets/ct-mri-other/rsna_2024_lumbar_spine.md'
+        'datasets/rsna_abdominal_trauma_2023.md': 'reference/datasets/ct-mri-other/rsna_abdominal_trauma_2023.md'
+        'datasets/rsna_bone_age.md': 'reference/datasets/ct-mri-other/rsna_bone_age.md'
+        'datasets/rsna_pe_detection.md': 'reference/datasets/ct-mri-other/rsna_pe_detection.md'
+        'datasets/chexinstruct_vqa.md': 'reference/datasets/vqa-text/chexinstruct_vqa.md'
+        'datasets/gemex_vqa.md': 'reference/datasets/vqa-text/gemex_vqa.md'
+        'datasets/mimic_ext_cxr_qba.md': 'reference/datasets/vqa-text/mimic_ext_cxr_qba.md'
+        'datasets/openi_cxr.md': 'reference/datasets/vqa-text/openi_cxr.md'
+        'datasets/roco.md': 'reference/datasets/vqa-text/roco.md'
+        'datasets/vqa_rad.md': 'reference/datasets/vqa-text/vqa_rad.md'
 
 extra_css:
   - stylesheets/extra.css

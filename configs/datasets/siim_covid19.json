@@ -97,5 +97,36 @@
   },
 
   "hu_window": null,
-  "custom_preprocessing": "Bboxes need DICOM Rows/Columns normalization (headers read in parallel for ~4k rows with opacities). Labels are already in [0,1] one-hot form — no further label transformation needed."
+  "custom_preprocessing": "The DICOM headers are read in parallel for every image: Rows and Columns normalize the boxes, and PatientID gives patient_id. Labels are already in [0,1] one-hot form, so they need no other step.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: the Kaggle data page (6,334 train images in 6,054 studies, 1,263 test images), and the raw files read with pandas and pydicom (train_image_level.csv, train_study_level.csv, the DICOM headers). The patients are the DICOM PatientID values: 3,261 train patients, and 1,200 of them have more than one study. The labels are study labels, so each image gets the labels of its study. The DICOM files have no PatientAge tag, so there is no age. Sex is only in the DICOM headers. The test images have no labels (D-25).",
+    "patients_in_two_splits": 0,
+    "siim_covid19_train": {
+      "harmonizer": "SIIMCOVID19TrainHarmonizer",
+      "images": 6334,
+      "studies": 6054,
+      "patients": 3261,
+      "positives": {
+        "atypical_appearance": 483, "indeterminate_appearance": 1108,
+        "negative_for_pneumonia": 1736, "typical_appearance": 3007
+      },
+      "uncertain": {},
+      "rows_with_bbox": 4294,
+      "boxes": 7853,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 2770, "M": 3564}
+    },
+    "siim_covid19_test": {
+      "harmonizer": "SIIMCOVID19TestHarmonizer",
+      "images": 1263,
+      "studies": 1214,
+      "patients": 652,
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 518, "M": 745}
+    }
+  }
 }

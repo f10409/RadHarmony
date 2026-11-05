@@ -2,44 +2,45 @@
 
 The datathon26 result datasets (:class:`EmbeddingResultsDataset`,
 :class:`ReportResultsDataset`) score results the external **reportbench**
-inference service has already written to disk. Getting those results is a manual
-CLI dance (``rbclient.py prepare`` → ``submit`` → ``watch`` → per-study files).
+inference service has already written to disk. To get those results takes a manual
+series of CLI steps (``rbclient.py prepare`` → ``submit`` → ``watch`` → per-study files).
 
-This module wraps that dance so a caller can go straight from a harmonized frame
-and the raw image root — *the same two inputs an ordinary RadHarmony dataset
-takes* — to a ready dataset object:
+This module wraps those steps. A caller can go straight from a harmonized frame
+and the raw image root to a ready dataset object. The frame and the root are *the
+same two inputs that an ordinary RadHarmony dataset takes*::
 
     ds = DatathonEmbeddingDataset(
         harmonized_df=df,                 # one row per image (labels + report)
         base_image_dir="/data/mimic",     # where the raw images live
         client=ReportBenchClient(
-            rbclient_path="/mnt/NAS4/.../skill/rbclient.py",
-            data_dir="/mnt/NAS4/.../data_deposition/<team_id>",
+            rbclient_path="/path/to/skill/rbclient.py",
+            data_dir="/path/to/data_deposition/<team_id>",
             api_key="rb_...",
         ),
         model="model-a",
     )
     LinearProbeEvaluator = ...            # score ds as usual
 
-Under the hood it (1) stages the studies referenced by ``harmonized_df`` into the
-per-study folder layout the service expects, (2) drives ``rbclient.py`` to submit
-the job and wait for it, then (3) points the matching datathon26 dataset at the
-returned results folder.
+Inside, it does 3 steps. (1) It stages the studies in ``harmonized_df`` into the
+per-study folder layout that the service expects. (2) It drives ``rbclient.py`` to
+submit the job and wait for it. (3) It points the matching datathon26 dataset at
+the returned results folder.
 
 Compatibility with the live reportbench (as of the study-keyed manifest + ``.npz``
 embedding format):
 
 * **Tasks** are ``report`` and ``embed`` (not ``embeddings``).
-* **Indication** is supplied through the job ``manifest.json`` (study-keyed), never
-  a per-study ``text.txt`` — the file mechanism was removed server-side.
+* **Indication** comes through the job ``manifest.json`` (study-keyed), never
+  a per-study ``text.txt``. The server no longer reads that file.
 * **Manifest** schema is
   ``{"studies": {"<study_id>": {"images": [{"path", "view"}], "indication"?}}}``
-  where ``path`` is a bare filename inside the study folder. It is written for the
-  *report* task only when an ``indication_col`` is given (so an indication can be
-  attached); the *embed* task submits without a manifest (views/indications don't
-  affect embeddings, and a manifest would only add rejection surface).
+  where ``path`` is a bare filename inside the study folder. For the *report* task,
+  this module writes it only when an ``indication_col`` is given (so an indication can be
+  attached). The *embed* task submits without a manifest. Views and indications
+  do not change embeddings, and a manifest only adds more ways for the server to
+  reject the job.
 * **Outputs** land under ``<data_dir>/<run>/_reportbench_out/<model>/<study>/`` as
-  ``<model>_report.txt`` (per study) and ``<model>_<stem>.npz`` (per image; an
+  ``<model>_report.txt`` (per study) and ``<model>_<stem>.npz`` (per image, an
   archive with ``global`` / ``patches``).
 
 The ``rbclient.py`` CLI itself is treated as an opaque tool driven by subprocess
@@ -80,9 +81,9 @@ class ReportBenchClient:
     progress live. A non-zero exit raises :class:`subprocess.CalledProcessError`.
 
     Args:
-        rbclient_path: Path to ``rbclient.py`` (on the datathon server, typically
-            ``/mnt/NAS4/projects/bkhosra/sharing/datathon/skill/rbclient.py``).
-        data_dir: Your team data folder — the ``--data-dir`` the CLI writes
+        rbclient_path: Path to ``rbclient.py`` (on the datathon server, in the
+            shared ``datathon/skill/`` folder, for example ``/path/to/datathon/skill/rbclient.py``).
+        data_dir: Your team data folder, that is, the ``--data-dir`` the CLI writes
             submissions and results into. The submitted run ``<name>`` lands in
             ``<data_dir>/<name>/`` and the service writes outputs under
             ``<data_dir>/<name>/_reportbench_out/<model>/`` (see
@@ -126,7 +127,7 @@ class ReportBenchClient:
 
     # ── CLI sub-commands ───────────────────────────────────────────────────
     def config(self) -> None:
-        """Persist the API key + data dir (one-time; safe to repeat)."""
+        """Persist the API key + data dir (one-time, safe to repeat)."""
         if self.api_key is None:
             raise ValueError("api_key is required to run `rbclient.py config`.")
         self._run("config", "--api-key", self.api_key, "--data-dir", self.data_dir)
@@ -147,10 +148,10 @@ class ReportBenchClient:
     def prepare(self, from_dir: str, name: str) -> None:
         """Copy the staged study folders in ``from_dir`` into the run ``name``.
 
-        Called without ``--link`` so ``rbclient.py`` writes real file copies into
-        the run folder — the job manifest resolves image paths *inside* the run
-        folder, which the service requires (a symlink whose target escapes the
-        folder is rejected).
+        Called without ``--link``, so ``rbclient.py`` writes real file copies into
+        the run folder. The job manifest resolves image paths *inside* the run
+        folder, and the service requires this. It rejects a symlink whose target
+        is outside the folder.
         """
         self._run("prepare", "--from", os.path.abspath(from_dir), "--name", name)
 
@@ -158,19 +159,19 @@ class ReportBenchClient:
         """Add ``o+rX`` to the prepared run tree (and ``o+x`` to ``data_dir``).
 
         ``rbclient.py prepare`` copies studies with the *prepare subprocess's*
-        umask — on shared systems commonly ``007``, which leaves the run and
+        umask. On shared systems this is often ``007``, which leaves the run and
         study directories ``o---``. The reportbench service runs as a different
-        user and reads the batch over NFS, so those directories are untraversable
-        and ``submit`` fails with an opaque HTTP 500. Making the tree
-        world-readable is deterministic (unlike umask propagation into the
-        subprocess) and safe for the anonymized studies deposited here. Owner is
-        unchanged; only the "other" read/traverse bits are added.
+        user and reads the batch over NFS. So it cannot traverse those
+        directories, and ``submit`` fails with an opaque HTTP 500. A
+        world-readable tree is deterministic (unlike umask propagation into the
+        subprocess) and safe for the anonymized studies stored here. The owner
+        does not change. Only the "other" read/traverse bits are added.
         """
         def _add(path: str, bits: int) -> None:
             try:
                 os.chmod(path, os.stat(path).st_mode | bits)
             except OSError:
-                pass  # not owner / transient NFS error — leave as-is
+                pass  # not owner / transient NFS error: leave as-is
 
         _add(self.data_dir, stat.S_IXOTH)  # traverse into the batch root
         root = self.run_dir(run_name)
@@ -197,7 +198,7 @@ class ReportBenchClient:
         """The submitted run/input folder: ``<data_dir>/<run_name>``."""
         return os.path.join(self.data_dir, run_name)
 
-    # Back-compat alias — earlier code called this ``results_dir``.
+    # Back-compat alias: earlier code called this ``results_dir``.
     results_dir = run_dir
 
     def output_dir(self, run_name: str, model: str) -> str:
@@ -213,11 +214,12 @@ class ReportBenchClient:
         The service writes to ``<input>/_reportbench_out/<model>`` and often runs
         as a **different user** than the one staging the batch. If the run folder
         isn't writable by that user, its output ``mkdir`` fails and submit returns
-        403 (older servers: a bare 500). We create the output root ahead of time
-        and open its permissions (default world-writable — the batch already lives
-        under an unguessable, non-listable team path) so the service's per-model
-        ``mkdir`` succeeds regardless of who owns the run folder. Best-effort:
-        chmod failures (e.g. we don't own the dir) are ignored.
+        403 (older servers: a bare 500). So this method creates the output root
+        first and opens its permissions. The default is world-writable, because
+        the batch already lives under an unguessable, non-listable team path.
+        Then the service's per-model ``mkdir`` works, whoever owns the run folder.
+        Best-effort: chmod failures (for example, we do not own the dir) are
+        ignored.
         """
         run_dir = self.run_dir(run_name)
         out_root = os.path.join(run_dir, "_reportbench_out")
@@ -232,11 +234,12 @@ class ReportBenchClient:
 def _study_view_labels(view_positions: Sequence) -> list[str]:
     """Map a study's ``view_position`` values to manifest labels (ap/pa/lateral/ll).
 
-    Guarantees a valid labelling for ≤2 images (≤1 frontal + ≤1 lateral): if any
-    value is unmappable, or the mapped labels would put two images in the same
-    frontal/lateral group, fall back to positional labels (first → ``pa``, second
-    → ``lateral``). Report models ignore the labels; only the view-aware model
-    (model-e) uses them, so a best-effort positional guess is the safe default.
+    Guarantees a valid labeling for ≤2 images (≤1 frontal + ≤1 lateral). In 2 cases
+    it falls back to positional labels (first → ``pa``, second → ``lateral``).
+    Case 1: a value has no mapping. Case 2: the mapped labels put two images in
+    the same frontal/lateral group. Most report models ignore the labels. Only the
+    view-aware model (model-e) uses them. So a best-effort positional guess is
+    the safe default.
     """
     labels = [
         _VIEW_ALIASES.get(str(vp).strip().lower()) if vp is not None and str(vp).strip() else None
@@ -291,7 +294,7 @@ def _stage_studies(
             rel = str(row[image_col])
             src = os.path.join(base_image_dir, rel) if base_image_dir else rel
             fname = os.path.basename(rel)
-            # Disambiguate colliding basenames within one study (e.g. two views
+            # Disambiguate colliding basenames within one study (for example two views
             # both named image.dcm from different subfolders).
             if fname in seen:
                 seen[fname] += 1
@@ -313,7 +316,7 @@ def _stage_studies(
 
         views = _study_view_labels([vp for _, vp in staged])
         entry: dict = {"images": [
-            {"path": fname, "view": view} for (fname, _), view in zip(staged, views)
+            {"path": fname, "view": view} for (fname, _), view in zip(staged, views, strict=True)
         ]}
         if indication_col and indication_col in group.columns:
             text = str(group.iloc[0][indication_col] or "").strip()
@@ -328,7 +331,7 @@ def _verify_results(
     results_dir: str,
     result_path: Callable[[pd.Series], str],
 ) -> None:
-    """Fail early (with the missing relative paths) if the join won't resolve."""
+    """Fail early (with the missing relative paths) if the join does not resolve."""
     if not os.path.isdir(results_dir):
         raise FileNotFoundError(
             f"Results directory does not exist: {results_dir}. Pass results_dir= "
@@ -394,7 +397,7 @@ def _run_reportbench(
             client.check()
         client.prepare(staging, run_name)
         # Make sure the service (possibly a different user) can create outputs under
-        # the run folder — otherwise its output mkdir 403s / 500s.
+        # the run folder. Otherwise its output mkdir gives 403 / 500.
         client.ensure_output_writable(run_name)
         if write_manifest:
             # Written into the prepared run folder (after prepare, which wipes+recreates it).
@@ -404,9 +407,9 @@ def _run_reportbench(
             print(f"[reportbench] wrote manifest for {len(manifest['studies'])} studies "
                   f"→ {manifest_path}")
         if getattr(client, "world_readable", False):
-            # prepare copies with the subprocess umask (often o---); make the run
-            # tree traversable/readable so the service (a different user) can read
-            # it, else submit fails with an opaque HTTP 500. The output folder is
+            # prepare copies with the subprocess umask (often o---). Make the run
+            # tree traversable/readable, so the service (a different user) can read
+            # it. Else submit fails with an opaque HTTP 500. The output folder is
             # handled separately by ensure_output_writable (called after prepare).
             client.make_world_readable(run_name)
         client.submit(model, task, run_name)
@@ -441,13 +444,13 @@ def DatathonEmbeddingDataset(
 ) -> EmbeddingResultsDataset:
     """Run the embed task through reportbench and return a ready dataset.
 
-    Takes the same two inputs as an ordinary RadHarmony dataset — a harmonized
-    frame (**one row per image/view**) and the raw image root — stages the
-    studies, submits the *embed* task via :class:`ReportBenchClient`, waits, then
-    returns an :class:`EmbeddingResultsDataset` pointed at the per-image
+    Takes the same two inputs as an ordinary RadHarmony dataset: a harmonized
+    frame (**one row per image/view**) and the raw image root. It stages the
+    studies, submits the *embed* task via :class:`ReportBenchClient`, and waits.
+    Then it returns an :class:`EmbeddingResultsDataset` pointed at the per-image
     ``<study>/<model>_<stem>.npz`` results (its ``global`` vector feeds the probe).
 
-    The embed task submits **without a manifest** (views/indications don't affect
+    The embed task submits **without a manifest** (views/indications do not change
     embeddings), so studies are scanned positionally and every image is embedded.
 
     (This is a factory function, not a class: it does the submission work up front
@@ -458,8 +461,8 @@ def DatathonEmbeddingDataset(
             the one-hot label columns (as produced by ``sample_data.ipynb``).
         base_image_dir: Root prepended to ``image_col`` to locate the raw images.
         client: Configured :class:`ReportBenchClient`.
-        model: reportbench model id (e.g. ``"model-a"``). See ``client.models()``.
-        run_name: Submission/run name; the run lands in ``<data_dir>/<run_name>``.
+        model: reportbench model id (for example ``"model-a"``). See ``client.models()``.
+        run_name: Submission/run name. The run lands in ``<data_dir>/<run_name>``.
         task: reportbench task name (default ``"embed"``).
         staging_dir: Where to build the per-study submission layout (default
             ``<data_dir>/.staging/<run_name>``).
@@ -529,15 +532,16 @@ def DatathonReportDataset(
     """Run the report task through reportbench and return a ready dataset.
 
     The report-generation counterpart of :func:`DatathonEmbeddingDataset` (also a
-    factory function, not a class): stages studies, submits the *report* task,
-    waits, then returns a :class:`ReportResultsDataset` pointed at the per-study
-    ``<study>/<model>_report.txt`` results (the frame's inline ``report`` column
-    supplies the reference text). See that function for the shared arguments.
+    factory function, not a class). It stages studies, submits the *report* task,
+    and waits. Then it returns a :class:`ReportResultsDataset` pointed at the
+    per-study ``<study>/<model>_report.txt`` results. The frame's inline ``report``
+    column supplies the reference text. See :func:`DatathonEmbeddingDataset` for
+    the shared arguments.
 
     A study-keyed ``manifest.json`` is written **only when** ``indication_col`` is
-    given, so each study's indication is passed to the model as clinical context;
-    without it the job is submitted with no manifest (views positional). The frame
-    may have one row per image — it is de-duplicated to one row per study for
+    given, so each study's indication goes to the model as clinical context.
+    Without it, the job has no manifest, and the views are set by position. The frame
+    may have one row per image. It is de-duplicated to one row per study for
     reference scoring.
     """
     resolver = perstudy_report_path(model)
@@ -597,11 +601,11 @@ def DatathonPatchEmbeddingDataset(
     """Run the embed task through reportbench and return a SEGMENTATION dataset.
 
     The segmentation counterpart of :func:`DatathonEmbeddingDataset` (also a factory
-    function, not a class). It submits the **same** *embed* task — one ``.npz`` per
-    image holding ``global`` + ``patches`` (+ ``grid``) — but, instead of reading the
-    pooled ``global`` vector, returns a :class:`PatchSegResultsDataset` that folds
-    each image's ``patches`` into a dense ``[dim, H, W]`` feature map and serves it
-    with the ground-truth ``mask_col`` mask. Classification and segmentation therefore
+    function, not a class). It submits the **same** *embed* task: one ``.npz`` per
+    image holding ``global`` + ``patches`` (+ ``grid``). But it does not read the
+    pooled ``global`` vector. It returns a :class:`PatchSegResultsDataset`. This
+    dataset folds each image's ``patches`` into a dense ``[dim, H, W]`` feature map
+    and serves it with the ground-truth ``mask_col`` mask. Classification and segmentation therefore
     share a single embed submission: run this with ``skip_submit=True`` +
     ``results_dir=`` (or the same ``run_name``) to reuse a run you already embedded
     for :func:`DatathonEmbeddingDataset`.
@@ -609,7 +613,7 @@ def DatathonPatchEmbeddingDataset(
     Args:
         harmonized_df: One row per image, with ``study_col`` / ``image_col`` and a
             segmentation-mask column (``mask_col``).
-        base_image_dir: Root prepended to ``image_col`` to locate the raw images.
+        base_image_dir: Root prepended to ``image_col`` (raw images).
         client, model, run_name, task, staging_dir, results_dir, image_col,
             study_col, view_col, link, check, skip_submit: as for
             :func:`DatathonEmbeddingDataset`.
@@ -620,8 +624,8 @@ def DatathonPatchEmbeddingDataset(
             ``base_image_dir``/the embed outputs. ``None`` for absolute mask paths.
         grid_key: ``.npz`` key with the patch grid ``(H, W)`` (default ``"grid"``).
         mask_size: If set, masks are resized (nearest) to ``mask_size²``.
-        feat_size: If set, feature maps are resized to ``feat_size²`` — needed when
-            the patch grid varies per image.
+        feat_size: If set, feature maps are resized to ``feat_size²``. This is
+            needed when the patch grid varies per image.
         cache_dir, dtype: Forwarded to :class:`PatchSegResultsDataset`.
     """
     resolver = viewwise_embedding_path(model, ext=emb_ext)

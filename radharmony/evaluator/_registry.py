@@ -7,7 +7,7 @@ Example::
 
     from radharmony.evaluator import resolve_evaluator, list_evaluators
 
-    print(list_evaluators())  # ['finetune', 'knn_probe', 'linear_probe', 'zero_shot']
+    print(list_evaluators())  # sorted names, for example 'linear_probe'
     EvalCls = resolve_evaluator("linear_probe")
 """
 

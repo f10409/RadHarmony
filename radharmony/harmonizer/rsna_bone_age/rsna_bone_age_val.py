@@ -17,3 +17,8 @@ class RSNABoneAgeValHarmonizer(RSNABoneAgeHarmonizer):
 
     def __init__(self, base_image_dir: str, csv_path: str = None):
         super().__init__(base_image_dir=base_image_dir, csv_path=csv_path, split="val")
+
+    def _harmonizer_init_snapshot(self) -> dict:
+        snap = super()._harmonizer_init_snapshot()
+        snap.pop("split", None)  # fixed by this class, not an argument (V-H3-9)
+        return snap

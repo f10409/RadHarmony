@@ -9,12 +9,13 @@ from .chestxray14 import ChestXray14Dataset
 
 @register_dataset("chestxray14_test")
 class ChestXray14TestDataset(ChestXray14Dataset):
-    """ChestX-ray14 test split (~25,596 non-bbox images).
+    """ChestX-ray14 test split (25,596 images, with the 880 images that have boxes).
 
     Filtered to images listed in ``test_list.txt`` (NIH official split).
     All 15 labels from ``Data_Entry_2017.csv`` are available.
 
     All constructor arguments are identical to :class:`ChestXray14Dataset`.
+    ``bbox_csv_path`` is not used. The official list decides the rows.
     """
 
     _HARMONIZER_CLS = ChestXray14TestHarmonizer

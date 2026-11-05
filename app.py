@@ -10,7 +10,7 @@ Adding a new dataset
 1. Write a build function ``_build_<name>(base_dir, csv_path, extra_field,
    extra_field2, cache_dir, **output_flags) -> (dataset_obj, error_str | None)``.
 2. Add one entry to ``DATASET_REGISTRY``.
-That is all — the UI and loader update automatically.
+That is all. The UI and loader update automatically.
 """
 
 import importlib
@@ -27,64 +27,88 @@ from PIL import Image, ImageDraw, ImageFont
 from radharmony.dataset import (
     BRAXDataset,
     BRAXPNGDataset,
-    ChestXray14Dataset,
     ChestXray14BboxDataset,
+    ChestXDet10TrainDataset,
+    Node21Dataset,
+    Node21OriginalDataset,
+    ChestXDet10TestDataset,
     ChestXray14TrainDataset,
     ChestXray14TestDataset,
-    CheXpertDataset,
     CheXpertTrainDataset,
     CheXpertValidDataset,
-    CheXpertPlusDataset,
+    CheXpertPlusTrainDataset,
+    CheXpertPlusValidDataset,
+    CheXphotoTrainDataset,
+    CheXphotoValidDataset,
     CheXlocalizeDataset,
-    MIMICCXRDataset,
-    MIMICCXRJPGDataset,
+    CheXlocalizeValDataset,
+    MIMICCXRTrainDataset,
+    MIMICCXRValidateDataset,
+    MIMICCXRTestDataset,
+    MIMICCXRJPGTrainDataset,
+    MIMICCXRJPGValidateDataset,
+    MIMICCXRJPGTestCheXpertDataset,
     MIMICCXRJPGTestDataset,
     PadChestDataset,
-    RadChestCTDataset,
+    PadChestGRTrainDataset,
+    PadChestGRValidationDataset,
+    PadChestGRTestDataset,
+    QaTaCOV19TrainDataset,
+    QaTaCOV19TestDataset,
+    MedSegCOVIDCTDataset,
+    MedSegCOVIDCTValDataset,
+    RadChestCTTrainDataset,
+    RadChestCTValidDataset,
+    RadChestCTTestDataset,
     ReXGradientTrainDataset,
     ReXGradientValidDataset,
     ReXGradientTestDataset,
-    RANZCRClipDataset,
-    RSNA2022CervicalSpineDataset,
+    RANZCRClipTrainDataset,
+    RANZCRClipTestDataset,
     RSNA2022CervicalSpineBboxDataset,
     RSNA2022CervicalSpineTrainDataset,
     RSNA2022CervicalSpineTestDataset,
-    RSNA2024LumbarSpineDataset,
     RSNA2024LumbarSpineTrainDataset,
     RSNA2024LumbarSpineTestDataset,
-    RSNAAbdominalTrauma2023Dataset,
     RSNAAbdominalTrauma2023TrainDataset,
     RSNAAbdominalTrauma2023TestDataset,
-    RSNABoneAgeDataset,
     RSNABoneAgeTrainDataset,
     RSNABoneAgeValDataset,
-    RSNAPEDetectionDataset,
+    RSNABoneAgeTestDataset,
     RSNAPEDetectionTrainDataset,
     RSNAPEDetectionTestDataset,
     RSNAPneumoniaDataset,
-    RSNAPneumoniaKaggleDataset,
     RSNAPneumoniaKaggleTrainDataset,
     RSNAPneumoniaKaggleTestDataset,
-    SIIMACRPTXDataset,
     SIIMACRPTXTrainDataset,
     SIIMACRPTXTestDataset,
-    SIIMCOVID19Dataset,
     SIIMCOVID19TrainDataset,
     SIIMCOVID19TestDataset,
-    CTRATEDataset,
-    TAIXRay512Dataset,
-    TAIXRayDataset,
+    CTRATETrainDataset,
+    CTRATEValidDataset,
+    TAIXRayTrainDataset,
+    TAIXRayValDataset,
+    TAIXRayTestDataset,
+    TAIXRay512TrainDataset,
+    TAIXRay512ValDataset,
+    TAIXRay512TestDataset,
     MontgomeryCXRDataset,
     OpenICXRDataset,
     ShenzhenCXRDataset,
     VinDrCXRTestDataset,
     VinDrCXRTrainDataset,
-    VinDrPCXRDataset,
+    VinDrPCXRTrainDataset,
+    VinDrPCXRTestDataset,
     EmoryCXRDataset,
-    MSCXRDataset,
+    EmoryCHORUSDataset,
+    MSCXRTrainDataset,
+    MSCXRValDataset,
+    MSCXRTestDataset,
     MSCXRTDataset,
     ChestImaGenomeGoldDataset,
-    ChestImaGenomeSilverDataset,
+    ChestImaGenomeSilverTrainDataset,
+    ChestImaGenomeSilverValidDataset,
+    ChestImaGenomeSilverTestDataset,
 )
 from radharmony.dataset.transforms import RadiologyTransform2D, RadiologyTransform3D
 from radharmony.utils.data_utils import get_data_dict
@@ -97,12 +121,13 @@ from radharmony.utils.infer import infer_path as _infer
 
 
 #: Controlled vocabulary of imaging modalities.  Add new values here first so
-#: the UI grouping and dataset registry stay in sync.  Kept short on purpose —
-#: the tab strip gets crowded fast if we inflate this list.
+#: the UI grouping and dataset registry stay in sync.  Keep the list short,
+#: because a long list crowds the tab strip.
 SUPPORTED_MODALITIES: tuple = (
     "CXR",  # chest X-ray
-    "Radiograph",  # general radiography: hand / bone / extremity / etc. (anything not chest)
-    "CT",  # computed tomography
+    "Radiograph",  # general radiography: hand, bone, extremity (anything not chest)
+    "CT",  # computed tomography (3-D volumes)
+    "CT (2D)",  # computed tomography served as 2-D slices (uses the 2-D pipeline)
     "MRI",  # magnetic resonance imaging
     "VQA",  # vision-question-answer datasets (any underlying imaging type)
     "Other",
@@ -123,9 +148,9 @@ class DatasetConfig:
 
             Return ``(None, "message")`` to abort with a user-facing error.
         modality: Imaging modality (see :data:`SUPPORTED_MODALITIES`) used only
-            for UI grouping — independent of ``is_3d`` which drives the
-            transform pipeline.  Mostly correlated with dimensionality (CXR → 2-D,
-            CT → 3-D) but not identical: some MRI acquisitions are 2-D, etc.
+            for UI grouping. It is independent of ``is_3d``, which drives the
+            transform pipeline.  It often matches the dimension (CXR is 2-D,
+            CT is 3-D) but not always: some MRI acquisitions are 2-D.
         extra_field2_label: UI label for the optional second textbox (empty = hidden).
     """
 
@@ -139,15 +164,18 @@ class DatasetConfig:
     csv_placeholder: str = ""
     extra_placeholder: str = ""
     extra_placeholder2: str = ""
-    # Optional dataset-specific dropdown (e.g. series-type filter).
+    # Optional dataset-specific dropdown (for example, a series-type filter).
     # Empty label hides the control.  Choices must include a "(all)" sentinel
     # if the dataset wants to support "no filter".
     extra_dropdown_label: str = ""
     extra_dropdown_choices: tuple = ()
     extra_dropdown_kwarg: str = ""  # kwarg name forwarded to the build function
-    # Group-header sentinel: appears in dropdown as a visual separator;
-    # selecting it is a no-op (load_dataset returns early).
+    # Group-header sentinel. It shows in the dropdown as a separator.
+    # Selecting it does nothing (load_dataset returns early).
     is_group_header: bool = False
+    # The output_bbox default of the build function. When the user picks this
+    # entry, the BBox checkbox takes this value (D-11).
+    bbox_default: bool = False
 
     def __post_init__(self) -> None:
         if self.is_group_header:
@@ -234,8 +262,55 @@ def _build_chexpert_test(
     )
 
 
-def _build_chexpert_plus(
+def _build_chexphoto(cls, default_csv, base_dir, csv_path, cache_dir, **flags):
+    csv = _infer(base_dir, default_csv, user_path=csv_path)
+    return (
+        cls(
+            base_image_dir=base_dir,
+            csv_path=csv or None,
+            subset=flags.get("chexphoto_subset") or "all",
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            # CheXphoto shows photography artifacts, so keep uncertain rows.
+            # drop_uncertain deletes every row with an uncertain label (14 labels).
+            # It would remove 12,487 of the 32,521 training images.
+            drop_uncertain=False,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_chexphoto_train(
     base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    return _build_chexphoto(
+        CheXphotoTrainDataset, "train.csv", base_dir, csv_path, cache_dir, **flags
+    )
+
+
+def _build_chexphoto_valid(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    return _build_chexphoto(
+        CheXphotoValidDataset, "valid.csv", base_dir, csv_path, cache_dir, **flags
+    )
+
+
+def _build_chexpert_plus_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_chexpert_plus_cls(
+        CheXpertPlusTrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir,
+        **flags)
+
+
+def _build_chexpert_plus_valid(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_chexpert_plus_cls(
+        CheXpertPlusValidDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir,
+        **flags)
+
+
+def _build_chexpert_plus_cls(
+    cls, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
 ):
     csv = _infer(
         base_dir,
@@ -244,11 +319,11 @@ def _build_chexpert_plus(
     )
     label_json = _infer(
         base_dir,
-        "report_fixed.json",
+        "impression_fixed.json",
         user_path=extra_field,
     )
     return (
-        CheXpertPlusDataset(
+        cls(
             base_image_dir=base_dir,
             csv_path=csv or None,
             label_json_path=label_json or None,
@@ -262,11 +337,22 @@ def _build_chexpert_plus(
 
 
 def _build_chexlocalize(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
-    csv = _infer(base_dir, "test_labels.csv", user_path=csv_path)
+    return _build_chexlocalize_cls(
+        CheXlocalizeDataset, "test", base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_chexlocalize_val(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_chexlocalize_cls(
+        CheXlocalizeValDataset, "val", base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_chexlocalize_cls(cls, split, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    csv = _infer(base_dir, f"{split}_labels.csv", user_path=csv_path)
     if not csv:
-        return None, "test_labels.csv is required."
+        return None, f"{split}_labels.csv is required."
     mask_json = _infer(
-        base_dir, "gt_segmentations_test.json", user_path=extra_field
+        base_dir, f"gt_segmentations_{split}.json", f"../CheXlocalize/gt_segmentations_{split}.json",  # D-35
+        user_path=extra_field,
     ) or None
     mask_dir = extra_field2 or None
     if flags.get("output_mask") and mask_dir is None:
@@ -275,7 +361,7 @@ def _build_chexlocalize(base_dir, csv_path, extra_field, extra_field2, cache_dir
             "Mask output dir is required when Mask is enabled for CheXlocalize.",
         )
     return (
-        CheXlocalizeDataset(
+        cls(
             base_image_dir=base_dir,
             csv_path=csv,
             mask_json_path=mask_json,
@@ -289,7 +375,19 @@ def _build_chexlocalize(base_dir, csv_path, extra_field, extra_field2, cache_dir
     )
 
 
-def _build_mimic(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+def _build_mimic_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_mimic_cls(MIMICCXRTrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_mimic_validate(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_mimic_cls(MIMICCXRValidateDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_mimic_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_mimic_cls(MIMICCXRTestDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_mimic_cls(cls, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
     csv = _infer(
         base_dir, "cxr-record-list.csv.gz", "cxr-record-list.csv", user_path=csv_path
     )
@@ -307,8 +405,17 @@ def _build_mimic(base_dir, csv_path, extra_field, extra_field2, cache_dir, **fla
     report = _infer(
         base_dir, "cxr-study-list.csv.gz", "cxr-study-list.csv", user_path=extra_field2
     )
+    # The split file is in the MIMIC-CXR-JPG release, next to the Label CSV (V-A-37).
+    from radharmony.harmonizer.mimic_cxr.mimic_split import SPLIT_FILE, find_next_to
+    if not find_next_to(SPLIT_FILE, csv, label):
+        return (
+            None,
+            f"{SPLIT_FILE} is not next to the Metadata CSV or the Label CSV. "
+            "Fill the Label CSV box with mimic-cxr-2.0.0-chexpert.csv from the "
+            "MIMIC-CXR-JPG folder, which has this file.",
+        )
     return (
-        MIMICCXRDataset(
+        cls(
             base_image_dir=base_dir,
             csv_path=csv,
             label_csv_path=label or None,
@@ -324,7 +431,20 @@ def _build_mimic(base_dir, csv_path, extra_field, extra_field2, cache_dir, **fla
     )
 
 
-def _build_mimic_jpg(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+def _build_mimic_jpg_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_mimic_jpg_cls(MIMICCXRJPGTrainDataset, base_dir, csv_path, extra_field, cache_dir, **flags)
+
+
+def _build_mimic_jpg_validate(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_mimic_jpg_cls(MIMICCXRJPGValidateDataset, base_dir, csv_path, extra_field, cache_dir, **flags)
+
+
+def _build_mimic_jpg_test_chexpert(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    # The test split of the split file, with CheXpert-labeler labels (D-09, A-17).
+    return _build_mimic_jpg_cls(MIMICCXRJPGTestCheXpertDataset, base_dir, csv_path, extra_field, cache_dir, **flags)
+
+
+def _build_mimic_jpg_cls(cls, base_dir, csv_path, extra_field, cache_dir, **flags):
     csv = _infer(
         base_dir,
         "mimic-cxr-2.0.0-metadata.csv.gz",
@@ -338,7 +458,7 @@ def _build_mimic_jpg(base_dir, csv_path, extra_field, extra_field2, cache_dir, *
         user_path=extra_field,
     )
     return (
-        MIMICCXRJPGDataset(
+        cls(
             base_image_dir=base_dir,
             csv_path=csv or None,
             label_csv_path=label or None,
@@ -378,28 +498,22 @@ def _build_mimic_jpg_test(
     )
 
 
-def _build_ctrate(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
-    csv = _infer(
-        base_dir,
-        "train_predicted_labels.csv",
-        # CT-RATE uses both naming variants for the validation split
-        # (PhysioNet ships labels as valid_*.csv, metadata as validation_*.csv).
-        "valid_predicted_labels.csv",
-        "validation_predicted_labels.csv",
-        user_path=csv_path,
-    )
-    view_pos = _infer(
-        base_dir,
-        "train_metadata.csv",
-        "validation_metadata.csv",
-        "valid_metadata.csv",
-        user_path=extra_field,
-    )
+def _build_ctrate_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_ctrate_cls(CTRATETrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_ctrate_valid(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_ctrate_cls(CTRATEValidDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_ctrate_cls(cls, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    # The class finds the label and metadata tables of its split: the split
+    # class, or the image folder name (train_* or valid_*) for CTRATEDataset.
     return (
-        CTRATEDataset(
+        cls(
             base_image_dir=base_dir,
-            csv_path=csv or None,
-            view_position_csv_path=view_pos or None,
+            csv_path=csv_path or None,
+            view_position_csv_path=extra_field or None,
             cache_dir=cache_dir or None,
             output_cls=flags.get("output_cls", False),
             output_mask=flags.get("output_mask", False),
@@ -411,21 +525,35 @@ def _build_ctrate(base_dir, csv_path, extra_field, extra_field2, cache_dir, **fl
     )
 
 
-def _build_radchestct(
-    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+def _build_radchestct_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_radchestct_cls(
+        RadChestCTTrainDataset, ["imgtrain_Abnormality_and_Location_Labels.csv"],
+        base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_radchestct_valid(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_radchestct_cls(
+        RadChestCTValidDataset, ["imgvalid_Abnormality_and_Location_Labels.csv"],
+        base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_radchestct_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_radchestct_cls(
+        RadChestCTTestDataset, ["imgtest_Abnormality_and_Location_Labels.csv"],
+        base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_radchestct_cls(
+    cls, names, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
 ):
+    # The tables are in tables/ of the folder above the image folder (D-35).
     csv_path = _infer(
-        base_dir, "CT_Scan_Metadata_Complete_35747.csv", user_path=csv_path
+        base_dir, "CT_Scan_Metadata_Complete_35747.csv", "tables/CT_Scan_Metadata_Complete_35747.csv",
+        user_path=csv_path,
     )
     if not csv_path:
         return None, "Metadata CSV (CT_Scan_Metadata_Complete_35747.csv) is required."
-    extra_field = _infer(
-        base_dir,
-        "imgtrain_Abnormality_and_Location_Labels.csv",
-        "imgvalid_Abnormality_and_Location_Labels.csv",
-        "imgtest_Abnormality_and_Location_Labels.csv",
-        user_path=extra_field,
-    )
+    extra_field = _infer(base_dir, *names, *(f"tables/{n}" for n in names), user_path=extra_field)
     if not extra_field:
         return (
             None,
@@ -435,12 +563,13 @@ def _build_radchestct(
         _infer(
             base_dir,
             "Extrema_35747.csv",
+            "tables/Extrema_35747.csv",
             user_path=extra_field2,
         )
         or None
     )
     return (
-        RadChestCTDataset(
+        cls(
             base_image_dir=base_dir,
             csv_path=csv_path,
             label_csv_path=extra_field,
@@ -462,12 +591,10 @@ def _build_chestxray14_train(
     csv_path = _infer(base_dir, "Data_Entry_2017.csv", user_path=csv_path)
     if not csv_path:
         return None, "Data_Entry_2017.csv is required."
-    bbox_csv = _infer(base_dir, "BBox_List_2017.csv", user_path=extra_field) or None
     return (
         ChestXray14TrainDataset(
             base_image_dir=base_dir,
             csv_path=csv_path,
-            bbox_csv_path=bbox_csv,
             cache_dir=cache_dir or None,
             output_cls=flags.get("output_cls", False),
             output_mask=False,
@@ -485,12 +612,10 @@ def _build_chestxray14_test(
     csv_path = _infer(base_dir, "Data_Entry_2017.csv", user_path=csv_path)
     if not csv_path:
         return None, "Data_Entry_2017.csv is required."
-    bbox_csv = _infer(base_dir, "BBox_List_2017.csv", user_path=extra_field) or None
     return (
         ChestXray14TestDataset(
             base_image_dir=base_dir,
             csv_path=csv_path,
-            bbox_csv_path=bbox_csv,
             cache_dir=cache_dir or None,
             output_cls=flags.get("output_cls", False),
             output_mask=False,
@@ -499,6 +624,71 @@ def _build_chestxray14_test(
             dtype=_APP_DTYPE,
         ),
         None,
+    )
+
+
+def _build_node21(cls, base_dir, csv_path, cache_dir, **flags):
+    return (
+        cls(
+            base_image_dir=base_dir,
+            csv_path=csv_path or None,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            # Nodule boxes are the reason NODE21 exists, so request them unless
+            # the caller has explicitly said otherwise.
+            output_bbox=flags.get("output_bbox", True),
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_node21_processed(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    return _build_node21(Node21Dataset, base_dir, csv_path, cache_dir, **flags)
+
+
+def _build_node21_original(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    return _build_node21(
+        Node21OriginalDataset, base_dir, csv_path, cache_dir, **flags)
+
+
+def _build_chestxdet10(cls, split, base_dir, csv_path, cache_dir, **flags):
+    csv_path = _infer(base_dir, f"{split}.json", user_path=csv_path)
+    if not csv_path:
+        return None, f"{split}.json is required (ships with the Deepwise release)."
+    return (
+        cls(
+            base_image_dir=base_dir,
+            csv_path=csv_path,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            # ChestX-Det10 has neither masks nor reports, so the dataset class
+            # takes no output_mask / output_report kwargs.  Boxes are the whole
+            # point of it, so request them unless told otherwise.
+            output_bbox=flags.get("output_bbox", True),
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_chestxdet10_train(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    return _build_chestxdet10(
+        ChestXDet10TrainDataset, "train", base_dir, csv_path, cache_dir, **flags
+    )
+
+
+def _build_chestxdet10_test(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    return _build_chestxdet10(
+        ChestXDet10TestDataset, "test", base_dir, csv_path, cache_dir, **flags
     )
 
 
@@ -521,6 +711,75 @@ def _build_chestxray14_bbox(
             output_mask=False,
             output_report=False,
             output_bbox=flags.get("output_bbox", False),
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_emory_cxr(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    """Build the Emory CXR v2 dataset (PNG tree).
+
+    ``extra_field`` is the finding-label CSV and ``extra_field2`` is the
+    report CSV. Both are optional. The loader reads them only when the
+    matching output flag is set.
+
+    ``csv_path`` names one of the dated metadata manifests.  They are not
+    interchangeable -- successive versions filter the cohort -- so the
+    error message says so rather than quietly inferring one.
+    """
+    csv_path = _infer(
+        base_dir,
+        "EmoryCXR_v2_Metadata_08152025.csv",
+        "EmoryCXR_v2_Metadata_08142025.csv",
+        "EmoryCXR_v2_Metadata_08112025.csv",
+        "EmoryCXR_v2_Metadata_10172024.csv",
+        # The same names in TABLES/ of the folder above the image folder (D-35).
+        "TABLES/EmoryCXR_v2_Metadata_08152025.csv",
+        "TABLES/EmoryCXR_v2_Metadata_08142025.csv",
+        "TABLES/EmoryCXR_v2_Metadata_08112025.csv",
+        "TABLES/EmoryCXR_v2_Metadata_10172024.csv",
+        user_path=csv_path,
+    )
+    if not csv_path:
+        return None, (
+            "EmoryCXR_v2_Metadata_<date>.csv is required. The dated "
+            "manifests are not interchangeable; pass one explicitly."
+        )
+    return (
+        EmoryCXRDataset(
+            base_image_dir=base_dir,
+            csv_path=csv_path,
+            label_csv_path=extra_field or None,
+            report_csv_path=extra_field2 or None,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            output_mask=False,
+            output_report=flags.get("output_report", False),
+            output_bbox=False,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_emory_chorus(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    """Build the Emory CHORUS X-ray subset (DICOM tree, chest only, image only).
+
+    ``csv_path`` is the manifest CSV (a scan cache). If it does not exist, the
+    first build scans the DICOM tree and writes it there.
+    """
+    if not base_dir:
+        return None, "Base dir (the CHORUS images_dicom_xray folder) is required."
+    return (
+        EmoryCHORUSDataset(
+            base_image_dir=base_dir,
+            manifest_csv_path=csv_path or None,
+            cache_dir=cache_dir or None,
             dtype=_APP_DTYPE,
         ),
         None,
@@ -553,17 +812,52 @@ def _build_padchest(
     )
 
 
+def _build_padchest_gr_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_padchest_gr_cls(
+        PadChestGRTrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_padchest_gr_validation(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_padchest_gr_cls(
+        PadChestGRValidationDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir,
+        **flags)
+
+
+def _build_padchest_gr_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_padchest_gr_cls(
+        PadChestGRTestDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_padchest_gr_cls(
+    cls, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    return (
+        cls(
+            base_image_dir=base_dir,
+            csv_path=csv_path or None,
+            padchest_csv_path=extra_field or None,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            output_report=flags.get("output_report", False),
+            # The boxes are what PadChest-GR adds to PadChest, so request them
+            # unless the caller has explicitly said otherwise.
+            output_bbox=flags.get("output_bbox", True),
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
 def _build_rexgradient(
     base_dir, csv_path, extra_field, extra_field2, cache_dir, split, dataset_cls, json_name, **flags
 ):
     """Common build path for the three ReXGradient splits.
 
-    The JSON metadata is the source of truth; the per-study CSV that
-    ships alongside cannot produce per-image rows. Passing a CSV path
-    is rejected with an explicit error so users don't silently get the
-    wrong data shape.
+    The JSON metadata is the source of truth. The per-study CSV next to it
+    cannot give per-image rows. A CSV path gives an error, so the user
+    does not get the wrong data shape.
     """
-    csv_path = _infer(base_dir, json_name, user_path=csv_path)
+    csv_path = _infer(base_dir, json_name, f"download/metadata/{json_name}", user_path=csv_path)  # D-35
     if not csv_path:
         return None, f"{json_name} is required (per-image JSON metadata)."
     if str(csv_path).lower().endswith(".csv"):
@@ -623,6 +917,7 @@ def _build_vindr_cxr_train(
     csv_path = _infer(
         base_dir,
         "image_labels_train.csv",
+        "annotations/image_labels_train.csv",  # in the folder above (D-35)
         user_path=csv_path,
     )
     if not csv_path:
@@ -631,6 +926,7 @@ def _build_vindr_cxr_train(
         _infer(
             base_dir,
             "annotations_train.csv",
+            "annotations/annotations_train.csv",
             user_path=extra_field,
         )
         or None
@@ -654,7 +950,7 @@ def _build_vindr_cxr_train(
 def _build_chest_imagenome_gold(
     base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
 ):
-    # base_dir = MIMIC-CXR DICOM files/ root; extra_field = Chest ImaGenome root.
+    # base_dir is the MIMIC-CXR DICOM files/ root. extra_field is the Chest ImaGenome root.
     annotation_dir = extra_field or None
     if not annotation_dir:
         return None, "Annotation dir (Chest ImaGenome release root) is required."
@@ -670,19 +966,13 @@ def _build_chest_imagenome_gold(
     )
 
 
-def _build_chest_imagenome_silver(
-    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
-):
-    # base_dir = MIMIC-CXR DICOM files/ root; extra_field = Chest ImaGenome root.
-    annotation_dir = extra_field or None
-    if not annotation_dir:
+def _build_chest_imagenome_silver_split(cls, base_dir, extra_field, cache_dir, **flags):
+    if not extra_field:
         return None, "Annotation dir (Chest ImaGenome release root) is required."
-    split = flags.get("split") or "all"
     return (
-        ChestImaGenomeSilverDataset(
+        cls(
             base_image_dir=base_dir,
-            annotation_dir=annotation_dir,
-            split=split,
+            annotation_dir=extra_field,
             cache_dir=cache_dir or None,
             output_bbox=flags.get("output_bbox", True),
             dtype=_APP_DTYPE,
@@ -691,12 +981,28 @@ def _build_chest_imagenome_silver(
     )
 
 
+def _build_chest_imagenome_silver_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_chest_imagenome_silver_split(
+        ChestImaGenomeSilverTrainDataset, base_dir, extra_field, cache_dir, **flags)
+
+
+def _build_chest_imagenome_silver_valid(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_chest_imagenome_silver_split(
+        ChestImaGenomeSilverValidDataset, base_dir, extra_field, cache_dir, **flags)
+
+
+def _build_chest_imagenome_silver_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_chest_imagenome_silver_split(
+        ChestImaGenomeSilverTestDataset, base_dir, extra_field, cache_dir, **flags)
+
+
 def _build_vindr_cxr_test(
     base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
 ):
     csv_path = _infer(
         base_dir,
         "image_labels_test.csv",
+        "annotations/image_labels_test.csv",  # in the folder above (D-35)
         user_path=csv_path,
     )
     if not csv_path:
@@ -705,6 +1011,7 @@ def _build_vindr_cxr_test(
         _infer(
             base_dir,
             "annotations_test.csv",
+            "annotations/annotations_test.csv",
             user_path=extra_field,
         )
         or None
@@ -725,12 +1032,23 @@ def _build_vindr_cxr_test(
     )
 
 
-def _build_vindr_pcxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+def _build_vindr_pcxr_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_vindr_pcxr_cls(
+        VinDrPCXRTrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_vindr_pcxr_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_vindr_pcxr_cls(
+        VinDrPCXRTestDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_vindr_pcxr_cls(
+    cls, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
     if not base_dir:
         return None, "Dataset root directory (containing train/ and test/) is required."
     return (
-        VinDrPCXRDataset(
+        cls(
             base_image_dir=base_dir,
             cache_dir=cache_dir or None,
             output_cls=flags.get("output_cls", False),
@@ -942,6 +1260,20 @@ def _build_rsna_bone_age_val(
     )
 
 
+def _build_rsna_bone_age_test(
+    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
+):
+    base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
+    return (
+        RSNABoneAgeTestDataset(
+            base_image_dir=base_dir,
+            cache_dir=cache_dir or None,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
 def _build_rsna_pe_detection_train(
     base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
 ):
@@ -1022,7 +1354,7 @@ def _build_rsna_abdominal_trauma_2023_test(
 def _build_rsna_pneumonia(
     base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
 ):
-    # Expand ~ in both paths — Gradio passes the raw string without shell expansion
+    # Expand ~ in both paths. Gradio passes the raw string.
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
     csv_path = os.path.expanduser(csv_path) if csv_path else csv_path
 
@@ -1124,32 +1456,28 @@ def _build_taix_ray(
     )
 
 
-def _build_taix_ray_512(
-    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
-):
-    return _build_taix_ray(
-        TAIXRay512Dataset,
-        base_dir,
-        csv_path,
-        extra_field,
-        extra_field2,
-        cache_dir,
-        **flags,
-    )
+def _build_taix_ray_512_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_taix_ray(TAIXRay512TrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
 
 
-def _build_taix_ray_original(
-    base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags
-):
-    return _build_taix_ray(
-        TAIXRayDataset,
-        base_dir,
-        csv_path,
-        extra_field,
-        extra_field2,
-        cache_dir,
-        **flags,
-    )
+def _build_taix_ray_512_val(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_taix_ray(TAIXRay512ValDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_taix_ray_512_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_taix_ray(TAIXRay512TestDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_taix_ray_original_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_taix_ray(TAIXRayTrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_taix_ray_original_val(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_taix_ray(TAIXRayValDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_taix_ray_original_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_taix_ray(TAIXRayTestDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
 
 
 def _build_openi_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
@@ -1172,7 +1500,6 @@ def _build_openi_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, *
 
 def _build_openi_cxr_dicom(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
     """OpenI variant that loads DICOM files instead of PNG."""
-    import pandas as pd
     from radharmony.harmonizer.openi_cxr import OpenICXRHarmonizer
 
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
@@ -1185,7 +1512,6 @@ def _build_openi_cxr_dicom(base_dir, csv_path, extra_field, extra_field2, cache_
     except Exception as e:
         return None, f"Harmonization error: {e}"
 
-    missing_dcm = df["dicom_path"].isna().sum()
     df = df.dropna(subset=["dicom_path"]).copy()
     if df.empty:
         return None, "No DICOM paths found. Ensure NLMCXR_dcm.tgz has been extracted."
@@ -1211,7 +1537,7 @@ def _build_openi_cxr_dicom(base_dir, csv_path, extra_field, extra_field2, cache_
 def _build_montgomery_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
     if not base_dir:
-        return None, "Dataset root directory (containing CXR_png/) is required."
+        return None, "The CXR_png/ folder (base_image_dir) is required."
     mask_dir = os.path.expanduser(extra_field) if extra_field else None
     if flags.get("output_mask") and mask_dir is None:
         return (
@@ -1238,7 +1564,7 @@ def _build_montgomery_cxr(base_dir, csv_path, extra_field, extra_field2, cache_d
 def _build_shenzhen_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
     if not base_dir:
-        return None, "Dataset root directory (containing CXR_png/) is required."
+        return None, "The CXR_png/ folder (base_image_dir) is required."
     mask_dir = os.path.expanduser(extra_field) if extra_field else None
     if flags.get("output_mask") and mask_dir is None:
         return (
@@ -1262,35 +1588,35 @@ def _build_shenzhen_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir
     )
 
 
-def _build_emory_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
-    from radharmony.harmonizer.emory_cxr import EmoryCXRHarmonizer
+def _build_qata_cov19_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_qata_cov19_cls(
+        QaTaCOV19TrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
 
+
+def _build_qata_cov19_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_qata_cov19_cls(
+        QaTaCOV19TestDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_qata_cov19_cls(
+    cls, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
-    meta_csv = (csv_path or "").strip() or None
-    # Metadata CSV is required and cannot be auto-discovered — the CSVs live in
-    # a separate TABLES/ folder, not in the (potentially millions-of-files) image tree.
-    if not meta_csv:
+    if not base_dir:
         return None, (
-            "CSV path is required for EmoryCXR v2. "
-            "Enter the full path to the EmoryCXR v2 metadata CSV."
+            "A QaTa-COV19-v2 split's Images/ directory is required "
+            "(e.g. .../QaTa-COV19-v2/Train Set/Images/)."
         )
-    label = (extra_field or "").strip() or None
-    report = (extra_field2 or "").strip() or None
-    h = EmoryCXRHarmonizer(
-        csv_path=meta_csv,
-        base_image_dir=base_dir,
-        label_csv_path=label,
-        report_csv_path=report,
-    )
-    harmonized_df = h.harmonize()
+    # Masks are ready-made PNGs in the sibling Ground-truths/ dir.
+    # The second field is only for trees that were moved.
+    masks_dir = os.path.expanduser(extra_field) if extra_field else None
     return (
-        EmoryCXRDataset(
+        cls(
             base_image_dir=base_dir,
-            harmonized_df=harmonized_df,
+            masks_dir=masks_dir,
             cache_dir=cache_dir or None,
-            output_cls=flags.get("output_cls", False) and label is not None,
-            output_mask=False,
-            output_report=flags.get("output_report", False) and report is not None,
+            output_cls=flags.get("output_cls", False),
+            output_mask=flags.get("output_mask", False),
+            output_report=False,
             output_bbox=False,
             dtype=_APP_DTYPE,
         ),
@@ -1298,7 +1624,63 @@ def _build_emory_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, *
     )
 
 
-def _build_ms_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+def _build_medseg_covid_ct(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
+    if not base_dir:
+        return None, ("Dataset folder is required: the one holding tr_im.nii.gz "
+                      "(dataset1) or rp_im/ (dataset2).")
+    slice_dir = os.path.expanduser(extra_field) if extra_field else None
+    if not slice_dir:
+        return None, ("Slice output dir is required. MedSeg ships CT volumes; one PNG "
+                      "per slice is written there once before MONAI can load them.")
+    subset = (extra_field2 or "dataset1").strip() or "dataset1"
+    if subset not in ("dataset1", "dataset2"):
+        return None, "Subset must be 'dataset1' or 'dataset2'."
+    return (
+        MedSegCOVIDCTDataset(
+            base_image_dir=base_dir,
+            slice_output_dir=slice_dir,
+            subset=subset,
+            cache_dir=cache_dir or None,
+            output_cls=flags.get("output_cls", False),
+            output_mask=flags.get("output_mask", False),
+            output_report=False,
+            output_bbox=False,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_medseg_covid_ct_val(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
+    if not base_dir or not extra_field:
+        return None, "The folder with val_im.nii.gz and the slice output dir are required."
+    return (
+        MedSegCOVIDCTValDataset(
+            base_image_dir=base_dir,
+            slice_output_dir=os.path.expanduser(extra_field),
+            cache_dir=cache_dir or None,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_ms_cxr_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_ms_cxr_cls(MSCXRTrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_ms_cxr_val(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_ms_cxr_cls(MSCXRValDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_ms_cxr_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_ms_cxr_cls(MSCXRTestDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_ms_cxr_cls(
+    cls, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
     csv_path = os.path.expanduser(csv_path) if csv_path else csv_path
     if not base_dir:
@@ -1306,7 +1688,7 @@ def _build_ms_cxr(base_dir, csv_path, extra_field, extra_field2, cache_dir, **fl
     if not csv_path:
         return None, "CSV path (MS-CXR local alignment CSV) is required."
     return (
-        MSCXRDataset(
+        cls(
             base_image_dir=base_dir,
             csv_path=csv_path,
             cache_dir=cache_dir or None,
@@ -1324,7 +1706,7 @@ def _build_ms_cxr_t(base_dir, csv_path, extra_field, extra_field2, cache_dir, **
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
     csv_path = os.path.expanduser(csv_path) if csv_path else csv_path
     if not base_dir:
-        return None, "MIMIC-CXR-JPG root (containing files/) is required."
+        return None, "MIMIC-CXR-JPG files/ folder is required."
     if not csv_path:
         return None, "CSV path (MS-CXR-T temporal classification CSV) is required."
     return (
@@ -1349,7 +1731,24 @@ def _header(modality: str) -> DatasetConfig:
     )
 
 
-def _build_ranzcr_clip(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+def _build_ranzcr_clip_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    return _build_ranzcr_clip_cls(
+        RANZCRClipTrainDataset, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags)
+
+
+def _build_ranzcr_clip_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
+    return (
+        RANZCRClipTestDataset(
+            base_image_dir=base_dir,
+            cache_dir=cache_dir or None,
+            dtype=_APP_DTYPE,
+        ),
+        None,
+    )
+
+
+def _build_ranzcr_clip_cls(cls, base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
     base_dir = os.path.expanduser(base_dir) if base_dir else base_dir
     csv = _infer(base_dir, "train.csv", user_path=csv_path)
     if not csv:
@@ -1364,7 +1763,7 @@ def _build_ranzcr_clip(base_dir, csv_path, extra_field, extra_field2, cache_dir,
             "Mask output dir is required when Mask is enabled for RANZCR-CLIP.",
         )
     return (
-        RANZCRClipDataset(
+        cls(
             base_image_dir=base_dir,
             csv_path=csv,
             annotations_csv_path=annotations_csv,
@@ -1380,13 +1779,26 @@ def _build_ranzcr_clip(base_dir, csv_path, extra_field, extra_field2, cache_dir,
     )
 
 
-def _build_roco(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
-    """ROCO: multimodal radiology captioning dataset from PubMed Central.
+def _build_roco_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.harmonizer.roco import ROCOTrainHarmonizer
+    return _build_roco_cls(ROCOTrainHarmonizer, base_dir)
 
-    base_dir   → roco-dataset root directory (contains data/)
-    extra_field → comma-separated splits to include (default: train,validation,test)
+
+def _build_roco_validation(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.harmonizer.roco import ROCOValidationHarmonizer
+    return _build_roco_cls(ROCOValidationHarmonizer, base_dir)
+
+
+def _build_roco_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.harmonizer.roco import ROCOTestHarmonizer
+    return _build_roco_cls(ROCOTestHarmonizer, base_dir)
+
+
+def _build_roco_cls(harmonizer_cls, base_dir):
+    """Harmonize ROCO with a split harmonizer ``harmonizer_cls`` and wrap the table for the app.
+
+    base_dir → roco-dataset root directory (contains data/)
     """
-    from radharmony.harmonizer.roco import ROCOHarmonizer
     from tqdm import tqdm
 
     base_dir_exp = os.path.expanduser(base_dir) if base_dir else None
@@ -1397,28 +1809,27 @@ def _build_roco(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flag
     if not os.path.isdir(data_dir):
         return None, f"Expected data/ subdirectory not found in {base_dir_exp}."
 
-    # Parse optional split filter from extra_field
-    splits = None
-    if extra_field and extra_field.strip():
-        splits = [s.strip() for s in extra_field.strip().split(",") if s.strip()]
-
     try:
-        h = ROCOHarmonizer(
+        h = harmonizer_cls(
             base_dir=base_dir_exp,
-            splits=splits,
+            splits=None,  # a split class keeps its own split
             radiology_only=True,
         )
         df = h.harmonize()
     except Exception as exc:
         return None, f"Harmonization error: {exc}"
 
+    # The app shows only a fixed key set, so the caption goes into qa_text (V-A-32).
+    df = df.copy()
+    df["qa_text"] = [
+        f"Caption: {a}" + (f"\nKeywords: {k}" if k else "")
+        for a, k in zip(df["answer"], df["keywords"].fillna(""), strict=True)
+    ]
+
     class _ROCOAdapter:
         LABEL_COLS = []
         REG_COLS   = []
-        _cols = {
-            "caption": "answer",
-            "keywords": "keywords",
-        }
+        _cols = {"qa_text": "qa_text"}
 
         def __init__(self, dataframe):
             self._df = dataframe
@@ -1438,6 +1849,363 @@ def _build_roco(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flag
             return missing
 
     return _ROCOAdapter(df), None
+
+
+def _build_rocov2_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.harmonizer.rocov2 import ROCOv2TrainHarmonizer
+    return _build_rocov2_cls(ROCOv2TrainHarmonizer, base_dir, **flags)
+
+
+def _build_rocov2_validation(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.harmonizer.rocov2 import ROCOv2ValidationHarmonizer
+    return _build_rocov2_cls(ROCOv2ValidationHarmonizer, base_dir, **flags)
+
+
+def _build_rocov2_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.harmonizer.rocov2 import ROCOv2TestHarmonizer
+    return _build_rocov2_cls(ROCOv2TestHarmonizer, base_dir, **flags)
+
+
+def _build_rocov2_cls(harmonizer_cls, base_dir, **flags):
+    """Harmonize ROCOv2 with ``harmonizer_cls`` and wrap the table for the app.
+
+    ROCOv2 has 79,789 radiology figure-caption pairs from PubMed Central. Its modality
+    comes from the human-curated UMLS concepts (Zenodo <split>_concepts_manual.csv),
+    named with cui_mapping.csv, so it does not depend on the caption words.
+
+    base_dir → ROCOv2 root: hf/data/*.parquet plus the Zenodo CSVs, and images/ that
+               scripts/materialize_rocov2.py writes
+    flags    → ``rocov2_modality`` from the dropdown, and the output flags
+    """
+    from tqdm import tqdm
+
+    bd = os.path.expanduser(base_dir) if base_dir else None
+    if not bd or not os.path.isdir(bd):
+        return None, "ROCOv2 base_dir not found."
+    if not os.path.isdir(os.path.join(bd, "hf", "data")):
+        return None, f"Expected hf/data/ under {bd}. Download eltorio/ROCOv2-radiology first."
+    if not os.path.isdir(os.path.join(bd, "images")):
+        return None, ("No images/ directory. Run "
+                      "scripts/materialize_rocov2.py --base-dir <root> first: the HF "
+                      "release stores image bytes inside parquet, not as files.")
+
+    # The dropdown plumbing (see load_dataset) ALREADY maps "(all)"/"" -> None and
+    # always sets the key, so pop()'s default never fires. Treat None as "no filter";
+    # passing [None] through reaches the harmonizer as an unknown modality.
+    mod = flags.pop("rocov2_modality", None) or "(all)"
+    try:
+        h = harmonizer_cls(
+            base_dir=bd, splits=None,  # a split class keeps its own split
+            modalities=None if mod in ("", "(all)") else [mod],
+            require_modality=(mod not in ("", "(all)")),
+        )
+        df = h.harmonize()
+    except Exception as exc:
+        return None, f"Harmonization error: {exc}"
+    if df.empty:
+        return None, f"No ROCOv2 rows for splits={h.splits} modality={mod}."
+
+    # The app reads images from base_dir + image_path (see get_data_dict in load_dataset).
+    # The harmonizer gives paths relative to <base_dir>/images.
+    # Add the prefix here, and make verify_images use the same join.
+    # Before, verify_images looked in <base_dir>/images but the loader looked in
+    # <base_dir>, so the check passed and only LoadImaged failed.
+    df = df.copy()
+    df["image_path"] = "images/" + df["image_path"].astype(str)
+
+    # The Sample-info panel only renders a FIXED set of keys -- see the filter in
+    # load_dataset ("cls", "mask", "report", "qa_text", "bbox", "bbox_labels", "reg")
+    # and the readers in _run(). Custom keys like "caption"/"cuis" are silently
+    # dropped, which is why the panel came back blank. Fold everything worth reading
+    # into qa_text, the box meant for VQA-schema datasets.
+    def _rocov2_qa(row):
+        lines = []
+        cap = row.get("answer")
+        if isinstance(cap, str) and cap.strip():
+            lines += ["── Caption ──", cap.strip(), ""]
+        mod, src = row.get("modality"), row.get("modality_source")
+        # Pandas stores an unset modality as NaN, and `if NaN:` is true.
+        # Without this check, the 105 unmapped test rows showed "Modality: nan".
+        # `x != x` is the NaN test.
+        if mod is None or mod != mod or str(mod).strip().lower() in ("", "nan", "none"):  # noqa: PLR0124
+            mod = None
+        n_mod = row.get("n_modality_cuis")
+        n_mod = int(n_mod) if n_mod is not None and n_mod == n_mod else None  # noqa: PLR0124
+        if mod:
+            lines.append(f"Modality: {mod}" + (f"  (concepts: {src})" if src else ""))
+        elif n_mod and n_mod > 1:
+            # Deliberately left unset by the harmonizer: an image tagged both CT and
+            # PET is genuinely both, and picking one would manufacture a label.
+            lines.append(f"Modality: unset — {n_mod} different modalities in the concepts")
+        else:
+            lines.append("Modality: unset — no modality concept on this image")
+        cuis = row.get("cuis")
+        if isinstance(cuis, (list, tuple)) and len(cuis):
+            lines.append(f"CUIs ({len(cuis)}): " + ", ".join(map(str, cuis[:25]))
+                         + (" …" if len(cuis) > 25 else ""))
+        if row.get("split"):
+            lines.append(f"Split: {row['split']}")
+        return "\n".join(lines).strip()
+
+    df["qa_text"] = df.apply(_rocov2_qa, axis=1)
+
+    class _ROCOv2Adapter:
+        LABEL_COLS, REG_COLS = [], []
+        _cols = {"qa_text": "qa_text"}   # caption + modality + CUIs -> Q&A box
+
+        def __init__(self, d):
+            self._df = d
+
+        def get_harmonized_df(self):
+            return self._df
+
+        def verify_images(self, drop_missing=True):
+            tqdm.pandas(desc="Verifying ROCOv2 images")
+            mask = self._df["image_path"].progress_apply(
+                lambda x: os.path.isfile(os.path.join(bd, x)))
+            missing = self._df[~mask].copy()
+            if not missing.empty and drop_missing:
+                self._df = self._df[mask].reset_index(drop=True)
+            return missing
+
+    return _ROCOv2Adapter(df), None
+
+
+def _build_mrrate(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    """MR-RATE: 705,254 brain/spine MRI volumes, 98,334 studies, with reports.
+
+    3-D NIfTI, one row per series. Every study has a structured report and 37
+    binary pathology labels. So you can check text and labels against the image.
+
+    text field    -> splits filter (default: test)
+    dropdown      -> sequence modality (T1w / T2w / FLAIR / SWI / MRA)
+
+    The app shows only studies that are on disk. The HF repo is 8.11 TB and
+    every study is one zip. Pull a cohort with scripts/materialize_mrrate.py first.
+    """
+    from radharmony.harmonizer.mrrate import MRRATEHarmonizer
+
+    bd = os.path.expanduser((base_dir or "").strip())
+    if not bd or not os.path.isdir(bd):
+        return None, "MR-RATE base_dir not found."
+    if not os.path.isdir(os.path.join(bd, "meta")):
+        return None, (f"Expected meta/ under {bd}. Download the metadata first:\n"
+                      "  hf download Forithmus/MR-RATE "
+                      "--repo-type dataset --include '*.csv' --local-dir <base>/meta")
+
+    splits = [s.strip() for s in (extra_field or "test").split(",") if s.strip()]
+    mod = flags.pop("mrrate_modality", None) or "(all)"
+    try:
+        h = MRRATEHarmonizer(
+            base_dir=bd, splits=splits,
+            modalities=None if mod in ("", "(all)") else [mod],
+            require_images=True,          # only offer volumes actually on disk
+        )
+        df = h.harmonize()
+    except Exception as exc:
+        return None, f"Harmonization error: {exc}"
+    if df.empty:
+        return None, (f"No materialised MR-RATE volumes for splits={splits} "
+                      f"modality={mod}. Pull some with:\n"
+                      "  python scripts/materialize_mrrate.py --base-dir <base> "
+                      "--split test --limit 20 --unpack")
+
+    # Fold report + provenance into qa_text: the Sample-info panel renders only a
+    # fixed key set, so bespoke columns never reach it (see the ROCOv2 note).
+    def _qa(row):
+        lines = [f"Study {row['study_id']}   ·   patient {row['patient_id']}",
+                 f"Series: {row.get('series_id')}   {row.get('classified_modality')}"
+                 f"   {row.get('acquisition_plane')}",
+                 f"Sequence family: {row.get('sequence_family')}",
+                 f"Split: {row.get('split')}   ·   centre series: "
+                 f"{bool(row.get('is_center_modality'))}"]
+        pos = [c.replace('_', ' ') for c in LBL if row.get(c) == 1]
+        lines += ["", f"Pathology labels positive ({len(pos)} of 37): "
+                      + (", ".join(pos) if pos else "none")]
+        return "\n".join(lines)
+
+    LBL = [c.lower().replace(" ", "_") for c in
+           __import__("radharmony.harmonizer.mrrate", fromlist=["x"]).PATHOLOGY_LABELS]
+    LBL = [c for c in LBL if c in df.columns]
+    df = df.copy()
+    df["qa_text"] = df.apply(_qa, axis=1)
+
+    class _MRRATEAdapter:
+        LABEL_COLS, REG_COLS = LBL, []
+        _cols = {"report": "report", "qa_text": "qa_text", "mask": "mask_path"}
+
+        def __init__(self, d):
+            self._df = d
+
+        def get_harmonized_df(self):
+            return self._df
+
+        def verify_images(self, drop_missing=True):
+            # require_images=True already filtered, so this is a cheap re-check.
+            mask = self._df["image_path"].apply(
+                lambda x: os.path.isfile(os.path.join(bd, x)))
+            missing = self._df[~mask].copy()
+            if not missing.empty and drop_missing:
+                self._df = self._df[mask].reset_index(drop=True)
+            return missing
+
+    return _MRRATEAdapter(df), None
+
+
+def _build_medpmc(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    """MedPMC: 11.1M medical image-text pairs curated from PubMed Central.
+
+    IMPORTANT: MedPMC ships NO specialty or modality field. The tags used here are
+    RadHarmony's own, derived from caption text and optionally cross-checked against
+    a zero-shot pixel tagger. Every row carries tag_method so they are never mistaken
+    for author-provided labels.
+
+    The dropdown selects a precision level. "high-precision radiology" needs both
+    taggers to agree on specialty and modality, and the pixel tagger to be sure
+    (p>=0.9). It has 648,694 images. In an expert review, 12 of 12 were correct
+    (specialty and modality). This gives at least 74% precision at 95% confidence.
+    It leaves out many valid images, so do not use it to estimate prevalence.
+
+    base_dir     → MedPMC root containing webdataset/ and tags/
+    extra_field  → modality filter (ct, mri, xray, ultrasound, angiography, ...)
+    """
+    from radharmony.harmonizer.medpmc import MedPMCHarmonizer
+    from tqdm import tqdm
+
+    bd = os.path.expanduser(base_dir) if base_dir else None
+    if not bd or not os.path.isdir(bd):
+        return None, "MedPMC base_dir not found."
+    if not os.path.isfile(os.path.join(bd, "tags", "medpmc_tags.parquet")):
+        return None, ("No tags/medpmc_tags.parquet. MedPMC ships no specialty field; "
+                      "build the tag table with scripts/build_medpmc_tags.py first.")
+
+    # The dropdown can give None, as for ROCOv2. Here this fails without an error.
+    # A None preset matches no branch below, so no tag filter applies.
+    # Then the whole 11M-row corpus loads, not the high-precision subset.
+    preset = flags.pop("medpmc_preset", None) or "high-precision radiology"
+    kw = dict(base_dir=bd, subsets=["singlepanel", "subfigure"])
+    if preset == "high-precision radiology":
+        kw.update(radiology_only=True, require_tagger_agreement=True, min_clip_prob=0.9)
+    elif preset == "radiology (caption tagger only)":
+        kw.update(radiology_only=True)
+    elif preset == "radiology (both taggers agree)":
+        kw.update(radiology_only=True, require_tagger_agreement=True)
+    elif preset == "human-verified only":
+        kw.update(radiology_only=False)   # the human verdict decides, not a tagger
+    if extra_field and extra_field.strip():
+        # Accept either spelling: "CT,MR" and "ct,mri" mean the same.
+        # The table in medpmc/vocab.py is the single source of truth.
+        from radharmony.harmonizer.medpmc.vocab import normalize as _norm_mod
+        wanted = [_norm_mod(m) for m in extra_field.split(",") if m.strip()]
+        bad = [m for m, n in zip(extra_field.split(","), wanted, strict=False) if n is None]
+        if bad:
+            return None, (f"Unknown modality {', '.join(b.strip() for b in bad)}. "
+                          "Valid: CT MR XR US XA PT/NM MG (or ct mri xray "
+                          "ultrasound angiography pet_spect mammography).")
+        kw["modalities"] = wanted
+
+    try:
+        df = MedPMCHarmonizer(**kw).harmonize()
+    except Exception as exc:
+        return None, f"Harmonization error: {exc}"
+    if df.empty:
+        return None, f"No MedPMC rows for preset={preset!r} modality={extra_field!r}."
+
+    # Resolved labels: one modality per image plus WHERE it came from
+    # (human > clip > figure_rollup > caption). Built by
+    # scripts/build_medpmc_label_provenance.py. Optional -- the browser still works
+    # without it, just with no provenance column.
+    rp = os.path.join(bd, "tags", "medpmc_labels_resolved.parquet")
+    if os.path.isfile(rp):
+        import pandas as pd          # app.py has no module-level pandas import
+        res = pd.read_parquet(rp, columns=["image_id", "modality_final",
+                                           "modality_display", "modality_source",
+                                           "specialty_final", "human_verified",
+                                           "human_annotator", "sources_disagree"])
+        df = df.merge(res, on="image_id", how="left")
+        if preset == "human-verified only":
+            df = df[df["human_verified"].fillna(False)]
+    elif preset == "human-verified only":
+        return None, ("No resolved-label table at tags/medpmc_labels_resolved.parquet. "
+                      "Build it with scripts/build_medpmc_label_provenance.py.")
+
+    # Same base_dir-vs-base_dir/images mismatch as ROCOv2; see the note there.
+    df = df.copy()
+    df["image_path"] = "images/" + df["image_path"].astype(str)
+
+    # The panel has fixed keys, as for ROCOv2 (see the note there).
+    # "caption" and "specialty" never reached the panel.
+    # Put the caption and the source of our tags into qa_text.
+    # The tags are ours, not from the dataset, so reviewers need their source.
+    def _medpmc_qa(row):
+        lines = []
+        cap = row.get("answer")
+        if isinstance(cap, str) and cap.strip():
+            lines += ["── Caption ──", cap.strip(), ""]
+        lines.append("── Derived tags (OURS, not shipped with MedPMC) ──")
+        disp = row.get("modality_display")
+        msrc = row.get("modality_source")
+        if disp:
+            lines.append(f"MODALITY: {disp}"
+                         + (f"   (decided by: {msrc})" if msrc else ""))
+        if row.get("human_verified"):
+            lines.append(f"** HUMAN-VERIFIED ** by {row.get('human_annotator')}"
+                         "  — a person judged this exact image")
+        if row.get("sources_disagree"):
+            lines.append("!! caption and CLIP taggers DISAGREE on this image")
+        lines.append(f"specialty: {row.get('specialty')}   raw modality: {row.get('modality')}")
+        lines.append(f"caption tagger: {row.get('tag_method')} "
+                     f"(confidence {row.get('tag_confidence')}, source {row.get('tag_source')})")
+        clip_p = row.get("clip_prob")
+        lines.append(f"CLIP tagger: {row.get('clip_specialty')} / {row.get('clip_modality')}"
+                     + (f"  p={float(clip_p):.3f}" if clip_p is not None and clip_p == clip_p else ""))  # noqa: PLR0124
+        ident = [f"{k}={row.get(k)}" for k in ("pmcid", "image_id", "figure_label")
+                 if row.get(k) is not None]
+        if ident:
+            lines += ["", "  ".join(ident)]
+        return "\n".join(lines).strip()
+
+    df["qa_text"] = df.apply(_medpmc_qa, axis=1)
+
+    class _MedPMCAdapter:
+        LABEL_COLS, REG_COLS = [], []
+        _cols = {"qa_text": "qa_text"}   # caption + our tag provenance -> Q&A box
+
+        def __init__(self, d):
+            self._df = d
+
+        def get_harmonized_df(self):
+            return self._df
+
+        def verify_images(self, drop_missing=True):
+            # Images are inside 715 webdataset tars. Only a subset is on disk.
+            # Extract what you need with scripts/materialize_medpmc_subset.py.
+            tqdm.pandas(desc="Verifying MedPMC images")
+            mask = self._df["image_path"].progress_apply(
+                lambda x: os.path.isfile(os.path.join(bd, x)))
+            missing = self._df[~mask].copy()
+            if not missing.empty and drop_missing:
+                self._df = self._df[mask].reset_index(drop=True)
+            return missing
+
+    return _MedPMCAdapter(df), None
+
+
+def _gemex_box(loc, width: int, height: int) -> list:
+    """Return a GEMeX ``[x1, y1, x2, y2]`` box as ``[y_min, y_max, x_min, x_max]`` fractions of the image (D-07).
+
+    The box is in the 224 x 224 Chest ImaGenome space. That space resizes the image so that its long side
+    is 224, then pads it to a square. The function undoes both steps and clips to [0, 1] (V-A-44).
+    """
+    side = 224.0
+    scale = max(width, height) / side
+    pad_x, pad_y = (side - width / scale) / 2, (side - height / scale) / 2
+    x1, y1, x2, y2 = loc
+
+    def frac(v, pad, size):
+        return round(min(max((v - pad) * scale / size, 0.0), 1.0), 6)
+
+    return [frac(y1, pad_y, height), frac(y2, pad_y, height), frac(x1, pad_x, width), frac(x2, pad_x, width)]
 
 
 def _build_gemex_vqa(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
@@ -1464,7 +2232,7 @@ def _build_gemex_vqa(base_dir, csv_path, extra_field, extra_field2, cache_dir, *
     except Exception as exc:
         return None, f"Harmonization error: {exc}"
 
-    # --- Build per-image Q&A summary grouped by question subtype ---
+    # --- The Q&A text of each row: its own question and answer only (D-11, Q-3) ---
     _SUBTYPE_LABELS = {
         "closed_ended":  "Closed Ended (Yes / No)",
         "open_ended":    "Open Ended",
@@ -1472,61 +2240,35 @@ def _build_gemex_vqa(base_dir, csv_path, extra_field, extra_field2, cache_dir, *
         "multi_choice":  "Multi Choice",
     }
 
-    # Pre-build a mapping: image_path → {subtype → [question dicts]}
-    _image_qa: dict = {}
-    for _, row in df.iterrows():
-        ip = row["image_path"]
-        st = row["question_subtype"]
-        _image_qa.setdefault(ip, {s: [] for s in _SUBTYPE_LABELS})
-        _image_qa[ip][st].append({
-            "question": row["question"],
-            "choices":  row.get("choices"),
-            "answer":   row["answer"],
-            "type":     row["question_type"],
-        })
+    def _format_qa(row):
+        lines = [f"── {_SUBTYPE_LABELS.get(row['question_subtype'], row['question_subtype'])} ──",
+                 f"Q ({row['question_type']}): {row['question']}"]
+        choices = row.get("choices")
+        if isinstance(choices, (list, tuple)) and choices:
+            answer_letters = {a.strip() for a in str(row["answer"]).split(",")}
+            lines.append("   " + "   ".join(
+                f"{c} ✓" if c.split(":")[0].strip() in answer_letters else c for c in choices))
+        lines.append(f"   → {row['answer']}")
+        return "\n".join(lines)
 
-    def _format_qa(image_path):
-        sections = []
-        for subtype, label in _SUBTYPE_LABELS.items():
-            qs = _image_qa.get(image_path, {}).get(subtype, [])
-            if not qs:
-                continue
-            sections.append(f"── {label} ──")
-            for qi in qs:
-                sections.append(f"Q ({qi['type']}): {qi['question']}")
-                choices = qi["choices"]
-                if choices:
-                    answer_letters = {a.strip() for a in qi["answer"].split(",")}
-                    fmt = "   ".join(
-                        f"{c} ✓" if c.split(":")[0].strip() in answer_letters else c
-                        for c in choices
-                    )
-                    sections.append(f"   {fmt}")
-                    sections.append(f"   → {qi['answer']}")
-                else:
-                    sections.append(f"   → {qi['answer']}")
-                sections.append("")
-        return "\n".join(sections).strip()
+    df["qa_text"] = [_format_qa(row) for _, row in df.iterrows()]
 
-    df["qa_text"] = df["image_path"].apply(_format_qa)
+    # --- Bounding boxes: visual_locations are [x1,y1,x2,y2] in the 224 x 224 Chest ImaGenome space.
+    # So each box needs the size of its image (_gemex_box). ---
+    _sizes = {}
 
-    # --- Bounding boxes: visual_locations are [x1,y1,x2,y2] in 256×256 space.
-    # Normalize to [y_min, y_max, x_min, x_max] in [0,1] for the transform pipeline. ---
-    _COORD = 256.0
+    def _image_size(rel):
+        if rel not in _sizes:
+            path = os.path.join(base_dir_exp or "", rel)
+            _sizes[rel] = Image.open(path).size if os.path.isfile(path) else None  # header only
+        return _sizes[rel]
 
     def _norm_bboxes(row):
-        locs = row.get("visual_locations") or []
-        bboxes = []
-        for loc in locs:
-            if len(loc) == 4:
-                x1, y1, x2, y2 = loc
-                bboxes.append([
-                    round(y1 / _COORD, 6),
-                    round(y2 / _COORD, 6),
-                    round(x1 / _COORD, 6),
-                    round(x2 / _COORD, 6),
-                ])
-        return _json.dumps(bboxes) if bboxes else None
+        locs = [loc for loc in (row.get("visual_locations") or []) if len(loc) == 4]
+        size = _image_size(row["image_path"]) if locs else None
+        if not size:
+            return None
+        return _json.dumps([_gemex_box(loc, *size) for loc in locs])
 
     def _bbox_labels_fn(row):
         regions = row.get("visual_regions") or []
@@ -1540,7 +2282,7 @@ def _build_gemex_vqa(base_dir, csv_path, extra_field, extra_field2, cache_dir, *
         REG_COLS = []
         _cols = {
             "report":      "ori_report",        # radiology report → Report box
-            "qa_text":     "qa_text",            # all Q&A for image → Q&A box
+            "qa_text":     "qa_text",            # the Q&A of this row → Q&A box
             "bbox":        "bbox_norm",
             "bbox_labels": "bbox_labels_json",
         }
@@ -1564,6 +2306,186 @@ def _build_gemex_vqa(base_dir, csv_path, extra_field, extra_field2, cache_dir, *
 
     return _GEMeXAdapter(df), None
 
+
+class _TableAdapter:
+    """A ready table with the methods that ``load_dataset`` calls.
+
+    Args:
+        df: Table with an ``image_path`` column.
+        base_dir: Folder that a relative ``image_path`` is relative to.
+        name: Dataset name for the progress bar.
+        cols: Sample key -> table column, as in ``get_data_dict``.
+    """
+
+    LABEL_COLS: list = []
+    REG_COLS: list = []
+
+    def __init__(self, df, base_dir: str | None, name: str, cols: dict):
+        self._df, self._base_dir, self._name, self._cols = df, base_dir, name, cols
+
+    def get_harmonized_df(self):
+        return self._df
+
+    def verify_images(self, drop_missing=True):
+        from tqdm import tqdm
+
+        def _exists(p):
+            return os.path.isfile(os.path.join(self._base_dir, p) if self._base_dir else p)
+
+        tqdm.pandas(desc=f"Verifying {self._name} images")
+        mask = self._df["image_path"].progress_apply(_exists)
+        missing = self._df[~mask].copy()
+        if not missing.empty and drop_missing:
+            self._df = self._df[mask].reset_index(drop=True)
+        return missing
+
+
+def _vqa_adapter(df, base_dir_exp: str | None, name: str) -> _TableAdapter:
+    """Wrap a VQA table for the app: one sample per question, its Q&A in ``qa_text``.
+
+    The app shows the same samples as the VQA dataset class, so a row shows
+    only its own question and answer (D-11, Q-3).
+
+    Args:
+        df: Harmonized VQA table (``image_path``, ``question``, ``answer``).
+        base_dir_exp: Folder that a relative ``image_path`` is relative to.
+        name: Dataset name for the progress bar.
+    """
+    if base_dir_exp:
+        # load_dataset puts base_dir in front of image_path. A table with an absolute
+        # path (for example an old CheXinstruct table) is made relative first.
+        df = df.assign(image_path=[
+            os.path.relpath(p, base_dir_exp) if os.path.isabs(p) else p
+            for p in df["image_path"].astype(str)
+        ])
+    qtypes = df["question_type"].astype(str) if "question_type" in df else ["question"] * len(df)
+    structs = df["answer_struct"] if "answer_struct" in df else [None] * len(df)
+    df = df.assign(qa_text=[
+        f"Q ({t}): {q}\n   → {_answer_text(a, s)}"
+        for t, q, a, s in zip(qtypes, df["question"].astype(str), df["answer"], structs, strict=True)
+    ]).reset_index(drop=True)
+    return _TableAdapter(df, base_dir_exp, name, {"qa_text": "qa_text"})
+
+
+def _answer_text(answer, struct) -> str:
+    """Return the answer to show: ``answer``, or the true options of ``answer_struct`` when it is empty.
+
+    A CheXinstruct close-ended row keeps its answer only in ``answer_struct``, for example
+    ``{"yes": True, "no": False}`` gives "yes" (V-A-45).
+    """
+    text = "" if answer is None or (isinstance(answer, float) and np.isnan(answer)) else str(answer)
+    if not text.strip() and isinstance(struct, dict):
+        text = ", ".join(str(k) for k, v in struct.items() if v is True)
+    return text
+
+
+def _build_vqa_rad_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.dataset import VQARadTrainDataset
+    return _build_vqa_rad_cls(VQARadTrainDataset, base_dir, csv_path)
+
+
+def _build_vqa_rad_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.dataset import VQARadTestDataset
+    return _build_vqa_rad_cls(VQARadTestDataset, base_dir, csv_path)
+
+
+def _build_vqa_rad_cls(cls, base_dir, csv_path):
+    """Load VQA-RAD with the dataset class ``cls`` and wrap the table for the app."""
+    base = os.path.expanduser(base_dir)
+    try:
+        df = cls(
+            base_image_dir=base,
+            json_path=os.path.expanduser(csv_path) if csv_path else None,
+            cache_dir=None,
+        ).get_harmonized_df()
+    except Exception as exc:
+        return None, f"Harmonization error: {exc}"
+    return _vqa_adapter(df, base, "VQA-RAD"), None
+
+
+def _build_chexinstruct_vqa_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.dataset import ChexInstructVQATrainDataset
+    return _build_chexinstruct_vqa_cls(ChexInstructVQATrainDataset, base_dir, csv_path, extra_field)
+
+
+def _build_chexinstruct_vqa_val(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.dataset import ChexInstructVQAValDataset
+    return _build_chexinstruct_vqa_cls(ChexInstructVQAValDataset, base_dir, csv_path, extra_field)
+
+
+def _build_chexinstruct_vqa_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.dataset import ChexInstructVQATestDataset
+    return _build_chexinstruct_vqa_cls(ChexInstructVQATestDataset, base_dir, csv_path, extra_field)
+
+
+def _build_chexinstruct_vqa_cls(cls, base_dir, csv_path, extra_field):
+    """Load CheXinstruct VQA with the dataset class ``cls`` and wrap the table for the app."""
+    if not csv_path:
+        return None, "CheXinstruct needs the compiled chexinstruct_vqa.json in the CSV path field."
+    base = os.path.expanduser(base_dir)
+    sources = [s.strip() for s in extra_field.split(",") if s.strip()] or None
+    try:
+        df = cls(
+            base_image_dir=base,
+            json_path=os.path.expanduser(csv_path),
+            data_sources=sources,
+            cache_dir=None,
+        ).get_harmonized_df()
+    except Exception as exc:
+        return None, f"Harmonization error: {exc}"
+    return _vqa_adapter(df, base, "CheXinstruct"), None
+
+
+# The QA zip is large, so the app loads only some studies by default.
+_QBA_DEFAULT_STUDIES = 200
+
+
+def _build_mimic_ext_cxr_qba_train(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.dataset import MIMICExtCXRQBATrainDataset
+    return _build_mimic_ext_cxr_qba_cls(MIMICExtCXRQBATrainDataset, base_dir, csv_path, extra_field, extra_field2)
+
+
+def _build_mimic_ext_cxr_qba_validate(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.dataset import MIMICExtCXRQBAValidateDataset
+    return _build_mimic_ext_cxr_qba_cls(MIMICExtCXRQBAValidateDataset, base_dir, csv_path, extra_field, extra_field2)
+
+
+def _build_mimic_ext_cxr_qba_test(base_dir, csv_path, extra_field, extra_field2, cache_dir, **flags):
+    from radharmony.dataset import MIMICExtCXRQBATestDataset
+    return _build_mimic_ext_cxr_qba_cls(MIMICExtCXRQBATestDataset, base_dir, csv_path, extra_field, extra_field2)
+
+
+def _build_mimic_ext_cxr_qba_cls(cls, base_dir, csv_path, extra_field, extra_field2):
+    """MIMIC-Ext-CXR-QBA: question-answer pairs for MIMIC-CXR studies, one official split (D-09).
+
+    base_dir     → MIMIC-CXR files/ root (DICOM)
+    csv_path     → qa.zip (required)
+    extra_field  → metadata folder (required)
+    extra_field2 → number of studies of the split to load (default _QBA_DEFAULT_STUDIES)
+    """
+    if not csv_path or not extra_field:
+        return None, "MIMIC-Ext-CXR-QBA needs qa.zip (CSV path field) and the metadata folder."
+    try:
+        max_studies = int(extra_field2) if extra_field2 else _QBA_DEFAULT_STUDIES
+    except ValueError:
+        return None, f"Number of studies must be an integer, not {extra_field2!r}."
+    base = os.path.expanduser(base_dir)
+    try:
+        df = cls(
+            base_image_dir=base,
+            metadata_dir=os.path.expanduser(extra_field),
+            qa_zip_path=os.path.expanduser(csv_path),
+            max_studies=max_studies,
+            cache_dir=None,
+        ).get_harmonized_df()
+    except Exception as exc:
+        return None, f"Harmonization error: {exc}"
+    return _vqa_adapter(df, base, "MIMIC-Ext-CXR-QBA"), None
+
+
+# The modality dropdown of the ROCOv2 entries.
+_ROCOV2_MODALITIES = ("(all)", "ct", "mri", "xray", "ultrasound",
+                      "angiography", "pet_spect", "mammography")
 
 # To add a dataset: write a _build_* function above, then add one line here.
 DATASET_REGISTRY: dict[str, DatasetConfig] = {
@@ -1604,14 +2526,33 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         base_dir_placeholder="e.g. /data/CheXpert-v1.0/valid/",
         csv_placeholder="auto: valid.csv",
     ),
-    "CheXpert-Plus": DatasetConfig(
+    "CheXpert-Plus (Train)": DatasetConfig(
         False,
         "Label JSON (optional)",
-        _build_chexpert_plus,
+        _build_chexpert_plus_train,
         modality="CXR",
         base_dir_placeholder="e.g. /data/chexpertplus/DICOM/Uncompressed/",
         csv_placeholder="auto: df_chexpert_plus_240401.csv",
-        extra_placeholder="auto: report_fixed.json",
+        extra_placeholder="auto: impression_fixed.json",
+    ),
+    "CheXpert-Plus (Valid)": DatasetConfig(
+        False,
+        "Label JSON (optional)",
+        _build_chexpert_plus_valid,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/chexpertplus/DICOM/Uncompressed/",
+        csv_placeholder="auto: df_chexpert_plus_240401.csv",
+        extra_placeholder="auto: impression_fixed.json",
+    ),
+    "CheXlocalize (Val)": DatasetConfig(
+        False,
+        "Segmentation JSON (optional)",
+        _build_chexlocalize_val,
+        modality="CXR",
+        extra_field2_label="Mask output dir (required for output_mask)",
+        base_dir_placeholder="e.g. /data/chexlocalize/CheXpert/val/",
+        csv_placeholder="auto: val_labels.csv",
+        extra_placeholder="auto: gt_segmentations_val.json",
     ),
     "CheXlocalize": DatasetConfig(
         False,
@@ -1623,24 +2564,45 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         csv_placeholder="auto: test_labels.csv",
         extra_placeholder="auto: gt_segmentations_test.json",
     ),
+    "── CheXphoto ──": _header("CXR"),
+    "CheXphoto (Train)": DatasetConfig(
+        False,
+        "",
+        _build_chexphoto_train,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/CheXphoto/  (contains natural/ and synthetic/)",
+        csv_placeholder="auto: train.csv",
+        extra_dropdown_label="Subset",
+        extra_dropdown_choices=("(all)", "natural", "synthetic"),
+        extra_dropdown_kwarg="chexphoto_subset",
+    ),
+    "CheXphoto (Valid)": DatasetConfig(
+        False,
+        "",
+        _build_chexphoto_valid,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/CheXphoto/  (contains natural/ and synthetic/)",
+        csv_placeholder="auto: valid.csv",
+        extra_dropdown_label="Subset",
+        extra_dropdown_choices=("(all)", "natural", "synthetic"),
+        extra_dropdown_kwarg="chexphoto_subset",
+    ),
     "── ChestX-ray14 ──": _header("CXR"),
     "ChestX-ray14 (Train)": DatasetConfig(
         False,
-        "BBox CSV (to exclude bbox images)",
+        "",
         _build_chestxray14_train,
         modality="CXR",
         base_dir_placeholder="e.g. /data/NIH_CXR/CXR14/",
         csv_placeholder="auto: Data_Entry_2017.csv",
-        extra_placeholder="auto: BBox_List_2017.csv",
     ),
     "ChestX-ray14 (Test)": DatasetConfig(
         False,
-        "BBox CSV (to exclude bbox images)",
+        "",
         _build_chestxray14_test,
         modality="CXR",
         base_dir_placeholder="e.g. /data/NIH_CXR/CXR14/",
         csv_placeholder="auto: Data_Entry_2017.csv",
-        extra_placeholder="auto: BBox_List_2017.csv",
     ),
     "ChestX-ray14 (BBox)": DatasetConfig(
         False,
@@ -1651,6 +2613,66 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         csv_placeholder="auto: Data_Entry_2017.csv",
         extra_placeholder="auto: BBox_List_2017.csv",
     ),
+    "── ChestX-Det10 ──": _header("CXR"),
+    "ChestX-Det10 (Train)": DatasetConfig(
+        False,
+        "",
+        _build_chestxdet10_train,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/ChestX-Det10/  (dir containing train-old/ and test_data/)",
+        csv_placeholder="auto: train.json",
+        bbox_default=True,
+    ),
+    "ChestX-Det10 (Test)": DatasetConfig(
+        False,
+        "",
+        _build_chestxdet10_test,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/ChestX-Det10/  (dir containing train-old/ and test_data/)",
+        csv_placeholder="auto: test.json",
+        bbox_default=True,
+    ),
+    "── NODE21 ──": _header("CXR"),
+    "NODE21 (processed)": DatasetConfig(
+        False,
+        "",
+        _build_node21_processed,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/NODE21/  (dir containing cxr_images/)",
+        csv_placeholder="auto: cxr_images/proccessed_data/metadata.csv",
+        bbox_default=True,
+    ),
+    "NODE21 (original)": DatasetConfig(
+        False,
+        "",
+        _build_node21_original,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/NODE21/  (dir containing cxr_images/)",
+        csv_placeholder="auto: cxr_images/original_data/metadata.csv",
+        bbox_default=True,
+    ),
+    "── Emory CXR v2 ──": _header("CXR"),
+    "Emory CXR v2": DatasetConfig(
+        False,
+        "Finding-label CSV (optional)",
+        _build_emory_cxr,
+        modality="CXR",
+        extra_field2_label="Report CSV (optional)",
+        base_dir_placeholder="e.g. /data/EmoryCXRv2/DEID_PNG/",
+        csv_placeholder="EmoryCXR_v2_Metadata_<date>.csv (pin one; not interchangeable)",
+        extra_placeholder="e.g. .../TABLES/EmoryCXR_v2_FindingLabel_10162024.csv",
+        extra_placeholder2="e.g. .../TABLES/EmoryCXR_v2_Report_05102026.csv",
+    ),
+    "── Emory CHORUS ──": _header("CXR"),
+    "Emory CHORUS (X-ray, chest only)": DatasetConfig(
+        False,
+        "",
+        _build_emory_chorus,
+        modality="CXR",
+        csv_label="Manifest CSV (optional scan cache, written on the first build)",
+        base_dir_placeholder="e.g. /data/Emory_CHORUS/images_dicom_xray/",
+        csv_placeholder="e.g. /data/Emory_CHORUS/chorus_xray_manifest.csv",
+    ),
     "── PadChest ──": _header("CXR"),
     "PadChest": DatasetConfig(
         False,
@@ -1659,6 +2681,37 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         modality="CXR",
         base_dir_placeholder="e.g. /data/PadChest/images/",
         csv_placeholder="auto: PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
+    ),
+    "── PadChest-GR ──": _header("CXR"),
+    "PadChest-GR (Train)": DatasetConfig(
+        False,
+        "PadChest labels CSV (optional; fills view_position)",
+        _build_padchest_gr_train,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/PadChest-GR/  (dir containing PadChest_GR/ and grounded_reports_*.json)",
+        csv_placeholder="auto: master_table.csv",
+        extra_placeholder="e.g. .../PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
+        bbox_default=True,
+    ),
+    "PadChest-GR (Validation)": DatasetConfig(
+        False,
+        "PadChest labels CSV (optional; fills view_position)",
+        _build_padchest_gr_validation,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/PadChest-GR/  (dir containing PadChest_GR/ and grounded_reports_*.json)",
+        csv_placeholder="auto: master_table.csv",
+        extra_placeholder="e.g. .../PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
+        bbox_default=True,
+    ),
+    "PadChest-GR (Test)": DatasetConfig(
+        False,
+        "PadChest labels CSV (optional; fills view_position)",
+        _build_padchest_gr_test,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/PadChest-GR/  (dir containing PadChest_GR/ and grounded_reports_*.json)",
+        csv_placeholder="auto: master_table.csv",
+        extra_placeholder="e.g. .../PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
+        bbox_default=True,
     ),
     "── ReXGradient-160K ──": _header("CXR"),
     "ReXGradient-160K (Train)": DatasetConfig(
@@ -1686,10 +2739,10 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         csv_placeholder="auto: test_metadata_view_position.json",
     ),
     "── MIMIC-CXR ──": _header("CXR"),
-    "MIMIC-CXR": DatasetConfig(
+    "MIMIC-CXR (Train)": DatasetConfig(
         False,
-        "Label CSV (optional)",
-        _build_mimic,
+        "Label CSV (needed: it sits next to the split file)",
+        _build_mimic_train,
         modality="CXR",
         extra_field2_label="Report CSV (optional)",
         base_dir_placeholder="e.g. /data/mimic-cxr/2.1.0/files/",
@@ -1697,10 +2750,50 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         extra_placeholder="from MIMIC-CXR-JPG: mimic-cxr-2.0.0-chexpert.csv",
         extra_placeholder2="auto: cxr-study-list.csv.gz",
     ),
-    "MIMIC-CXR-JPG": DatasetConfig(
+    "MIMIC-CXR (Validate)": DatasetConfig(
+        False,
+        "Label CSV (needed: it sits next to the split file)",
+        _build_mimic_validate,
+        modality="CXR",
+        extra_field2_label="Report CSV (optional)",
+        base_dir_placeholder="e.g. /data/mimic-cxr/2.1.0/files/",
+        csv_placeholder="auto: cxr-record-list.csv.gz",
+        extra_placeholder="from MIMIC-CXR-JPG: mimic-cxr-2.0.0-chexpert.csv",
+        extra_placeholder2="auto: cxr-study-list.csv.gz",
+    ),
+    "MIMIC-CXR (Test)": DatasetConfig(
+        False,
+        "Label CSV (needed: it sits next to the split file)",
+        _build_mimic_test,
+        modality="CXR",
+        extra_field2_label="Report CSV (optional)",
+        base_dir_placeholder="e.g. /data/mimic-cxr/2.1.0/files/",
+        csv_placeholder="auto: cxr-record-list.csv.gz",
+        extra_placeholder="from MIMIC-CXR-JPG: mimic-cxr-2.0.0-chexpert.csv",
+        extra_placeholder2="auto: cxr-study-list.csv.gz",
+    ),
+    "MIMIC-CXR-JPG (Train)": DatasetConfig(
         False,
         "Label CSV (optional)",
-        _build_mimic_jpg,
+        _build_mimic_jpg_train,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/files/",
+        csv_placeholder="auto: mimic-cxr-2.0.0-metadata.csv.gz",
+        extra_placeholder="auto: mimic-cxr-2.0.0-chexpert.csv",
+    ),
+    "MIMIC-CXR-JPG (Validate)": DatasetConfig(
+        False,
+        "Label CSV (optional)",
+        _build_mimic_jpg_validate,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/files/",
+        csv_placeholder="auto: mimic-cxr-2.0.0-metadata.csv.gz",
+        extra_placeholder="auto: mimic-cxr-2.0.0-chexpert.csv",
+    ),
+    "MIMIC-CXR-JPG (Test, labeler labels)": DatasetConfig(
+        False,
+        "Label CSV (optional)",
+        _build_mimic_jpg_test_chexpert,
         modality="CXR",
         base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/files/",
         csv_placeholder="auto: mimic-cxr-2.0.0-metadata.csv.gz",
@@ -1732,15 +2825,23 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         base_dir_placeholder="e.g. /data/SIIM_ACR_Pneumothorax/dicom-images-test/",
     ),
     "── RANZCR CLiP ──": _header("CXR"),
-    "RANZCR CLiP": DatasetConfig(
+    "RANZCR CLiP (Train)": DatasetConfig(
         False,
         "Annotations CSV (optional)",
-        _build_ranzcr_clip,
+        _build_ranzcr_clip_train,
         modality="CXR",
         extra_field2_label="Mask output dir (required for output_mask)",
         base_dir_placeholder="e.g. ~/.cache/kagglehub/competitions/ranzcr-clip-catheter-line-classification/",
         csv_placeholder="auto: train.csv",
         extra_placeholder="auto: train_annotations.csv",
+    ),
+    "RANZCR CLiP (Test)": DatasetConfig(
+        False,
+        "",
+        _build_ranzcr_clip_test,
+        modality="CXR",
+        base_dir_placeholder="e.g. ~/.cache/kagglehub/competitions/ranzcr-clip-catheter-line-classification/",
+        csv_placeholder="not used: lists test/*.jpg",
     ),
     "── SIIM COVID-19 ──": _header("CXR"),
     "SIIM COVID-19 (Train)": DatasetConfig(
@@ -1760,10 +2861,10 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         base_dir_placeholder="e.g. ~/datasets/competitions/siim-covid19-detection/test/",
     ),
     "── TAI X-Ray ──": _header("CXR"),
-    "TAIX-Ray (512px)": DatasetConfig(
+    "TAIX-Ray (512px, Train)": DatasetConfig(
         False,
         "",
-        _build_taix_ray_512,
+        _build_taix_ray_512_train,
         modality="CXR",
         base_dir_placeholder="e.g. /data/TAIX-Ray/data_512/images/",
         csv_placeholder="auto: annotation.csv",
@@ -1771,10 +2872,54 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         extra_dropdown_choices=("binary", "ordinal"),
         extra_dropdown_kwarg="label_mode",
     ),
-    "TAIX-Ray (original)": DatasetConfig(
+    "TAIX-Ray (512px, Val)": DatasetConfig(
         False,
         "",
-        _build_taix_ray_original,
+        _build_taix_ray_512_val,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/TAIX-Ray/data_512/images/",
+        csv_placeholder="auto: annotation.csv",
+        extra_dropdown_label="Label mode",
+        extra_dropdown_choices=("binary", "ordinal"),
+        extra_dropdown_kwarg="label_mode",
+    ),
+    "TAIX-Ray (512px, Test)": DatasetConfig(
+        False,
+        "",
+        _build_taix_ray_512_test,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/TAIX-Ray/data_512/images/",
+        csv_placeholder="auto: annotation.csv",
+        extra_dropdown_label="Label mode",
+        extra_dropdown_choices=("binary", "ordinal"),
+        extra_dropdown_kwarg="label_mode",
+    ),
+    "TAIX-Ray (original, Train)": DatasetConfig(
+        False,
+        "",
+        _build_taix_ray_original_train,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/TAIX-Ray/data_original/images/",
+        csv_placeholder="auto: annotation.csv",
+        extra_dropdown_label="Label mode",
+        extra_dropdown_choices=("binary", "ordinal"),
+        extra_dropdown_kwarg="label_mode",
+    ),
+    "TAIX-Ray (original, Val)": DatasetConfig(
+        False,
+        "",
+        _build_taix_ray_original_val,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/TAIX-Ray/data_original/images/",
+        csv_placeholder="auto: annotation.csv",
+        extra_dropdown_label="Label mode",
+        extra_dropdown_choices=("binary", "ordinal"),
+        extra_dropdown_kwarg="label_mode",
+    ),
+    "TAIX-Ray (original, Test)": DatasetConfig(
+        False,
+        "",
+        _build_taix_ray_original_test,
         modality="CXR",
         base_dir_placeholder="e.g. /data/TAIX-Ray/data_original/images/",
         csv_placeholder="auto: annotation.csv",
@@ -1802,10 +2947,18 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         extra_placeholder="auto: annotations_test.csv",
     ),
     "── VinDr-PCXR ──": _header("CXR"),
-    "VinDr-PCXR": DatasetConfig(
+    "VinDr-PCXR (Train)": DatasetConfig(
         False,
         "",
-        _build_vindr_pcxr,
+        _build_vindr_pcxr_train,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/VINDR-PCXR/",
+        csv_placeholder="(not required, parsed from image_labels CSV files)",
+    ),
+    "VinDr-PCXR (Test)": DatasetConfig(
+        False,
+        "",
+        _build_vindr_pcxr_test,
         modality="CXR",
         base_dir_placeholder="e.g. /data/VINDR-PCXR/",
         csv_placeholder="(not required, parsed from image_labels CSV files)",
@@ -1847,23 +3000,69 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         csv_placeholder="(not required — label is in filename)",
         extra_placeholder="e.g. /data/Shenzhen-Hospital-CXR-Set/tb_region_masks/",
     ),
-    "── EmoryCXR ──": _header("CXR"),
-    "EmoryCXR v2": DatasetConfig(
+    "── QaTa-COV19 ──": _header("CXR"),
+    "QaTa-COV19 v2 (Train)": DatasetConfig(
         False,
-        "Label CSV (finding labels)",
-        _build_emory_cxr,
+        "Ground-truths dir (optional — defaults to sibling)",
+        _build_qata_cov19_train,
         modality="CXR",
-        extra_field2_label="Report CSV",
-        base_dir_placeholder="e.g. /path/to/EmoryCXRv2/DEID_PNG/",
-        csv_placeholder="REQUIRED: full path to the EmoryCXR v2 metadata CSV",
-        extra_placeholder="e.g. /path/to/EmoryCXRv2/TABLES/<finding-label CSV>",
-        extra_placeholder2="e.g. /path/to/EmoryCXRv2/TABLES/<report CSV>",
+        base_dir_placeholder="e.g. /data/QaTa-COV19/QaTa-COV19-v2/Train Set/Images/",
+        csv_placeholder="(not required — no CSV in the release)",
+        extra_placeholder="e.g. /data/QaTa-COV19/QaTa-COV19-v2/Train Set/Ground-truths/",
+    ),
+    "QaTa-COV19 v2 (Test)": DatasetConfig(
+        False,
+        "Ground-truths dir (optional — defaults to sibling)",
+        _build_qata_cov19_test,
+        modality="CXR",
+        base_dir_placeholder="e.g. /data/QaTa-COV19/QaTa-COV19-v2/Test Set/Images/",
+        csv_placeholder="(not required — no CSV in the release)",
+        extra_placeholder="e.g. /data/QaTa-COV19/QaTa-COV19-v2/Test Set/Ground-truths/",
+    ),
+    "── MedSeg COVID CT ──": _header("CT (2D)"),
+    "MedSeg COVID-19 CT (val_im, no masks)": DatasetConfig(
+        False,
+        "Slice output dir (required)",
+        _build_medseg_covid_ct_val,
+        modality="CT (2D)",
+        base_dir_placeholder="e.g. /data/MedSeg-COVID-CT/figshare_13521488",
+        csv_placeholder="(not required — read from val_im.nii.gz)",
+        extra_placeholder="e.g. /data/MedSeg-COVID-CT/_slices",
+    ),
+    "MedSeg COVID-19 CT": DatasetConfig(
+        False,
+        "Slice output dir (required)",
+        _build_medseg_covid_ct,
+        modality="CT (2D)",
+        extra_field2_label="Subset (dataset1 | dataset2)",
+        base_dir_placeholder="e.g. /data/MedSeg-COVID-CT/figshare_13521488",
+        csv_placeholder="(not required — read from the NIfTI volumes)",
+        extra_placeholder="e.g. /data/MedSeg-COVID-CT/_slices",
+        extra_placeholder2="dataset1",
     ),
     "── MS-CXR ──": _header("CXR"),
-    "MS-CXR (phrase grounding)": DatasetConfig(
+    "MS-CXR (phrase grounding, Train)": DatasetConfig(
         False,
         "",
-        _build_ms_cxr,
+        _build_ms_cxr_train,
+        modality="CXR",
+        csv_label="CSV path (required — MS-CXR local alignment CSV)",
+        base_dir_placeholder="MIMIC-CXR files/ root (JPG or DICOM), e.g. /data/MIMIC-CXR-V2-AWS/files/",
+        csv_placeholder="e.g. /data/ms-cxr/MS_CXR_Local_Alignment_v1.1.0.csv",
+    ),
+    "MS-CXR (phrase grounding, Val)": DatasetConfig(
+        False,
+        "",
+        _build_ms_cxr_val,
+        modality="CXR",
+        csv_label="CSV path (required — MS-CXR local alignment CSV)",
+        base_dir_placeholder="MIMIC-CXR files/ root (JPG or DICOM), e.g. /data/MIMIC-CXR-V2-AWS/files/",
+        csv_placeholder="e.g. /data/ms-cxr/MS_CXR_Local_Alignment_v1.1.0.csv",
+    ),
+    "MS-CXR (phrase grounding, Test)": DatasetConfig(
+        False,
+        "",
+        _build_ms_cxr_test,
         modality="CXR",
         csv_label="CSV path (required — MS-CXR local alignment CSV)",
         base_dir_placeholder="MIMIC-CXR files/ root (JPG or DICOM), e.g. /data/MIMIC-CXR-V2-AWS/files/",
@@ -1875,7 +3074,7 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         _build_ms_cxr_t,
         modality="CXR",
         csv_label="CSV path (required — MS-CXR-T temporal classification CSV)",
-        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/files/",
         csv_placeholder="e.g. /data/ms-cxr-t/MS_CXR_T_temporal_image_classification_v1.0.0.csv",
     ),
     "── Chest ImaGenome ──": _header("CXR"),
@@ -1887,18 +3086,37 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         base_dir_placeholder="MIMIC-CXR DICOM files/ root, e.g. /data/MIMIC-CXR-V2-AWS/files/",
         csv_label="(not used - annotations come from the annotation dir)",
         extra_placeholder="e.g. /data/CHEST-IMAGENOME/",
+        bbox_default=True,
     ),
-    "Chest ImaGenome (Silver)": DatasetConfig(
+    "Chest ImaGenome (Silver, Train)": DatasetConfig(
         False,
         "Annotation dir (Chest ImaGenome root)",
-        _build_chest_imagenome_silver,
+        _build_chest_imagenome_silver_train,
         modality="CXR",
         base_dir_placeholder="MIMIC-CXR DICOM files/ root, e.g. /data/MIMIC-CXR-V2-AWS/files/",
         csv_label="(not used - annotations come from the annotation dir)",
         extra_placeholder="e.g. /data/CHEST-IMAGENOME/",
-        extra_dropdown_label="Split",
-        extra_dropdown_choices=("all", "train", "valid", "test"),
-        extra_dropdown_kwarg="split",
+        bbox_default=True,
+    ),
+    "Chest ImaGenome (Silver, Valid)": DatasetConfig(
+        False,
+        "Annotation dir (Chest ImaGenome root)",
+        _build_chest_imagenome_silver_valid,
+        modality="CXR",
+        base_dir_placeholder="MIMIC-CXR DICOM files/ root, e.g. /data/MIMIC-CXR-V2-AWS/files/",
+        csv_label="(not used - annotations come from the annotation dir)",
+        extra_placeholder="e.g. /data/CHEST-IMAGENOME/",
+        bbox_default=True,
+    ),
+    "Chest ImaGenome (Silver, Test)": DatasetConfig(
+        False,
+        "Annotation dir (Chest ImaGenome root)",
+        _build_chest_imagenome_silver_test,
+        modality="CXR",
+        base_dir_placeholder="MIMIC-CXR DICOM files/ root, e.g. /data/MIMIC-CXR-V2-AWS/files/",
+        csv_label="(not used - annotations come from the annotation dir)",
+        extra_placeholder="e.g. /data/CHEST-IMAGENOME/",
+        bbox_default=True,
     ),
     "── RSNA Pneumonia ──": _header("CXR"),
     "RSNA Pneumonia": DatasetConfig(
@@ -1927,25 +3145,54 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
     ),
     # ── CT datasets ───────────────────────────────────────────────────────────
     "── CT-RATE ──": _header("CT"),
-    "CT-RATE": DatasetConfig(
+    "CT-RATE (Train)": DatasetConfig(
         True,
         "Metadata CSV (optional)",
-        _build_ctrate,
+        _build_ctrate_train,
         modality="CT",
         base_dir_placeholder="e.g. /data/CT-RATE/dataset/train_fixed/",
         csv_placeholder="auto: train_predicted_labels.csv",
         extra_placeholder="auto: train_metadata.csv",
     ),
+    "CT-RATE (Valid)": DatasetConfig(
+        True,
+        "Metadata CSV (optional)",
+        _build_ctrate_valid,
+        modality="CT",
+        base_dir_placeholder="e.g. /data/CT-RATE/dataset/valid_fixed/",
+        csv_placeholder="auto: valid_predicted_labels.csv",
+        extra_placeholder="auto: validation_metadata.csv",
+    ),
     "── RAD-ChestCT ──": _header("CT"),
-    "RAD-ChestCT": DatasetConfig(
+    "RAD-ChestCT (Train)": DatasetConfig(
         True,
         "Label CSV (optional)",
-        _build_radchestct,
+        _build_radchestct_train,
         modality="CT",
         extra_field2_label="BBox CSV (optional)",
         base_dir_placeholder="e.g. /data/RAD-ChestCT/images/",
         csv_placeholder="auto: CT_Scan_Metadata_Complete_35747.csv",
         extra_placeholder="auto: imgtrain_Abnormality_and_Location_Labels.csv",
+    ),
+    "RAD-ChestCT (Valid)": DatasetConfig(
+        True,
+        "Label CSV (optional)",
+        _build_radchestct_valid,
+        modality="CT",
+        extra_field2_label="BBox CSV (optional)",
+        base_dir_placeholder="e.g. /data/RAD-ChestCT/images/",
+        csv_placeholder="auto: CT_Scan_Metadata_Complete_35747.csv",
+        extra_placeholder="auto: imgvalid_Abnormality_and_Location_Labels.csv",
+    ),
+    "RAD-ChestCT (Test)": DatasetConfig(
+        True,
+        "Label CSV (optional)",
+        _build_radchestct_test,
+        modality="CT",
+        extra_field2_label="BBox CSV (optional)",
+        base_dir_placeholder="e.g. /data/RAD-ChestCT/images/",
+        csv_placeholder="auto: CT_Scan_Metadata_Complete_35747.csv",
+        extra_placeholder="auto: imgtest_Abnormality_and_Location_Labels.csv",
     ),
     "── RSNA Abdominal Trauma ──": _header("CT"),
     "RSNA Abdominal Trauma (Train)": DatasetConfig(
@@ -1959,9 +3206,10 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
     ),
     "RSNA Abdominal Trauma (Test)": DatasetConfig(
         True,
-        "Series metadata CSV (optional)",
+        "",  # no extra field: the CSV box holds the series metadata (V-A-36)
         _build_rsna_abdominal_trauma_2023_test,
         modality="CT",
+        csv_label="Series metadata CSV (optional)",
         base_dir_placeholder="e.g. ~/datasets/external/rsna-2023-abdominal-trauma-detection/test_images/",
         csv_placeholder="auto: test_series_meta.csv",
     ),
@@ -2025,9 +3273,10 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
     ),
     "RSNA 2024 Lumbar Spine (Test)": DatasetConfig(
         True,
-        "Series descriptions CSV (optional)",
+        "",  # no extra field: the CSV box holds the series descriptions (V-A-36)
         _build_rsna_2024_lumbar_spine_test,
         modality="MRI",
+        csv_label="Series descriptions CSV (optional)",
         base_dir_placeholder="e.g. ~/datasets/competitions/rsna-2024-lumbar-spine-degenerative-classification/test_images/",
         csv_placeholder="auto: test_series_descriptions.csv",
         extra_dropdown_label="Series type",
@@ -2052,16 +3301,103 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         base_dir_placeholder="e.g. ~/datasets/Bone Age Validation Set/",
         csv_placeholder="auto: Validation Dataset.csv",
     ),
-    # ── VQA datasets ─────────────────────────────────────────────────────────
-    "── ROCO ──": _header("VQA"),
-    "ROCO (radiology captioning)": DatasetConfig(
+    "RSNA Bone Age (Test, no labels)": DatasetConfig(
         False,
         "",
-        _build_roco,
+        _build_rsna_bone_age_test,
+        modality="Radiograph",
+        base_dir_placeholder="e.g. ~/datasets/boneage-test-dataset/",
+        csv_placeholder="not used: lists the PNGs",
+    ),
+    # ── VQA datasets ─────────────────────────────────────────────────────────
+    "── ROCO ──": _header("VQA"),
+    "ROCO (radiology captioning, Train)": DatasetConfig(
+        False,
+        "",
+        _build_roco_train,
         modality="VQA",
         base_dir_placeholder="e.g. /data/roco-dataset/",
         csv_placeholder="(not required)",
-        extra_placeholder="splits filter (default: train,validation,test)",
+    ),
+    "ROCO (radiology captioning, Validation)": DatasetConfig(
+        False,
+        "",
+        _build_roco_validation,
+        modality="VQA",
+        base_dir_placeholder="e.g. /data/roco-dataset/",
+        csv_placeholder="(not required)",
+    ),
+    "ROCO (radiology captioning, Test)": DatasetConfig(
+        False,
+        "",
+        _build_roco_test,
+        modality="VQA",
+        base_dir_placeholder="e.g. /data/roco-dataset/",
+        csv_placeholder="(not required)",
+    ),
+    "── ROCOv2 ──": _header("VQA"),
+    "ROCOv2 (radiology, curated UMLS modality, Train)": DatasetConfig(
+        False,
+        "",
+        _build_rocov2_train,
+        modality="VQA",
+        base_dir_placeholder="e.g. /data/ROCOv2/",
+        csv_placeholder="(not required)",
+        extra_dropdown_label="Modality",
+        extra_dropdown_choices=_ROCOV2_MODALITIES,
+        extra_dropdown_kwarg="rocov2_modality",
+    ),
+    "ROCOv2 (radiology, curated UMLS modality, Validation)": DatasetConfig(
+        False,
+        "",
+        _build_rocov2_validation,
+        modality="VQA",
+        base_dir_placeholder="e.g. /data/ROCOv2/",
+        csv_placeholder="(not required)",
+        extra_dropdown_label="Modality",
+        extra_dropdown_choices=_ROCOV2_MODALITIES,
+        extra_dropdown_kwarg="rocov2_modality",
+    ),
+    "ROCOv2 (radiology, curated UMLS modality, Test)": DatasetConfig(
+        False,
+        "",
+        _build_rocov2_test,
+        modality="VQA",
+        base_dir_placeholder="e.g. /data/ROCOv2/",
+        csv_placeholder="(not required)",
+        extra_dropdown_label="Modality",
+        extra_dropdown_choices=_ROCOV2_MODALITIES,
+        extra_dropdown_kwarg="rocov2_modality",
+    ),
+    "── MR-RATE ──": _header("MRI"),
+    "MR-RATE (brain/spine MRI + reports)": DatasetConfig(
+        True,                                   # 3-D NIfTI volumes
+        "",
+        _build_mrrate,
+        modality="MRI",
+        base_dir_placeholder="e.g. /data/MR-RATE/",
+        csv_placeholder="(not required)",
+        extra_placeholder="splits (default: test)",
+        extra_dropdown_label="Sequence",
+        extra_dropdown_choices=("(all)", "T1w", "T2w", "FLAIR", "SWI", "MRA"),
+        extra_dropdown_kwarg="mrrate_modality",
+    ),
+    "── MedPMC ──": _header("VQA"),
+    "MedPMC (PMC, OUR derived tags)": DatasetConfig(
+        False,
+        "",
+        _build_medpmc,
+        modality="VQA",
+        base_dir_placeholder="e.g. /data/MedPMC/",
+        csv_placeholder="(not required)",
+        extra_placeholder=("CT MR XR US XA PT/NM MG   (blank = all; "
+                           "lowercase ct mri xray ... also accepted)"),
+        extra_dropdown_label="Tag precision",
+        extra_dropdown_choices=("high-precision radiology",
+                                "human-verified only",
+                                "radiology (both taggers agree)",
+                                "radiology (caption tagger only)"),
+        extra_dropdown_kwarg="medpmc_preset",
     ),
     "── GEMeX-VQA ──": _header("VQA"),
     "GEMeX-VQA": DatasetConfig(
@@ -2073,23 +3409,94 @@ DATASET_REGISTRY: dict[str, DatasetConfig] = {
         csv_placeholder="(not required)",
         extra_placeholder="e.g. ~/datasets/gemex-vqa/",
     ),
+    "── VQA-RAD ──": _header("VQA"),
+    "VQA-RAD (Train)": DatasetConfig(
+        False,
+        "",
+        _build_vqa_rad_train,
+        modality="VQA",
+        csv_label="JSON path (optional)",
+        base_dir_placeholder="e.g. /data/VQA-RAD/VQA_RAD Image Folder/",
+        csv_placeholder="auto: VQA_RAD Dataset Public.json near the image folder",
+    ),
+    "VQA-RAD (Test)": DatasetConfig(
+        False,
+        "",
+        _build_vqa_rad_test,
+        modality="VQA",
+        csv_label="JSON path (optional)",
+        base_dir_placeholder="e.g. /data/VQA-RAD/VQA_RAD Image Folder/",
+        csv_placeholder="auto: VQA_RAD Dataset Public.json near the image folder",
+    ),
+    "── CheXinstruct ──": _header("VQA"),
+    "CheXinstruct (VQA, Train)": DatasetConfig(
+        False,
+        "Data sources (optional)",
+        _build_chexinstruct_vqa_train,
+        modality="VQA",
+        csv_label="JSON path (required, compiled chexinstruct_vqa.json)",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/files/",
+        csv_placeholder="e.g. /data/CheXinstruct/compiled/chexinstruct_vqa.json",
+        extra_placeholder="comma-separated, e.g. MIMIC-CXR-VQA (blank = all)",
+    ),
+    "CheXinstruct (VQA, Val)": DatasetConfig(
+        False,
+        "Data sources (optional)",
+        _build_chexinstruct_vqa_val,
+        modality="VQA",
+        csv_label="JSON path (required, compiled chexinstruct_vqa.json)",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/files/",
+        csv_placeholder="e.g. /data/CheXinstruct/compiled/chexinstruct_vqa.json",
+        extra_placeholder="comma-separated, e.g. MIMIC-CXR-VQA (blank = all)",
+    ),
+    "CheXinstruct (VQA, Test)": DatasetConfig(
+        False,
+        "Data sources (optional)",
+        _build_chexinstruct_vqa_test,
+        modality="VQA",
+        csv_label="JSON path (required, compiled chexinstruct_vqa.json)",
+        base_dir_placeholder="e.g. /data/mimic-cxr-jpg/2.0.0/files/",
+        csv_placeholder="e.g. /data/CheXinstruct/compiled/chexinstruct_vqa.json",
+        extra_placeholder="comma-separated, e.g. MIMIC-CXR-VQA (blank = all)",
+    ),
+    "── MIMIC-Ext-CXR-QBA ──": _header("VQA"),
+    "MIMIC-Ext-CXR-QBA (Train)": DatasetConfig(
+        False,
+        "Metadata folder (required)",
+        _build_mimic_ext_cxr_qba_train,
+        modality="VQA",
+        extra_field2_label="Number of studies",
+        csv_label="QA zip path (required, qa.zip)",
+        base_dir_placeholder="e.g. /data/MIMIC-CXR/files/ (DICOM)",
+        csv_placeholder="e.g. /data/MIMIC_EXT_CXR_QBA/qa.zip",
+        extra_placeholder="e.g. /data/MIMIC_EXT_CXR_QBA/exports/A_frontal/metadata/q1M/",
+        extra_placeholder2=f"default {_QBA_DEFAULT_STUDIES}",
+    ),
+    "MIMIC-Ext-CXR-QBA (Validate)": DatasetConfig(
+        False,
+        "Metadata folder (required)",
+        _build_mimic_ext_cxr_qba_validate,
+        modality="VQA",
+        extra_field2_label="Number of studies",
+        csv_label="QA zip path (required, qa.zip)",
+        base_dir_placeholder="e.g. /data/MIMIC-CXR/files/ (DICOM)",
+        csv_placeholder="e.g. /data/MIMIC_EXT_CXR_QBA/qa.zip",
+        extra_placeholder="e.g. /data/MIMIC_EXT_CXR_QBA/exports/A_frontal/metadata/q1M/",
+        extra_placeholder2=f"default {_QBA_DEFAULT_STUDIES}",
+    ),
+    "MIMIC-Ext-CXR-QBA (Test)": DatasetConfig(
+        False,
+        "Metadata folder (required)",
+        _build_mimic_ext_cxr_qba_test,
+        modality="VQA",
+        extra_field2_label="Number of studies",
+        csv_label="QA zip path (required, qa.zip)",
+        base_dir_placeholder="e.g. /data/MIMIC-CXR/files/ (DICOM)",
+        csv_placeholder="e.g. /data/MIMIC_EXT_CXR_QBA/qa.zip",
+        extra_placeholder="e.g. /data/MIMIC_EXT_CXR_QBA/exports/A_frontal/metadata/q1M/",
+        extra_placeholder2=f"default {_QBA_DEFAULT_STUDIES}",
+    ),
 }
-
-# Optional dataset plugins. Each package named in the RADHARMONY_APP_PLUGINS
-# env var (comma-separated) may expose a callable
-# ``register_app_datasets(registry, DatasetConfig, _header, app_dtype)`` that
-# appends entries to DATASET_REGISTRY. Lets third-party / private dataset
-# packages extend the app without editing it.
-for _plugin in os.environ.get("RADHARMONY_APP_PLUGINS", "").split(","):
-    _plugin = _plugin.strip()
-    if not _plugin:
-        continue
-    try:
-        _mod = importlib.import_module(_plugin)
-        _mod.register_app_datasets(DATASET_REGISTRY, DatasetConfig, _header, _APP_DTYPE)
-    except Exception as _e:  # noqa: BLE001 — a bad plugin shouldn't kill the app
-        print(f"[radharmony] app plugin {_plugin!r} not loaded: {_e}")
-
 
 def _group_by_modality(registry: dict) -> dict[str, list[str]]:
     """Return ``{modality: [dataset_name, ...]}`` in insertion order."""
@@ -2104,10 +3511,9 @@ def _split_into_families_per_modality(
 ) -> dict[str, dict[str, list[str]]]:
     """Return ``{modality: {family: [variant_registry_key, ...]}}``.
 
-    Each ``── ... ──`` header starts a new family in its modality; subsequent
-    non-header keys belong to that family.  Singletons must have a header in
-    front of them — a non-header without a preceding header for its modality
-    is a registry mistake and raises.
+    Each ``── ... ──`` header starts a new family in its modality. The next
+    non-header keys belong to that family.  Every key needs a header before it.
+    A key without a header for its modality is a registry mistake and raises.
     """
     out: dict[str, dict[str, list[str]]] = {}
     current_family: dict[str, str] = {}
@@ -2128,6 +3534,27 @@ def _split_into_families_per_modality(
     return out
 
 
+# Optional dataset plugins. Each package named in the RADHARMONY_APP_PLUGINS
+# env var (comma-separated) may expose a callable
+# ``register_app_datasets(registry, DatasetConfig, _header, app_dtype)`` that
+# appends entries to DATASET_REGISTRY. Lets third-party / private dataset
+# packages extend the app without editing it.
+for _plugin in os.environ.get("RADHARMONY_APP_PLUGINS", "").split(","):
+    _plugin = _plugin.strip()
+    if not _plugin:
+        continue
+    _before = dict(DATASET_REGISTRY)
+    try:
+        _mod = importlib.import_module(_plugin)
+        _mod.register_app_datasets(DATASET_REGISTRY, DatasetConfig, _header, _APP_DTYPE)
+        # An entry with no family header in front of it stops the app (V-A-42).
+        _split_into_families_per_modality(DATASET_REGISTRY)
+    except Exception as _e:  # noqa: BLE001 — a bad plugin shouldn't kill the app
+        DATASET_REGISTRY.clear()
+        DATASET_REGISTRY.update(_before)
+        print(f"[radharmony] app plugin {_plugin!r} not loaded: {_e}")
+
+
 _MODALITY_GROUPS = _group_by_modality(DATASET_REGISTRY)
 _MODALITY_FAMILIES = _split_into_families_per_modality(DATASET_REGISTRY)
 
@@ -2137,16 +3564,57 @@ _MODALITY_FAMILIES = _split_into_families_per_modality(DATASET_REGISTRY)
 # ---------------------------------------------------------------------------
 
 
-def _img_to_float(img_tensor: torch.Tensor) -> np.ndarray:
-    """(1,H,W) tensor in [-1,1] → (H,W) float32 in [0,1]."""
-    arr = img_tensor.float().squeeze(0).numpy()
-    return np.clip((arr + 1.0) / 2.0, 0.0, 1.0)
-
-
 def _to_rgb(arr01: np.ndarray) -> np.ndarray:
     """(H,W) float [0,1] → (H,W,3) uint8."""
     g = (arr01 * 255).astype(np.uint8)
     return np.stack([g, g, g], axis=-1)
+
+
+def _bbox_class_vocab(ds_state) -> list[str]:
+    """Sorted unique bbox class names across a loaded dataset.
+
+    Reads the pre-transform ``data_dicts`` so the vocabulary is known before
+    any sample is drawn.  Returns [] when the dataset carries no box labels.
+    """
+    if not ds_state:
+        return []
+    seen = set()
+    for d in ds_state.get("data_dicts", []) or []:
+        for lab in _parse_str_list(d.get("bbox_labels")) or []:
+            if lab:
+                seen.add(str(lab))
+    return sorted(seen)
+
+
+def _filter_bbox_by_class(sample_dict: dict, keep) -> dict:
+    """Drop boxes whose label is not in ``keep``.
+
+    ``bbox``, ``bbox_labels`` and ``bbox_findings`` are parallel arrays.
+    Filter them with one shared index set. Dropping from one alone would
+    misalign the other labels.  An empty or None ``keep`` means "show all".
+    This is also the result when the dataset has no labels to filter on.
+    """
+    import json as _json
+
+    keep = set(keep or [])
+    if not keep:
+        return sample_dict
+    labels = _parse_str_list(sample_dict.get("bbox_labels")) or []
+    boxes = _parse_str_list(sample_dict.get("bbox")) or []
+    if not labels or not boxes:
+        return sample_dict
+    idx = [i for i, l in enumerate(labels) if str(l) in keep]
+    if len(idx) == len(labels):
+        return sample_dict
+    out = dict(sample_dict)
+    out["bbox"] = _json.dumps([boxes[i] for i in idx if i < len(boxes)])
+    out["bbox_labels"] = _json.dumps([labels[i] for i in idx])
+    finds = _parse_str_list(sample_dict.get("bbox_findings"))
+    if finds:
+        out["bbox_findings"] = _json.dumps(
+            [finds[i] for i in idx if i < len(finds)]
+        )
+    return out
 
 
 def _overlay_mask(
@@ -2191,8 +3659,8 @@ def _overlay_bbox(
         projection_axis: Axis collapsed when projecting 3-D → 2-D.
         labels: Optional list of class-name strings parallel to *bbox*.
         as_dots: When True, draw a small filled dot at each bbox center
-            instead of a rectangle outline.  Useful for densely overlapping
-            bbox sets (e.g. spine fracture / lumbar coord annotations).
+            instead of a rectangle outline.  Useful for dense, overlapping
+            bbox sets (for example, spine fracture or lumbar coordinates).
     """
     import json as _json
 
@@ -2238,15 +3706,14 @@ def _overlay_bbox(
     pil_img = Image.fromarray(rgb)
     draw = ImageDraw.Draw(pil_img)
     green = (0, 220, 0)
-    # Dot radius scales with image height; small enough to keep dense
-    # clusters readable, large enough to be visible on big panels.
+    # The dot radius scales with image height. Small dots keep dense clusters
+    # readable. The dots must still show on big panels.
     dot_radius = max(1, min(3, H // 150))
     for idx, b in enumerate(boxes):
         if any(not (0.0 <= v <= 1.0) for v in b):
             continue
-        # _MaskToBbox writes all-zeros as the "no bbox" sentinel.  Without this
-        # skip, the inflate-to-min-size logic below renders a tiny stub box at
-        # the origin even on samples with no findings.
+        # Skip an all-zero box. Without this skip, the inflate-to-min-size logic
+        # below renders a tiny stub box at the origin.
         if all(v == 0.0 for v in b):
             continue
         if len(spatial) == 2 and len(b) >= 4:
@@ -2274,9 +3741,9 @@ def _overlay_bbox(
             anchor_x = cx + dot_radius + 3
             anchor_y = cy
         else:
-            # Inflate sub-pixel rectangles so thin axes (e.g. lumbar D ≈ 25
-            # slices, bbox z-extent ≈ 1 voxel) still render visibly on
-            # coronal/sagittal projections.
+            # Make tiny rectangles bigger. Thin axes then show on coronal
+            # and sagittal views (lumbar D is about 25 slices, so the
+            # bbox z-extent is about 1 voxel).
             min_side = max(4, H // 50)
             if x_max - x_min < min_side:
                 cx_b = (x_min + x_max) / 2
@@ -2322,7 +3789,9 @@ _BBOX_FOCUS_FIRST_DATASETS: frozenset = frozenset(
         "RSNA 2024 Lumbar Spine (Train)",
         "RSNA 2024 Lumbar Spine (Test)",
         "Chest ImaGenome (Gold)",
-        "Chest ImaGenome (Silver)",
+        "Chest ImaGenome (Silver, Train)",
+        "Chest ImaGenome (Silver, Valid)",
+        "Chest ImaGenome (Silver, Test)",
     }
 )
 
@@ -2363,8 +3832,8 @@ def _combine_bbox_display_labels(labels, findings):
 
     ``"right lung"`` with findings ``"pneumonia|effusion"`` becomes
     ``"right lung: pneumonia|effusion"``; a finding-free box stays just the
-    anatomy.  Returns ``labels`` unchanged when there are no findings (e.g.
-    every other bbox dataset), so this is a no-op outside Chest ImaGenome.
+    anatomy.  Returns ``labels`` unchanged when there are no findings (for
+    example, every other bbox dataset). So it does nothing outside Chest ImaGenome.
     """
     labels = _parse_str_list(labels)
     findings = _parse_str_list(findings)
@@ -2390,8 +3859,8 @@ def _sample_to_rgb(
     For 3-D volumes: horizontal strip of axial | coronal | sagittal mid-slices.
 
     For ``_BBOX_FOCUS_FIRST_DATASETS`` the panels recenter on the bbox at
-    position ``bbox_idx`` (modulo n_boxes) — used by the "Next bbox →"
-    button to cycle through annotations without re-running the pipeline.
+    position ``bbox_idx`` (modulo n_boxes). The "Next bbox →" button uses this
+    to cycle through annotations without a new pipeline run.
     """
     bbox_focus_first = dataset_name in _BBOX_FOCUS_FIRST_DATASETS
     img = sample["img"]
@@ -2426,9 +3895,9 @@ def _sample_to_rgb(
         # After OrientationD(IPL)+TransposeD: dim0=I, dim1=P, dim2=L.
         # Axial = slice along I (axis 0), coronal = along P (axis 1), sagittal = along L (axis 2).
         # For focus-first datasets (cervical/lumbar), pick slice indices from
-        # the FIRST bbox's center so the displayed slices actually contain it.
-        # Other bboxes are dropped from the overlay — keeps the view focused on
-        # one annotation rather than projecting every bbox onto every panel.
+        # the FIRST bbox's center so the shown slices contain it.
+        # Other bboxes are dropped from the overlay. This keeps the view on
+        # one annotation, not every bbox on every panel.
         slice_idx = [d // 2, h // 2, w // 2]
         bbox_for_overlay = sample.get("bbox") if show_bbox else None
         labels_for_overlay = _combine_bbox_display_labels(
@@ -2540,11 +4009,12 @@ def _sample_to_rgb(
 
 
 def _aug_extremes(aug_name: str, p: dict) -> tuple[dict, dict]:
-    """Return (p_min, p_max) — param dicts collapsed to each extreme for
-    deterministic side-by-side comparison."""
+    """Return (p_min, p_max): the param dicts at each extreme.
+
+    The two dicts give a fixed side-by-side comparison."""
     lo, hi = dict(p), dict(p)
     if aug_name == "transpose":
-        return lo, hi  # deterministic — no meaningful min/max
+        return lo, hi  # No random range, so no min or max.
     if aug_name == "jitter":
         lo["jitter_shift"] = lo["jitter_scale"] = 0.01
     elif aug_name == "noise":
@@ -2570,8 +4040,8 @@ def _apply_aug(builder, aug_name: str, p: dict) -> None:
             indices = [int(x.strip()) for x in p["transpose_indices"].split(",")]
         except (ValueError, KeyError):
             indices = [0, 2, 1]
-        # Tensors are (C, H, W) in 2-D or (C, D, H, W) in 3-D — validate now
-        # so we fail fast with a helpful message instead of deep in MONAI.
+        # Tensors are (C, H, W) in 2-D or (C, D, H, W) in 3-D.
+        # Check now, to fail early with a clear message and not deep in MONAI.
         expected = {3, 4}
         if len(indices) not in expected:
             raise ValueError(
@@ -2589,10 +4059,10 @@ def _apply_aug(builder, aug_name: str, p: dict) -> None:
         builder.with_gaussian_noise(std=p["noise_std"], prob=1.0)
     elif aug_name == "smooth":
         if isinstance(builder, RadiologyTransform3D):
-            # 3-D Gaussian smoothing convolves a kernel of size ~4*sigma+1 per
-            # axis, so the work and memory scale with sigma^3.  sigma > 10 on
-            # a 112^3 volume can easily exceed the OOM budget (process gets
-            # SIGKILL-ed by the OS with no Python traceback).  Fail fast.
+            # 3-D Gaussian smoothing uses a kernel of size ~4*sigma+1 per axis.
+            # Work and memory grow with sigma^3.
+            # On a 112^3 volume, sigma > 10 can exceed the memory budget.
+            # The OS then kills the process with no Python traceback. Fail early.
             smax = float(p["smooth_max"])
             if smax > 10.0:
                 raise ValueError(
@@ -2607,11 +4077,11 @@ def _apply_aug(builder, aug_name: str, p: dict) -> None:
         )
     elif aug_name == "elastic":
         if isinstance(builder, RadiologyTransform3D):
-            # 3-D Rand3DElastic allocates a full-volume displacement field
+            # 3-D Rand3DElastic makes a full-volume displacement field,
             # smoothed by a Gaussian of `sigma`.  On a 112^3 volume, sigma > 50
-            # or magnitude > 50 can easily push peak RSS past 20 GB and get
-            # the process OOM-killed by the OS with no Python traceback.  Fail
-            # fast with a clear message instead.
+            # or magnitude > 50 can push peak memory past 20 GB.
+            # The OS then kills the process with no Python traceback.
+            # Fail early with a clear message.
             sigma = float(p["elastic_sigma_min"])
             mag_max = float(p["elastic_mag_max"])
             if sigma > 50 or mag_max > 50:
@@ -2651,39 +4121,42 @@ def _apply_aug(builder, aug_name: str, p: dict) -> None:
 
 def _probe_native_spacing(image_path: str) -> tuple[float, float, float] | None:
     """Native voxel spacing in mm for ``image_path`` (DICOM series dir or
-    single file).  Returns ``(x, y, z)`` or ``None`` if unknown.  Reads one
-    DICOM file via pydicom for series dirs (fast); falls back to MONAI's
-    ITKReader for single-file formats (NIfTI, etc.).  Used to populate the
-    "Native: ..." readout under the spacing sliders."""
+    single file).  Returns ``(x, y, z)`` as ITK gives it to the 3-D load, or
+    ``None`` if unknown.  For a series dir, ITK reads only the file headers
+    (no pixels).  For a single file, for example NIfTI, it uses MONAI's
+    ITKReader.  Used to populate the "Native: ..." readout under the spacing
+    sliders."""
     if not image_path:
         return None
-    # ``image_path`` may contain a leading ``~`` if get_data_dict was called
-    # with the user's unexpanded base_dir.  os.path.exists doesn't expand
-    # tilde, so probe failures used to look like "spacing not available" on
-    # otherwise-fine datasets — expand defensively.
+    # ``image_path`` can start with ``~`` if the user typed an unexpanded base_dir.
+    # os.path.exists does not expand ``~``.
+    # Before, this looked like "spacing not available" on good datasets.
     image_path = os.path.expanduser(image_path)
     if not os.path.exists(image_path):
         return None
 
     if os.path.isdir(image_path):
         try:
-            import pydicom
+            import itk
 
-            for fname in sorted(os.listdir(image_path)):
-                if fname.lower().endswith((".dcm", ".dicom")):
-                    ds = pydicom.dcmread(
-                        os.path.join(image_path, fname), stop_before_pixels=True
-                    )
-                    px, py = ds.PixelSpacing
-                    pz = getattr(ds, "SliceThickness", None) or getattr(
-                        ds, "SpacingBetweenSlices", None
-                    )
-                    if pz is None:
-                        return None
-                    return (float(px), float(py), float(pz))
+            # The same series and file order as MONAI's ITKReader in the 3-D load.
+            # ITK takes z from the slice positions, not from SliceThickness, which
+            # can differ, for example 0.625 for a 0.312 step (V-A-31).
+            names = itk.GDCMSeriesFileNames.New()
+            names.SetUseSeriesDetails(True)
+            names.AddSeriesRestriction("0008|0021")
+            names.SetDirectory(image_path)
+            uids = names.GetSeriesUIDs()
+            if not uids:
+                return None
+            files = names.GetFileNames(uids[0])
+            reader = (itk.ImageFileReader.New(FileName=files[0]) if len(files) == 1
+                      else itk.ImageSeriesReader.New(FileNames=files))
+            reader.UpdateOutputInformation()
+            sx, sy, sz = (float(v) for v in reader.GetOutput().GetSpacing())
+            return (sx, sy, sz)
         except Exception:
             return None
-        return None
 
     try:
         import monai.transforms as _mt
@@ -2702,12 +4175,29 @@ def _probe_native_spacing(image_path: str) -> tuple[float, float, float] | None:
     return None
 
 
+_SPACING_MIN, _SPACING_MAX = 0.25, 5.0  # range of the 3-D spacing sliders (mm)
+
+
+def _match_native_values(spacing) -> tuple[float, float, float]:
+    """Native spacing (mm) rounded to 2 digits and clipped to the slider range."""
+    return tuple(min(_SPACING_MAX, max(_SPACING_MIN, round(v, 2))) for v in spacing)
+
+
 def _format_native_spacing(spacing: tuple[float, float, float] | None) -> str:
     """User-facing label for the "Native: ..." caption above the sliders."""
     if spacing is None:
         return "Native spacing: _not available for this dataset_"
     x, y, z = spacing
     return f"Native spacing: **{x:.2f} × {y:.2f} × {z:.2f} mm**"
+
+
+#: The app entries of color figures. Their dataset classes set IMG_CHANNELS = 3 (D-42).
+_COLOR_FIGURE_ENTRIES = ("ROCO ", "ROCOv2 ", "MedPMC ", "VQA-RAD ")
+
+
+def _channels(dataset_name: str) -> int:
+    """The channel count of ``img`` for an app entry (D-42)."""
+    return 3 if dataset_name.startswith(_COLOR_FIGURE_ENTRIES) else 1
 
 
 def _make_state(
@@ -2730,6 +4220,24 @@ def _make_state(
     }
 
 
+def _dropped_text(dropped) -> str:
+    """Say how many rows ``verify_images()`` dropped, and why.
+
+    Some datasets give the reason in a ``verify_reason`` column (for example
+    ChestX-ray14: missing, unreadable). Without it, the reason
+    is a missing file.
+    """
+    n = len(dropped) if dropped is not None else 0
+    if not n:
+        return ""
+    if "verify_reason" in getattr(dropped, "columns", ()):
+        counts = dropped["verify_reason"].value_counts()
+        why = ", ".join(f"{reason} {count}" for reason, count in counts.items())
+    else:
+        why = "missing image files"
+    return f"  ({n} rows dropped: {why})"
+
+
 def load_dataset(
     dataset_name,
     base_dir,
@@ -2743,7 +4251,7 @@ def load_dataset(
     want_report,
     want_bbox,
     want_reg,
-    progress=gr.Progress(track_tqdm=True),
+    progress=gr.Progress(track_tqdm=True),  # noqa: B008
 ):
     """Load any registered dataset. Dispatches via DATASET_REGISTRY."""
     # All four early-return paths must return 3 values to match the binding
@@ -2755,10 +4263,9 @@ def load_dataset(
     if not base_dir:
         return None, "Please provide a base image directory.", _no_native
 
-    # Pre-flight: catch typos like a missing leading "~/" or "/mnt/"
-    # prefix before they fall through into the per-build-function "<file> is
-    # required" messages, which can't distinguish "directory missing" from
-    # "expected file missing inside an otherwise-fine directory".
+    # Pre-flight check for typos, such as a missing "~/" or "/mnt/" prefix.
+    # Later "<file> is required" messages cannot tell "directory missing"
+    # from "file missing inside a good directory".
     if not os.path.isdir(os.path.expanduser(base_dir)):
         return None, f"Base directory not found: {base_dir}", _no_native
 
@@ -2781,14 +4288,18 @@ def load_dataset(
         val = (extra_dropdown or "").strip()
         build_flags[config.extra_dropdown_kwarg] = None if val in ("", "(all)") else val
 
+    # Expand "~" once here, so every build function gets a real path (V-A-33).
+    def _path(v):
+        return os.path.expanduser((v or "").strip())
+
     try:
         progress(0, desc="Building dataset…")
         ds_obj, err = config.build(
-            base_dir,
-            (csv_path or "").strip(),
-            (extra_field or "").strip(),
-            (extra_field2 or "").strip(),
-            (cache_dir or "").strip() or None,
+            os.path.expanduser(base_dir),
+            _path(csv_path),
+            _path(extra_field),
+            _path(extra_field2),
+            _path(cache_dir) or None,
             **build_flags,
         )
         if err:
@@ -2796,33 +4307,34 @@ def load_dataset(
 
         progress(0.3, desc="Verifying image files…")
         missing = ds_obj.verify_images()
-        n_missing = len(missing)
 
         progress(0.5, desc="Harmonizing metadata…")
         df = ds_obj.get_harmonized_df()
         progress(0.8, desc="Preparing data dicts…")
+        # Join image_path to the folder the class reads from (D-04). For MedSeg it is
+        # the slice folder, not the typed folder (V-A-30). An app adapter has none.
         data_dicts = get_data_dict(
-            df, base_dir, "image_path", ds_obj._cols, num_cores=1
+            df, getattr(ds_obj, "base_image_dir", None) or base_dir, "image_path",
+            ds_obj._cols, num_cores=1,
         )
+        if not data_dicts:
+            return None, "No sample to show: 0 samples." + _dropped_text(missing), _no_native
 
         available_keys = {"img"}
-        if data_dicts:
-            for k in ["cls", "mask", "report", "qa_text", "bbox", "bbox_labels", "bbox_findings", "reg"]:
-                if k in data_dicts[0]:
-                    available_keys.add(k)
+        for k in ["cls", "mask", "report", "qa_text", "bbox", "bbox_labels", "bbox_findings", "reg"]:
+            if k in data_dicts[0]:
+                available_keys.add(k)
 
-        # Probe native voxel spacing of the first sample (3-D only — meaningless
-        # for 2-D radiographs).  Powers the "Native: ..." caption and the
-        # "Match native" / "Half native" preset buttons under the spacing
-        # sliders.  None on failure / 2-D / unsupported format.
+        # Probe the native voxel spacing of the first sample (3-D only).
+        # It feeds the "Native: ..." caption and the "Match native" and
+        # "Half native" buttons under the spacing sliders.
+        # The result is None on failure, for 2-D, or for an unsupported format.
         native_spacing = None
-        if config.is_3d and data_dicts:
-            # data_dicts[0]['img'] inherits whatever base_dir form the user
-            # typed — including a leading "~".  os.path.isabs returns False
-            # for tilde-paths, so naively joining with base_dir produced a
-            # nonsense "~/.../train/~/.../train/..." string.  Expand both
-            # sides up front so the rest of the logic works on real absolute
-            # paths.
+        if config.is_3d:
+            # data_dicts[0]['img'] keeps the base_dir the user typed, with any "~".
+            # os.path.isabs returns False for these paths. A join with base_dir
+            # then gave "~/.../train/~/.../train/...". Expand both sides first,
+            # so the rest uses real absolute paths.
             first_path = os.path.expanduser(data_dicts[0].get("img", ""))
             if first_path:
                 if os.path.isabs(first_path):
@@ -2831,10 +4343,12 @@ def load_dataset(
                     full = os.path.join(os.path.expanduser(base_dir or ""), first_path)
                 native_spacing = _probe_native_spacing(full)
 
+        # get_data_dict builds cls and reg from the sorted columns that the table has (D-05).
+        # The names must use the same columns in the same order.
         state = _make_state(
             data_dicts,
-            ds_obj.LABEL_COLS,
-            getattr(ds_obj, "REG_COLS", []),
+            [c for c in sorted(ds_obj.LABEL_COLS) if c in df.columns],
+            [c for c in sorted(getattr(ds_obj, "REG_COLS", [])) if c in df.columns],
             available_keys,
             is_3d=config.is_3d,
             dataset_name=dataset_name,
@@ -2842,15 +4356,14 @@ def load_dataset(
         )
         progress(1.0)
         msg = f"Loaded {len(data_dicts)} samples.  Keys: {sorted(available_keys)}"
-        if n_missing:
-            msg += f"  ({n_missing} rows dropped — missing image files)"
+        msg += _dropped_text(missing)
         return state, msg, _format_native_spacing(native_spacing)
     except Exception as exc:
         return None, f"Error: {exc}", _format_native_spacing(None)
 
 
 def _update_extra_fields(dataset_name: str):
-    """Return gr.updates for base_dir, csv_path, both extra textboxes, and the optional dropdown."""
+    """Return gr.updates for base_dir, csv_path, both extra textboxes, the optional dropdown and BBox."""
     config = DATASET_REGISTRY.get(dataset_name)
     if config is None or config.is_group_header:
         config = None
@@ -2861,9 +4374,13 @@ def _update_extra_fields(dataset_name: str):
     csv_label = config.csv_label if config else "CSV path (optional)"
     ph1 = config.extra_placeholder if config else ""
     ph2 = config.extra_placeholder2 if config else ""
+    # Some entries (ROCO, MedPMC, ...) set only a placeholder. Show the field.
+    label1 = label1 or ("Extra field" if ph1 else "")
+    label2 = label2 or ("Extra field 2" if ph2 else "")
     dd_label = config.extra_dropdown_label if config else ""
     dd_choices = list(config.extra_dropdown_choices) if config else []
     dd_value = dd_choices[0] if dd_choices else None
+    bbox = bool(config.bbox_default) if config else False
     return (
         gr.update(placeholder=ph_base, value=""),
         gr.update(label=csv_label, placeholder=ph_csv, value=""),
@@ -2875,6 +4392,7 @@ def _update_extra_fields(dataset_name: str):
             value=dd_value,
             visible=bool(dd_label),
         ),
+        gr.update(value=bbox),
     )
 
 
@@ -2946,11 +4464,12 @@ def _build_transform_code(
     p = aug_params
     lines = [f"from radharmony.dataset.transforms import {cls}", ""]
 
-    keys_repr = "{" + ", ".join(f'"{k}"' for k in sorted(avail_keys)) + "}"
+    # A loaded state can hold "bbox_mask". The snippet does not list it, as in _run.
+    keys_repr = "{" + ", ".join(f'"{k}"' for k in sorted(avail_keys - {"bbox_mask"})) + "}"
     lines.append("transform = (")
     if is_3d:
         hw_str = f"({hu_min}, {hu_max})" if hu_window else "None"
-        base_transpose = dataset_name != "RAD-ChestCT"
+        base_transpose = not dataset_name.startswith("RAD-ChestCT")
         lines += [
             f"    {cls}(",
             f"        img_size={img_size},",
@@ -2959,8 +4478,8 @@ def _build_transform_code(
             f"        hu_window={hw_str},",
         ]
         if not base_transpose:
-            lines.append(f"        base_transpose=False,")
-        lines.append(f"    )")
+            lines.append("        base_transpose=False,")
+        lines.append("    )")
         if pixdim is not None:
             lines.append(f"    .with_spacing(({pixdim[0]}, {pixdim[1]}, {pixdim[2]}))")
     else:
@@ -2969,8 +4488,12 @@ def _build_transform_code(
             f"        img_size={img_size},",
             f"        output_keys={keys_repr},",
             f"        pad={pad},",
-            f"    )",
         ]
+        if _channels(dataset_name) == 3:
+            lines.append("        channels=3,")
+        lines.append("    )")
+    if "bbox" in avail_keys:
+        lines.append("    .with_bbox_as_mask()")
 
     for aug in enabled_augs:
         if aug == "flip":
@@ -2988,29 +4511,29 @@ def _build_transform_code(
         elif aug == "elastic":
             if is_3d:
                 lines += [
-                    f"    .with_elastic_deformation(",
+                    "    .with_elastic_deformation(",
                     f"        sigma_range=({p['elastic_sigma_min']}, {p['elastic_sigma_min']}),",
                     f"        magnitude_range=({p['elastic_mag_min']}, {p['elastic_mag_max']}),",
-                    f"        prob=0.5,",
-                    f"    )",
+                    "        prob=0.5,",
+                    "    )",
                 ]
             else:
                 lines += [
-                    f"    .with_elastic_deformation(",
+                    "    .with_elastic_deformation(",
                     f"        spacing={int(p['elastic_sigma_min'])},",
                     f"        magnitude_range=({p['elastic_mag_min']}, {p['elastic_mag_max']}),",
-                    f"        prob=0.5,",
-                    f"    )",
+                    "        prob=0.5,",
+                    "    )",
                 ]
         elif aug == "affine":
             lines += [
-                f"    .with_affine(",
+                "    .with_affine(",
                 f"        translate_range=({p['affine_translate']}, {p['affine_translate']}),",
                 f"        rotate_range=({p['affine_rotate']},),",
                 f"        scale_range=({p['affine_scale']}, {p['affine_scale']}),",
                 f"        shear_range=({p['affine_shear']},),",
-                f"        prob=0.5,",
-                f"    )",
+                "        prob=0.5,",
+                "    )",
             ]
         elif aug == "transpose":
             try:
@@ -3029,11 +4552,11 @@ def _build_transform_code(
 # ---------------------------------------------------------------------------
 
 # MONAI's heavy spatial transforms (Gaussian Smooth, Elastic, Affine) each hold
-# multiple volume-sized float32 buffers + a deformation grid in scratch.  Stack
-# 2+ on a large volume and the process can OOM with no traceback.  This budget
-# lets the limit track the active CUDA device's free VRAM at click time instead
-# of a hardcoded threshold.  Tune upward if the lab GPU consistently flags safe
-# combos as risky; downward if you see real OOMs sneak past the guard.
+# several volume-sized float32 buffers and a deformation grid.  Two or more on
+# a large volume can run out of memory with no traceback.  This budget makes
+# the limit follow the free VRAM of the CUDA device at click time, not a fixed
+# value.  Raise it if the lab GPU often flags safe combos as risky.
+# Lower it if real out-of-memory errors pass the guard.
 _HEAVY_AUG_VOXEL_BUDGET_PER_GB = 2_000_000
 
 
@@ -3113,6 +4636,7 @@ def _run(
     hu_max=1000.0,
     pixdim=None,
     reuse_sample=None,
+    bbox_classes=None,
 ):
     if ds_state is None:
         return (
@@ -3134,9 +4658,12 @@ def _run(
     is_3d = ds_state["is_3d"]
     dataset_name = ds_state.get("dataset_name", "")
 
-    sample_dict = (
+    # Keep the full sample for "Run on same sample". The box filter applies to
+    # this run only, so a box that the filter hides can come back.
+    raw_sample = (
         reuse_sample if reuse_sample is not None else random.choice(data_dicts)
     )
+    sample_dict = _filter_bbox_by_class(raw_sample, bbox_classes)
     qa_text = sample_dict.get("qa_text", "") or ""
 
     aug_params = dict(
@@ -3188,19 +4715,22 @@ def _run(
                 raise gr.Error(reason + tail)
 
     def make_transform(augs_to_apply: list, p_override: dict | None = None):
+        # A copy, so the keys of the loaded state do not change.
+        keys = set(avail_keys)
         if is_3d:
             hw = (hu_min, hu_max) if hu_window else None
             b = RadiologyTransform3D(
                 img_size=img_size,
-                output_keys=avail_keys,
+                output_keys=keys,
                 pad=pad,
                 hu_window=hw,
-                base_transpose=dataset_name != "RAD-ChestCT",
+                base_transpose=not dataset_name.startswith("RAD-ChestCT"),
             )
             if pixdim is not None:
                 b.with_spacing(pixdim)
         else:
-            b = RadiologyTransform2D(img_size=img_size, output_keys=avail_keys, pad=pad)
+            b = RadiologyTransform2D(img_size=img_size, output_keys=keys, pad=pad,
+                                     channels=_channels(dataset_name))
         if "bbox" in avail_keys:
             b.with_bbox_as_mask()
         for name in augs_to_apply:
@@ -3213,11 +4743,10 @@ def _run(
     except Exception as exc:
         return [], f"Error loading sample: {exc}", "", "", "", "", "", None, []
 
-    # Post-transform samples cached alongside the gallery so the "Next bbox →"
-    # button can re-render with a different bbox index without re-running the
-    # transform pipeline.  Subset to the keys _sample_to_rgb actually reads —
-    # only include keys whose value is present (else the `"mask" in sample`
-    # check downstream falsely picks up None values).
+    # Cache the transformed samples with the gallery. The "Next bbox →" button
+    # can then show another bbox without a new transform run.
+    # Keep only the keys that _sample_to_rgb reads, and only if the value is set.
+    # Else the `"mask" in sample` check later finds None values.
     def _subset(s: dict) -> dict:
         out = {"img": s["img"]}
         for k in ("mask", "bbox", "bbox_labels", "bbox_findings"):
@@ -3281,10 +4810,10 @@ def _run(
             blank = np.zeros((64, 64, 3), dtype=np.uint8)
             gallery.append((blank, f"Compound ERROR: {exc}"))
 
-    # Metadata outputs.  Both classification (cls → positive labels) and
-    # regression (reg → "col=value" pairs) share the Labels textbox; when
-    # a dataset exposes both (rare, but allowed) the classification summary
-    # comes first and regression values follow on a new line.
+    # Metadata outputs.  Classification (cls gives positive labels) and
+    # regression (reg gives "col=value" pairs) share the Labels textbox.
+    # If a dataset has both, the classification summary comes first and
+    # the regression values follow on a new line.
     label_parts: list[str] = []
     if "cls" in base_sample and label_cols:
         vals = base_sample["cls"].float().tolist()
@@ -3294,7 +4823,8 @@ def _run(
                 continue
             grade = int(round(v))
             pos.append(f"{label_cols[i]} ({grade})" if grade > 1 else label_cols[i])
-        label_parts.append(", ".join(pos) if pos else "No finding")
+        # "No finding" is a label name in many datasets, so do not use it here.
+        label_parts.append(", ".join(pos) if pos else "(no positive label)")
     if "reg" in base_sample and reg_cols:
         vals = base_sample["reg"].float().tolist()
         label_parts.append(
@@ -3302,9 +4832,9 @@ def _run(
         )
     labels_text = "\n".join(label_parts)
 
-    # bbox-only datasets (no cls) — surface per-box labels in the Labels panel.
-    # Chest ImaGenome: "anatomy: findings" per annotated region; other bbox sets
-    # (no findings column) fall back to the list of box class labels.
+    # For bbox-only datasets (no cls), show the per-box labels in the Labels panel.
+    # Chest ImaGenome shows "anatomy: findings" for each region.
+    # Other bbox sets (no findings column) show the list of box class labels.
     if not labels_text and "bbox_labels" in base_sample:
         _blabels = _parse_str_list(base_sample.get("bbox_labels")) or []
         _bfind = _parse_str_list(base_sample.get("bbox_findings"))
@@ -3351,19 +4881,21 @@ def _run(
         report_text,
         qa_text,
         code_snippet,
-        sample_dict,
+        raw_sample,
         gallery_samples,
     )
 
 
-def run_2d(ds_state, img_size, pad, show_mask, show_bbox, *aug_inputs):
-    results = _run(ds_state, img_size, pad, show_mask, show_bbox, *aug_inputs)
+def run_2d(ds_state, img_size, pad, show_mask, show_bbox, bbox_classes, *aug_inputs):
+    results = _run(ds_state, img_size, pad, show_mask, show_bbox, *aug_inputs,
+                   bbox_classes=bbox_classes)
     # results: gallery, info, image_stats, labels, report, qa_text, code, sample_dict, gallery_samples
     return *results, gr.update(interactive=results[7] is not None)
 
 
 def run_2d_same(
-    ds_state, last_sample, img_size, pad, show_mask, show_bbox, *aug_inputs
+    ds_state, last_sample, img_size, pad, show_mask, show_bbox, bbox_classes,
+    *aug_inputs
 ):
     if last_sample is None:
         return (
@@ -3385,6 +4917,7 @@ def run_2d_same(
         show_bbox,
         *aug_inputs,
         reuse_sample=last_sample,
+        bbox_classes=bbox_classes,
     )
     return results  # 8 values, no need to update button
 
@@ -3395,6 +4928,7 @@ def run_3d(
     pad,
     show_mask,
     show_bbox,
+    bbox_classes,
     hu_window,
     hu_min,
     hu_max,
@@ -3418,6 +4952,7 @@ def run_3d(
         hu_min=hu_min,
         hu_max=hu_max,
         pixdim=pixdim,
+        bbox_classes=bbox_classes,
     )
     return *results, gr.update(interactive=results[7] is not None)
 
@@ -3429,6 +4964,7 @@ def run_3d_same(
     pad,
     show_mask,
     show_bbox,
+    bbox_classes,
     hu_window,
     hu_min,
     hu_max,
@@ -3465,11 +5001,12 @@ def run_3d_same(
         hu_max=hu_max,
         pixdim=pixdim,
         reuse_sample=last_sample,
+        bbox_classes=bbox_classes,
     )
 
 
 # ---------------------------------------------------------------------------
-# Next-bbox cycling — cervical / lumbar spine only.
+# Next-bbox cycling. Cervical and lumbar spine only.
 # ---------------------------------------------------------------------------
 
 
@@ -3501,8 +5038,9 @@ def _next_btn_state_after_run(ds_state, gallery_samples):
 
 
 def _on_next_bbox(gallery_samples, bbox_idx, show_mask, show_bbox, ds_state):
-    """Re-render the gallery with the next bbox in focus.  Pure numpy work —
-    no transform pipeline re-run, no augmentation re-rolling."""
+    """Re-render the gallery with the next bbox in focus.
+
+    Pure numpy work. No new transform run and no new augmentation draw."""
     if not gallery_samples or not ds_state:
         return [], bbox_idx
     dataset_name = ds_state.get("dataset_name", "")
@@ -3536,7 +5074,7 @@ def _on_next_bbox(gallery_samples, bbox_idx, show_mask, show_bbox, ds_state):
 
 
 def aug_controls(is_3d: bool = False):
-    """Render augmentation checkboxes + sliders; return tuple of components.
+    """Render augmentation checkboxes and sliders. Return a tuple of components.
 
     Args:
         is_3d: Adds axis=2 (depth) as a flip option. 2-D tensors only have
@@ -3631,17 +5169,16 @@ def aug_controls(is_3d: bool = False):
                     label="Axis indices (comma-separated, e.g. 0,2,1 for 2D or 0,1,3,2 for 3D)",
                 )
 
-        # Power-user escape hatch for the heavy-aug VRAM budget.  Off by
-        # default; on means the budget violation downgrades to a warning toast
-        # instead of blocking the run.  Surfaced only on the 3-D tab since the
-        # guard itself is 3-D-only.
+        # Power-user switch for the heavy-augmentation VRAM budget.  Off by
+        # default.  When on, a budget violation gives a warning toast and
+        # does not block the run.  Only the 3-D tab has it, because the
+        # guard is 3-D only.
         if is_3d:
             with gr.Group():
                 with gr.Row():
-                    # No info= helper or trailing caption — matches the other
-                    # checkboxes in this accordion (label-only).  The "(advanced)"
-                    # suffix flags it as a power-user toggle; the OOM error toast
-                    # explains when to enable it at the moment it fires.
+                    # No info= text or caption, like the other checkboxes in this
+                    # accordion (label only).  "(advanced)" marks a power-user switch.
+                    # The OOM error toast says when to turn it on.
                     safety_override = gr.Checkbox(
                         label="Override OOM safety guard (advanced)",
                         value=False,
@@ -3708,15 +5245,17 @@ def _dataset_panel(families: dict[str, list[str]]):
             label="CSV path (optional)",
             placeholder=_first.csv_placeholder,
         )
+        # Same labels and visibility as a later change of the variant.
+        _, _, _ef1, _ef2, _, _bbox = _update_extra_fields(first_variant)
         extra_field = gr.Textbox(
-            label=_first.extra_field_label,
+            label=_ef1["label"],
             placeholder=_first.extra_placeholder,
-            visible=bool(_first.extra_field_label),
+            visible=_ef1["visible"],
         )
         extra_field2 = gr.Textbox(
-            label=_first.extra_field2_label,
+            label=_ef2["label"],
             placeholder=_first.extra_placeholder2,
-            visible=bool(_first.extra_field2_label),
+            visible=_ef2["visible"],
         )
         _dd_choices = list(_first.extra_dropdown_choices)
         extra_dropdown = gr.Dropdown(
@@ -3733,9 +5272,9 @@ def _dataset_panel(families: dict[str, list[str]]):
                 want_cls = gr.Checkbox(label="Labels", value=True)
                 want_mask = gr.Checkbox(label="Mask", value=False)
                 want_report = gr.Checkbox(label="Report", value=False)
-                want_bbox = gr.Checkbox(label="BBox", value=False)
-                # Regression targets (continuous).  Datasets that don't
-                # populate REG_COLS will silently ignore output_reg=True.
+                want_bbox = gr.Checkbox(label="BBox", value=_bbox["value"])
+                # Regression targets (continuous). A dataset with no regression
+                # target warns and gives no "reg" key (D-11).
                 want_reg = gr.Checkbox(label="Reg", value=False)
 
         with gr.Row():
@@ -3750,7 +5289,7 @@ def _dataset_panel(families: dict[str, list[str]]):
     def _on_family_change(family_name):
         variants = families.get(family_name, [])
         if not variants:
-            return (gr.update(),) * 6
+            return (gr.update(),) * 7
         first = variants[0]
         ph = _update_extra_fields(first)
         return (
@@ -3768,6 +5307,7 @@ def _dataset_panel(families: dict[str, list[str]]):
             extra_field,
             extra_field2,
             extra_dropdown,
+            want_bbox,
         ],
         queue=False,
         show_progress="hidden",
@@ -3776,7 +5316,7 @@ def _dataset_panel(families: dict[str, list[str]]):
     variant_dd.change(
         fn=_update_extra_fields,
         inputs=[variant_dd],
-        outputs=[base_dir, csv_path, extra_field, extra_field2, extra_dropdown],
+        outputs=[base_dir, csv_path, extra_field, extra_field2, extra_dropdown, want_bbox],
         queue=False,
         show_progress="hidden",
     )
@@ -3820,12 +5360,12 @@ def _output_panel():
 
 
 def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
-    """Render one modality's full tab body — load panel, controls, runner, outputs.
+    """Render the full tab body of one modality: load panel, controls, runner, outputs.
 
     All datasets within a modality must currently share the same ``is_3d``
-    dimensionality.  Mixed-dim modalities aren't supported yet: they'd need
-    per-dataset control adaptation (3-D controls would appear/disappear as the
-    dropdown changes) which is a bigger UI change than we want to take on here.
+    dimension.  Mixed-dimension modalities are not supported yet.
+    They would need controls that change per dataset (3-D controls would
+    appear and disappear as the dropdown changes). That is a bigger UI change.
     """
     all_keys = [k for variants in families.values() for k in variants]
     is_3d_flags = {DATASET_REGISTRY[k].is_3d for k in all_keys}
@@ -3866,10 +5406,10 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
                 stop_btn,
             ) = _dataset_panel(families)
 
-            # HU (Hounsfield Units) only make sense for CT — MRI intensities are
-            # scanner/sequence-dependent, so hide the windowing controls and
-            # default them off on MRI tabs.  Kept as real (hidden) components
-            # so the run_3d wiring stays uniform across 3-D modalities.
+            # HU (Hounsfield Units) only make sense for CT. MRI intensities depend
+            # on the scanner and sequence, so hide the windowing controls and
+            # turn them off on MRI tabs.  They stay as real (hidden) components,
+            # so the run_3d wiring is the same for all 3-D modalities.
             hu_applicable = is_3d and modality != "MRI"
             with gr.Group():
                 gr.Markdown("## ② Preprocessing & Display")
@@ -3886,30 +5426,30 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
                     with gr.Row(visible=hu_applicable):
                         hu_min = gr.Number(value=-1000, label="HU min")
                         hu_max = gr.Number(value=1000, label="HU max")
-                    # Voxel spacing (mm).  On by default so anisotropic MRI
-                    # (e.g. 0.5 x 0.5 x 4 mm lumbar spine) doesn't collapse
+                    # Voxel spacing (mm).  On by default, so anisotropic MRI
+                    # (for example, 0.5 x 0.5 x 4 mm lumbar spine) does not collapse
                     # along z under ResizeD(size_mode="longest").  Per-axis
-                    # controls let users match the dataset's native anisotropy
-                    # if needed.  Disable for raw-geometry inspection or when
-                    # an upstream step already resampled.
+                    # controls let users match the native spacing of the dataset.
+                    # Turn it off to see the raw geometry, or when an earlier
+                    # step already resampled.
                     gr.Markdown("**Voxel spacing (mm)**")
                     iso_spacing = gr.Checkbox(label="Resample", value=True)
-                    # Native spacing readout — placed ABOVE the sliders so the
-                    # user sees the dataset's starting point before they touch
-                    # anything.  Populated by load_dataset.
+                    # Native spacing readout. It sits above the sliders, so the
+                    # user sees the dataset's start values before any change.
+                    # load_dataset fills it.
                     native_spacing_md = gr.Markdown(
                         "Native spacing: _load a dataset to see_",
                         elem_classes=["native-spacing-readout"],
                     )
                     with gr.Row():
                         pixdim_x = gr.Slider(
-                            0.25, 5.0, value=1.0, step=0.05, label="x (mm)"
+                            _SPACING_MIN, _SPACING_MAX, value=1.0, step=0.05, label="x (mm)"
                         )
                         pixdim_y = gr.Slider(
-                            0.25, 5.0, value=1.0, step=0.05, label="y (mm)"
+                            _SPACING_MIN, _SPACING_MAX, value=1.0, step=0.05, label="y (mm)"
                         )
                         pixdim_z = gr.Slider(
-                            0.25, 5.0, value=1.0, step=0.05, label="z (mm)"
+                            _SPACING_MIN, _SPACING_MAX, value=1.0, step=0.05, label="z (mm)"
                         )
                     # Preset shortcuts.  Without an explicit "Presets:" label
                     # the buttons read as orphaned text in the panel.  Variant
@@ -3935,6 +5475,14 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
                 with gr.Row():
                     show_mask = gr.Checkbox(label="Mask overlay", value=True)
                     show_bbox = gr.Checkbox(label="BBox overlay", value=True)
+                bbox_classes = gr.Dropdown(
+                    label="BBox classes  (empty = show all)",
+                    choices=[],
+                    value=[],
+                    multiselect=True,
+                    interactive=True,
+                    visible=False,
+                )
 
         with gr.Column(scale=2):
             aug_inputs = aug_controls(is_3d=is_3d)
@@ -3947,10 +5495,9 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
             size="lg",
             interactive=False,
         )
-        # Cervical/lumbar only: cycle to the next bbox without re-running the
-        # transform pipeline.  Hidden on 2-D tabs entirely; on 3-D tabs starts
-        # hidden and is revealed only when a focus-first sample with bboxes
-        # has been rendered.
+        # Cervical and lumbar only: go to the next bbox without a new transform run.
+        # Always hidden on 2-D tabs.  On 3-D tabs it starts hidden and shows only
+        # after a focus-first sample with bboxes is rendered.
         next_bbox_btn = gr.Button(
             "Next bbox →",
             variant="secondary",
@@ -3994,10 +5541,10 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
             want_bbox,
             want_reg,
         ],
-        # load_dataset always returns 3 values.  3-D tabs route the third
-        # (native-spacing string) into the markdown caption; 2-D tabs sink
-        # it into a hidden gr.State to avoid a Gradio "too many return values"
-        # warning that would print the full state dict to the terminal.
+        # load_dataset always returns 3 values.  3-D tabs send the third
+        # (native-spacing string) to the markdown caption.  2-D tabs send it
+        # to a hidden gr.State. Else Gradio warns "too many return values"
+        # and prints the full state dict to the terminal.
         outputs=(
             [state, load_status, native_spacing_md]
             if is_3d
@@ -4010,6 +5557,19 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
         outputs=[load_btn, stop_btn],
         queue=False,
     )
+    # Box-class vocabulary is only knowable after a dataset is loaded, so the
+    # filter is populated (and revealed) here rather than at build time.  Hidden
+    # entirely for datasets that ship no box labels.
+    load_event.then(
+        fn=lambda st: gr.update(
+            choices=_bbox_class_vocab(st),
+            value=[],
+            visible=bool(_bbox_class_vocab(st)),
+        ),
+        inputs=[state],
+        outputs=[bbox_classes],
+        queue=False,
+    )
     stop_btn.click(
         fn=lambda: (gr.update(visible=True), gr.update(visible=False)),
         outputs=[load_btn, stop_btn],
@@ -4017,7 +5577,7 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
         queue=False,
     )
 
-    # run_3d/run_3d_same accept the extra HU args; run_2d variants don't.
+    # run_3d and run_3d_same take the extra HU args. The run_2d versions do not.
     run_fn = run_3d if is_3d else run_2d
     run_same_fn = run_3d_same if is_3d else run_2d_same
     extra_3d_inputs = (
@@ -4028,7 +5588,7 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
 
     run_btn.click(
         fn=run_fn,
-        inputs=[state, img_size, pad, show_mask, show_bbox]
+        inputs=[state, img_size, pad, show_mask, show_bbox, bbox_classes]
         + extra_3d_inputs
         + list(aug_inputs),
         outputs=[
@@ -4051,7 +5611,7 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
     )
     run_same_btn.click(
         fn=run_same_fn,
-        inputs=[state, last_sample, img_size, pad, show_mask, show_bbox]
+        inputs=[state, last_sample, img_size, pad, show_mask, show_bbox, bbox_classes]
         + extra_3d_inputs
         + list(aug_inputs),
         outputs=[
@@ -4066,7 +5626,7 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
             gallery_samples_state,
         ],
     ).then(
-        # Same-sample re-run keeps the bbox set; just re-check button interactivity.
+        # A re-run on the same sample keeps the bbox set. Only check the button state again.
         fn=_next_btn_interactive,
         inputs=[state, gallery_samples_state],
         outputs=[next_bbox_btn],
@@ -4078,8 +5638,8 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
         outputs=[gallery, bbox_idx_state],
     )
 
-    # Reset the bbox cursor when the user toggles bbox visibility off/on or
-    # switches dataset variant — the next click should start from index 0.
+    # Reset the bbox cursor when the user turns bbox visibility off or on,
+    # or changes the dataset variant. The next click starts at index 0.
     show_bbox.change(
         fn=lambda: 0,
         inputs=[],
@@ -4098,20 +5658,15 @@ def build_dataset_tab(modality: str, families: dict[str, list[str]]) -> None:
     # ── 3-D-only event wiring: spacing presets + live re-run on slider release.
     # Per items 1, 2, 3 of docs/proposals/voxel_spacing_ui.md (Frank-approved).
     if is_3d:
-        # Preset buttons just set the slider values.  Re-render only happens
-        # when the user clicks "Run on same sample" — spacing edits don't
-        # auto-fire the pipeline.
+        # Preset buttons only set the slider values.  A new render happens only
+        # when the user clicks "Run on same sample". Spacing edits do not
+        # start the pipeline.
         def _preset_1mm():
             return gr.update(value=1.0), gr.update(value=1.0), gr.update(value=1.0)
 
         def _preset_match(s):
             if s and s.get("native_spacing"):
-                nx, ny, nz = s["native_spacing"]
-                return (
-                    gr.update(value=round(nx, 2)),
-                    gr.update(value=round(ny, 2)),
-                    gr.update(value=round(nz, 2)),
-                )
+                return tuple(gr.update(value=v) for v in _match_native_values(s["native_spacing"]))
             return gr.update(), gr.update(), gr.update()
 
         preset_1mm_btn.click(fn=_preset_1mm, outputs=[pixdim_x, pixdim_y, pixdim_z])
@@ -4145,7 +5700,8 @@ button.primary, button.secondary, button.stop { border-radius: 8px !important; }
     border-radius: 4px !important; }
 """
 
-with gr.Blocks(title="RadHarmony Visualizer", css=_CSS) as demo:
+# Gradio 6 takes css in launch(). Blocks() ignores it.
+with gr.Blocks(title="RadHarmony Visualizer") as demo:
     gr.Markdown("# RadHarmony — Dataset & Transform Visualizer")
     gr.Markdown(
         "**Workflow:** &nbsp; ① Pick a dataset and click **Load** &nbsp;→&nbsp; "
@@ -4154,8 +5710,8 @@ with gr.Blocks(title="RadHarmony Visualizer", css=_CSS) as demo:
     )
 
     # ── One tab per modality ─────────────────────────────────────────────────
-    # SUPPORTED_MODALITIES defines the display order; modalities with no
-    # registered datasets are skipped silently.
+    # SUPPORTED_MODALITIES sets the display order.
+    # Modalities with no registered datasets are skipped.
     for _modality in SUPPORTED_MODALITIES:
         _families = _MODALITY_FAMILIES.get(_modality, {})
         if not _families:
@@ -4169,4 +5725,4 @@ if __name__ == "__main__":
     _p = _ap.ArgumentParser()
     _p.add_argument("--server-port", type=int, default=7860)
     _args, _ = _p.parse_known_args()
-    demo.launch(server_name="0.0.0.0", server_port=_args.server_port)
+    demo.launch(server_name="0.0.0.0", server_port=_args.server_port, css=_CSS)

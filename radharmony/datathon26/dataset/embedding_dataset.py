@@ -1,24 +1,24 @@
 """Dataset that serves pre-extracted embeddings for the datathon26 event.
 
 The datathon26 workflow submits anonymized studies to an external *reportbench*
-inference service; for the *embeddings* task the service writes one
+inference service. For the *embeddings* task, the service writes one
 ``embedding.npy`` per study inside that study's folder::
 
-    <embeddings_dir>/<anon_study_id>/embedding.npy   # e.g. DS1_patient_00001_study_00001/
+    <embeddings_dir>/<anon_study_id>/embedding.npy   # for example DS1_patient_00001_study_00001/
 
 This dataset replaces image decoding with ``np.load`` of that vector, so the
 sample's ``"img"`` key carries the pre-extracted feature instead of a decoded
-image tensor. Paired with :class:`IdentityEncoder`, the existing classification
+image tensor. With :class:`IdentityEncoder`, the existing classification
 evaluators (linear / kNN / SVM / prototype probe) score the embeddings with no
-other change — the encoder forward pass becomes a pass-through.
+other change. The encoder forward pass becomes a pass-through.
 
-The study/label table is the anonymized batch frame produced by
-``datathon26/sample_data.ipynb`` (``dataset_{DS1..DS6}.csv``): one row per study,
-carrying the anonymized ``patient_id`` / ``study_id`` and the one-hot finding
-labels. Because that frame also carries free-text and demographic columns,
-label columns are auto-detected as the binary (0/1) numeric columns rather than
-"everything that is not a core column" — mirroring the notebook's own
-prevalence logic — so string extras never leak into the ``cls`` vector.
+The study/label table is the anonymized batch frame from
+``datathon26/sample_data.ipynb`` (``dataset_{DS1..DS6}.csv``). It has one row per
+study, with the anonymized ``patient_id`` / ``study_id`` and the one-hot finding
+labels. That frame also has free-text and demographic columns. So the dataset
+auto-detects the label columns as the binary (0/1) numeric columns, not as
+"everything that is not a core column". This copies the notebook's own
+prevalence logic, so string extras never go into the ``cls`` vector.
 """
 
 from __future__ import annotations
@@ -57,10 +57,10 @@ def _load_npy(path, dtype=torch.float32, key="global"):
     """Load a saved embedding as a torch tensor (module-level → picklable).
 
     Handles both a bare ``.npy`` array and the reportbench ``.npz`` archive. The
-    live service writes one ``.npz`` per image holding ``global`` (``[dim]`` — the
-    pooled image vector) and, when the model exposes them, ``patches``
-    (``[n_patches, dim]``). For an archive the ``key`` array is returned (default
-    ``"global"``); a bare ``.npy`` is returned as-is.
+    live service writes one ``.npz`` per image. It holds ``global`` (``[dim]``, the
+    pooled image vector) and, when the model gives them, ``patches``
+    (``[n_patches, dim]``). For an archive, returns the ``key`` array (default
+    ``"global"``). For a bare ``.npy``, returns the array as-is.
     """
     arr = np.load(path)
     if hasattr(arr, "files"):  # NpzFile archive (reportbench embed output)
@@ -72,10 +72,10 @@ def viewwise_embedding_path(model: str, ext: str = ".npz"):
     """Build a ``result_path`` for the real reportbench per-image embedding layout.
 
     The service writes one embedding **per image** as
-    ``<study_id>/<model>_<stem><ext>`` (e.g. ``.../model-a_pa.npz``), where the
+    ``<study_id>/<model>_<stem><ext>`` (for example ``.../model-a_pa.npz``). The
     stem is the basename of the submitted image (``<study_id>/pa.dcm`` → ``pa``).
-    Default ``ext`` is ``.npz`` (the live format — an archive with ``global`` /
-    ``patches``); pass ``ext=".npy"`` for a bare-array layout. Pass the returned
+    Default ``ext`` is ``.npz`` (the live format, an archive with ``global`` /
+    ``patches``). Pass ``ext=".npy"`` for a bare-array layout. Pass the returned
     function as ``result_path=`` to :class:`EmbeddingResultsDataset` and give one
     row per image.
     """
@@ -90,7 +90,7 @@ def viewwise_embedding_path(model: str, ext: str = ".npz"):
 
 
 def _detect_label_cols(df: pd.DataFrame) -> list[str]:
-    """Return the binary (0/1) numeric columns — the study-level finding labels.
+    """Return the binary (0/1) numeric columns, that is, the study-level finding labels.
 
     Excludes core/metadata columns and any non-numeric or non-binary column
     (free-text ``report``, string demographics, list-valued ``bbox`` …) so the
@@ -128,10 +128,10 @@ class EmbeddingResultsDataset(BaseRadiologicalDataset):
         result_path: Optional callable ``row -> relative path`` mapping each frame
             row to its embedding file under ``embeddings_dir``. Defaults to
             ``<study_id>/embedding.npy``. For the real reportbench layout
-            (``<study_id>/<model>_<view>.npy``) pass
+            (``<study_id>/<model>_<stem>.npz``) pass
             :func:`viewwise_embedding_path`.
-        cache_dir: MONAI cache dir. Defaults to ``None`` (in-memory) — caching a
-            ``np.load`` is pointless.
+        cache_dir: MONAI cache dir. Defaults to ``None`` (in-memory). A cache of a
+            ``np.load`` gives no gain.
         dtype: Tensor dtype for the loaded embedding (default ``float32``).
     """
 
@@ -157,9 +157,9 @@ class EmbeddingResultsDataset(BaseRadiologicalDataset):
 
         self.dtype = dtype
         self._result_path = result_path
-        # Detect labels up front so the base class does not fall back to its
-        # naive "every non-core column is a label" inference (which would sweep
-        # in string demographics and crash cls aggregation).
+        # Detect labels first, so the base class does not use its naive
+        # "every non-core column is a label" rule. That rule would take in
+        # string demographics and crash cls aggregation.
         self.LABEL_COLS = sorted(label_cols) if label_cols else _detect_label_cols(df)
 
         if transform is None:
@@ -187,8 +187,8 @@ class EmbeddingResultsDataset(BaseRadiologicalDataset):
             )
         df = df.copy()
         # Point image_path at the embedding file so get_data_dict joins it to
-        # <embeddings_dir>/<image_path>. Default: <study_id>/embedding.npy;
-        # override via result_path for the real <study_id>/<model>_<view>.npy layout.
+        # <embeddings_dir>/<image_path>. Default: <study_id>/embedding.npy.
+        # Override via result_path for the real <study_id>/<model>_<stem>.npz layout.
         if self._result_path is not None:
             df["image_path"] = df.apply(self._result_path, axis=1).astype(str)
         else:

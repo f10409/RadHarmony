@@ -3,9 +3,9 @@
 Event-specific datasets and evaluators for the datathon26 CXR benchmark, where
 model inference runs on an external *reportbench* service rather than locally.
 The service returns per-study results (``embedding.npy`` for classification,
-``report.txt`` for report generation); the datasets here serve those results in
-place of image tensors, and the evaluators score them by reusing the standard
-RadHarmony probe / generative machinery with a pass-through encoder/generator.
+``report.txt`` for report generation). The datasets here serve those results in
+place of image tensors. The evaluators score them with the standard RadHarmony
+probe / generative code and a pass-through encoder/generator.
 
 Importing this package registers all datathon26 datasets and evaluators in the
 shared registries (keys prefixed ``datathon26_``).

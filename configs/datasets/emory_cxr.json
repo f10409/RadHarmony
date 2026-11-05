@@ -1,0 +1,204 @@
+{
+  "_comment": "Emory CXR v2 — INTERNAL Emory chest-radiograph corpus. Not public, not redistributable. Chest radiographs with a free-text report for every study. See radharmony/harmonizer/emory_cxr/emory_cxr.py for the cohort figures and the join caveats.",
+
+  "dataset_name": "Emory CXR v2",
+  "registry_key": "emory_cxr",
+  "modality": "2D",
+  "image_format": "PNG",
+
+  "base_image_dir": "<EmoryCXRv2>/DEID_PNG/",
+
+  "_image_notes": "Native acquisition resolution, 16-bit greyscale (PIL mode 'I;16'). Not pre-resized, not 8-bit. Per-image min-max stretch to the full 16-bit range with no VOI LUT, so intensities are not comparable across images. Use DEID_PNG, not ORIGINAL_PNG: same dimensions but a different intensity normalisation, so the two must not be mixed in one corpus.",
+
+  "primary_csv": {
+    "_comment": "One row per image. The dated manifests are NOT interchangeable — successive versions filter the cohort. Pin one explicitly rather than relying on inference.",
+    "path": "<EmoryCXRv2>/TABLES/EmoryCXR_v2_Metadata_08152025.csv",
+    "filename_variants": [
+      "EmoryCXR_v2_Metadata_08152025.csv",
+      "EmoryCXR_v2_Metadata_08142025.csv",
+      "EmoryCXR_v2_Metadata_08112025.csv",
+      "EmoryCXR_v2_Metadata_10172024.csv"
+    ]
+  },
+
+  "patient_id": {
+    "_comment": "empi_anon — anonymised patient id, and the first component of ImagePath. Split on this, never on study_id: most patients contribute more than one study.",
+    "column": "empi_anon",
+    "derivation": null
+  },
+
+  "study_id": {
+    "_comment": "AccessionNumber_anon, cast to str. See _join_warning.",
+    "column": "AccessionNumber_anon",
+    "derivation": "cast to str via _as_join_key()"
+  },
+
+  "image_path": {
+    "_comment": "Already relative to the PNG root as '<empi_anon>/<AccessionNumber_anon>/<SOPInstanceUID>.png'. Left relative so a harmonized frame stays portable across mounts.",
+    "column": "ImagePath",
+    "derivation": null,
+    "prefix_to_strip": null
+  },
+
+  "_join_warning": "AccessionNumber_anon is inferred as int64 from the metadata and label CSVs but as object (str) from the report CSV, whose multi-line quoted deid_report field defeats pandas' fast path. A merge across that mismatch RAISES (good). The dangerous operation is isin/set-membership, which silently evaluates all-False — a coverage check then reports 0% overlap on a join whose true overlap is 100%. The harmonizer casts both sides to str.",
+
+  "labels": {
+    "_comment": "14 CheXpert-style finding columns keyed on accession, so labels fan out to every image in a study. SPARSE AND ASYMMETRIC: blanks dominate every column and 'No Finding' has no explicit negatives. A blank means 'the report did not mention it', not 'absent' — filling NaN with 0 invents negatives no radiologist wrote. Uncertainty (-1) is real. Both are preserved; the training-time policy is the caller's to choose.",
+    "columns": [
+      "No Finding", "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Lesion",
+      "Lung Opacity", "Edema", "Consolidation", "Pneumonia", "Atelectasis",
+      "Pneumothorax", "Pleural Effusion", "Pleural Other", "Fracture",
+      "Support Devices"
+    ],
+    "separate_csv": {
+      "path": "<EmoryCXRv2>/TABLES/EmoryCXR_v2_FindingLabel_10162024.csv",
+      "filename_variants": ["EmoryCXR_v2_FindingLabel_10162024.csv"],
+      "join_columns": ["AccessionNumber_anon"]
+    },
+    "uncertain_handling": {
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "Inline ViewPosition column. Values: 'AP', 'PA', 'Lateral', 'Other', or blank. A parallel boolean 'Frontal' column is carried through as an extra output column.",
+    "column": "ViewPosition",
+    "source": "csv_inline_column",
+    "separate_csv": {"path": null, "filename_variants": [], "join_columns": []}
+  },
+
+  "masks": {
+    "_comment": "Not wired here. A CheXmask/ directory ships alongside the PNGs; joining it is out of scope for v1.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+
+  "bboxes": {
+    "_comment": "Not available. A per-image lines-and-tubes table ships 9 binary device-presence flags (no coordinates), and it covers the full original cohort, so it is a superset of any metadata manifest.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "One row per accession, text INLINE in the deid_report column (not a path to a .txt on disk), which is why _build_report is overridden. Covers every imaged study, but 3 studies (7 images) have only a blank template, which counts as no report (D-03, D-33). output_report=True drops them. Sections are IMPRESSION / COMPARISON / INDICATION / FINDINGS in most reports.",
+    "supported": true,
+    "format": "csv_column",
+    "separate_csv": {
+      "path": "<EmoryCXRv2>/TABLES/EmoryCXR_v2_Report_05102026.csv",
+      "filename_variants": ["EmoryCXR_v2_Report_05102026.csv"],
+      "join_columns": ["AccessionNumber_anon"]
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "label_csv_path and report_csv_path are separate args, inferred from a sibling/ancestor TABLES/ directory. They are read only when output_cls / output_report is set, so the default path does not pay for the large label and report CSVs."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Cast AccessionNumber_anon to str on every side before merging (see _join_warning). Use LEFT joins for labels and reports so studies missing from either table keep their images rather than being dropped by the base class's inner merge. Preserve NaN and -1 in the label columns. Carry Sex/Age/StudyDate_anon/InstitutionName_anon/Frontal through as extra output columns.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source (2026-11-03): the internal tables in TABLES/, read with pandas, no paper. EmoryCXR_v2_Metadata_08152025.csv has 2,430,209 rows (one per image), 1,214,535 accessions and 402,809 empi_anon values. The label and report tables join on AccessionNumber_anon (left join). Before the join, as the harmonizer rule says (D-03): a label row with only No Finding = 1 is dropped when the study has another row, a blank report template (only REPORT, spaces and underscores) is no report and is dropped when the study has another row, and then the first row of each accession stays. uncertain is the NaN count of each label column, as the test computes it (a blank or a study with no label row). -1 stays in the table and is not counted here. rows_with_report: 7 images of 3 studies have only a blank template. sex: 6 images have no Sex. age_years: Age in years, 18 to 89 (the 08152025 manifest keeps an age of 18 or more). emory_cxr_dicom has the same rows: every SOP of the manifest has a row in mapping_deid_dcm_sopid.csv, so the inner join keeps all images. Its block checks that join.",
+    "emory_cxr": {
+      "images": 2430209,
+      "studies": 1214535,
+      "patients": 402809,
+      "positives": {
+        "atelectasis": 405951,
+        "cardiomegaly": 213853,
+        "consolidation": 53057,
+        "edema": 186311,
+        "enlarged_cardiomediastinum": 31368,
+        "fracture": 9193,
+        "lung_lesion": 57569,
+        "lung_opacity": 403561,
+        "no_finding": 1106257,
+        "pleural_effusion": 379961,
+        "pleural_other": 21226,
+        "pneumonia": 70150,
+        "pneumothorax": 81764,
+        "support_devices": 374839
+      },
+      "uncertain": {
+        "atelectasis": 1853106,
+        "cardiomegaly": 2140088,
+        "consolidation": 2230530,
+        "edema": 2033339,
+        "enlarged_cardiomediastinum": 2340028,
+        "fracture": 2418701,
+        "lung_lesion": 2354409,
+        "lung_opacity": 1906647,
+        "no_finding": 1323952,
+        "pleural_effusion": 1865539,
+        "pleural_other": 2396334,
+        "pneumonia": 2106527,
+        "pneumothorax": 2029111,
+        "support_devices": 2018095
+      },
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 2430202,
+      "sex": {
+        "F": 1173328,
+        "M": 1256875
+      },
+      "age_years": [
+        18.0,
+        89.0
+      ]
+    },
+    "emory_cxr_dicom": {
+      "images": 2430209,
+      "studies": 1214535,
+      "patients": 402809,
+      "positives": {
+        "atelectasis": 405951,
+        "cardiomegaly": 213853,
+        "consolidation": 53057,
+        "edema": 186311,
+        "enlarged_cardiomediastinum": 31368,
+        "fracture": 9193,
+        "lung_lesion": 57569,
+        "lung_opacity": 403561,
+        "no_finding": 1106257,
+        "pleural_effusion": 379961,
+        "pleural_other": 21226,
+        "pneumonia": 70150,
+        "pneumothorax": 81764,
+        "support_devices": 374839
+      },
+      "uncertain": {
+        "atelectasis": 1853106,
+        "cardiomegaly": 2140088,
+        "consolidation": 2230530,
+        "edema": 2033339,
+        "enlarged_cardiomediastinum": 2340028,
+        "fracture": 2418701,
+        "lung_lesion": 2354409,
+        "lung_opacity": 1906647,
+        "no_finding": 1323952,
+        "pleural_effusion": 1865539,
+        "pleural_other": 2396334,
+        "pneumonia": 2106527,
+        "pneumothorax": 2029111,
+        "support_devices": 2018095
+      },
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 2430202,
+      "sex": {
+        "F": 1173328,
+        "M": 1256875
+      },
+      "age_years": [
+        18.0,
+        89.0
+      ]
+    }
+  }
+}

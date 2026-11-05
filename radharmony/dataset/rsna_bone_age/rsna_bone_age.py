@@ -16,17 +16,17 @@ class RSNABoneAgeDataset(BaseRadiologicalDataset):
     """2-D MONAI PersistentDataset for the RSNA Pediatric Bone Age release.
 
     Skeletal-age regression on 2-D hand radiographs (PNG).  The official
-    training split has 12,611 images; the validation split has 1,425
+    training split has 12,611 images. The validation split has 1,425
     spread across two subfolders inside the val ZIP.  Enable
     ``output_reg=True`` to yield ``{"img": ..., "reg": tensor([age_months])}``
     samples.
 
-    Train and val are separate downloads — each takes its own
+    Train and val are separate downloads, each takes its own
     ``base_image_dir``.  Use :class:`RSNABoneAgeTrainDataset` or
     :class:`RSNABoneAgeValDataset` to fix the split at construction time.
 
-    Classification and bbox outputs are not supported (the dataset has
-    neither); those flags are silently ignored with a warning.
+    Only ``output_reg`` is supported. Each other ``output_*`` flag gives a
+    warning, and no key (D-11).
 
     Args:
         base_image_dir: Split-specific image directory.  For
@@ -39,10 +39,10 @@ class RSNABoneAgeDataset(BaseRadiologicalDataset):
         csv_path: Optional explicit override for the split's CSV path.
         transform: MONAI Compose transform.  Defaults to the 2-D pipeline.
         cache_dir: PersistentDataset cache directory.  ``None`` disables caching.
-        output_cls: Not supported; ignored with a warning.
+        output_cls: Not supported. Ignored with a warning.
         output_reg: Yield the 1-D regression vector under key ``reg``
             (skeletal age in months).
-        output_mask / output_report / output_bbox: Not supported; ignored.
+        output_mask / output_report / output_bbox: Not supported. Ignored.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"reg"})
@@ -75,7 +75,7 @@ class RSNABoneAgeDataset(BaseRadiologicalDataset):
             csv_path = os.path.expanduser(csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RSNABoneAgeHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (

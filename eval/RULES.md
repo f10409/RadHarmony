@@ -1,0 +1,73 @@
+# RadHarmony rules
+
+This file has 2 sections:
+
+- **Checked by the computer.** The automatic checks (`scripts/evalkit/run_all.py`) enforce these rules.
+- **Judgement rules.** The Follows our rules? reviewer in `/evaluate` reads these rules.
+
+`CLAUDE.md` keeps only the rules for every task.
+
+## How to add a rule (lessons)
+
+1. A mistake happens 2 times, or one time with a large effect. Make it a rule.
+2. If a computer can check the rule, write the check first. Use a test in `tests/test_lessons.py`, or a check in `scripts/evalkit/lessons.py`.
+3. Prove the check with `scripts/evalkit/prove_rule.py`. The check must fail on the commit with the mistake and pass on the fix.
+   If the check finds old problems, run `run_all.py --update-known --full`. Then run `run_all.py --check-shrink HEAD --new-rule <ID>` (D-45).
+   Also write `New rule: <ID>` on its own line in the PR description. CI reads it.
+4. Add a row to the first table. Give the commit with the mistake and the proof command.
+5. If a computer cannot check the rule, add it to the judgement rules.
+
+## Checked by the computer
+
+| ID | Rule | Check | Origin | Proof |
+|---|---|---|---|---|
+| L-001 | A declared age source fills `age_years`. | `tests/test_lessons.py::test_l001_chexpert_age_years_is_filled` | 95bb587 | `prove_rule.py --bad 95bb587^ --good 95bb587 --with tests/test_lessons.py --with scripts/dataset_paths.py --with configs/data_paths.json -- tests/test_lessons.py::test_l001_chexpert_age_years_is_filled` |
+| L-002 | The public docs and the skills (`.claude/skills/`) have no NAS paths (`/mnt/NAS...`). | docs: `lessons` (L-002) | 3e6f104 | known-problems list is empty since 2026-10-30 |
+| L-003 | Prose has no em dash. | lint: `ste` (STE-02) | 9d5106d | `tests/test_evalkit.py::test_ste_rule` |
+| L-004 | A box is `[y_min, y_max, x_min, x_max]`, as fractions. | `tests/test_bbox_axis_alignment.py` | (before v0.1.0) | |
+| L-005 | A doc code block uses only radharmony imports that exist, and only the keyword arguments that the class or function accepts. | docs: `blocks` (BLOCK-IMPORT, BLOCK-KWARG) | (before v0.1.0) | `tests/test_evalkit.py::test_static_block_imports_and_keywords` |
+| L-006 | Code, scripts and tests read NAS paths from `configs/data_paths.json`. | docs: `lessons` (L-006) | d78f73a | |
+| L-007 | Every registry key has an entry in `configs/data_paths.json`. | `tests/test_data_paths.py` | d78f73a | |
+| L-008 | Every harmonizer passes one contract (D-02, D-05, D-07, D-08, D-24). `harmonized_df` equals `harmonize()`. The label columns are sorted. Save and load keep the table and the label order. `harmonize()` works after a load. `study_ids=` works (only for harmonizers that take it). `image_path` is relative (D-04). Boxes are in [0, 1]. A known failure that needs a base-code change is a strict xfail. | `tests/test_harmonizer_contract.py` (CI, 11 fake datasets), `tests/test_dataset_stats.py::test_harmonizer_contract` (full run, real data) | 3e963ed, 031d08d (the D-04 check) | `prove_rule.py --bad 70eeb94 --good 3e963ed --with tests/test_harmonizer_contract.py --with tests/fixtures/__init__.py --with tests/fixtures/fake_datasets.py --with tests/fixtures/harmonizer_contract.py --with tests/test_label_order.py --with tests/test_chestxdet10.py --with tests/test_chexphoto.py --with tests/test_siim_acr_ptx.py -- tests/test_harmonizer_contract.py`. The D-04 check: `tests/test_harmonizer_contract.py::test_contract_finds_an_absolute_image_path` gives it an absolute path. No harmonizer had one on 031d08d^, so `prove_rule.py` cannot show it. |
+| L-009 | Each probe that trains (linear, SVM, kNN, prototype, fine-tune) and its final model drop NaN train labels. For each label column, they drop the rows where that label is NaN. The result for a label equals the result of a run on only the rows where that label is not NaN (D-18). | `tests/test_lessons.py::test_l009_nan_train_labels_equal_rows_with_label` | a3349c4 | `prove_rule.py --bad a3349c4^ --good a3349c4 --with tests/test_lessons.py --with tests/_toy_eval.py -- tests/test_lessons.py -k l009` |
+| L-010 | Every image dataset class takes `output_cls`, `output_mask`, `output_bbox`, `output_report` and `output_reg`. A flag that the class does not support gives a warning, and the transform does not fail when that key is missing (D-11). | `tests/test_output_flags.py` (CI), `tests/test_dataset_stats.py::test_output_flag_on_a_real_sample` (full run, real data) | 7301a11 | `prove_rule.py --bad 70eeb94 --good 7301a11 --with tests/test_output_flags.py -- tests/test_output_flags.py` |
+| L-011 | The box in a sample stays on the image content after the default transform and after each spatial step (D-28). | `tests/test_lessons.py::test_l011_box_stays_on_the_white_rectangle` | 18d46ad | `prove_rule.py --bad 70eeb94 --good 18d46ad --with tests/test_lessons.py --with scripts/dataset_paths.py --with configs/data_paths.json -- tests/test_lessons.py -k l011` |
+| L-012 | `reader="monai"` and each image loader of a backbone recipe read a palette PNG as the colors it shows, not as its raw index. They give 3 channels for an RGBA PNG. A mask loader keeps `mt.LoadImage` (D-13). | `tests/test_lessons.py::test_l012_recipe_readers_read_palette_and_alpha_pngs_as_shown` | 1b08cc1 | `prove_rule.py --bad 1b08cc1^ --good 1b08cc1 --with tests/test_lessons.py --with scripts/dataset_paths.py --with configs/data_paths.json -- tests/test_lessons.py -k l012` |
+| L-013 | Every key that D-11 lists for a flag reaches the sample. `output_bbox` is the only flag with more than one key: the default transform of each box class keeps `bbox`, `bbox_labels` and `bbox_findings` (where supported). | `tests/test_output_flags.py::test_output_bbox_keeps_every_key_of_the_flag` | 4fac3c4 | `prove_rule.py --bad 4fac3c4^ --good 4fac3c4 --with tests/test_output_flags.py -- tests/test_output_flags.py -k keeps_every_key` |
+| L-014 | A study id that no row has gives 0 rows with the columns of the full table (D-02). The dataset class of a key loads its own saved harmonizer with `harmonizer_path=` (D-08). | `tests/fixtures/harmonizer_contract.py`: the check `no_study` in CI (`tests/test_harmonizer_contract.py`) and in the full run, and the checks `harmonizer_path` and `harmonizer_path_labels` in the full run only (`tests/test_dataset_stats.py::test_harmonizer_contract`). Also `tests/test_official_splits.py::test_a_study_of_no_row_gives_an_empty_table`, and `tests/test_save_load.py::test_dataset_takes_only_the_declared_labels` in CI | dcb9c93 | `prove_rule.py --bad dcb9c93^ --good dcb9c93 --with tests/fixtures/harmonizer_contract.py --with tests/test_official_splits.py --with tests/test_harmonizer_contract.py -- tests/test_harmonizer_contract.py tests/test_official_splits.py -k "chexpert_plus or study_of_no_row"` |
+| L-015 | Each harmonizer that writes a `bbox` column clips each box to [0, 1]. It drops a box with no area, with its labels and a warning (D-07). It uses `clip_boxes` or `clip_box` in `radharmony/harmonizer/_bbox.py`. | `tests/test_harmonizer_boxes.py::test_every_box_harmonizer_clips_its_boxes` and `::test_clip_boxes_follows_d07`, `tests/test_padchest_gr.py::test_a_box_past_the_edge_is_clipped_and_a_box_with_no_area_is_dropped` | 4cedd06 | `prove_rule.py --bad 4cedd06^ --good 4cedd06 --with tests/test_harmonizer_boxes.py -- tests/test_harmonizer_boxes.py -k "every_box_harmonizer or clip_boxes_follows"` |
+| L-016 | With the default call, a source row with no label at all gets NaN in every label, not 0 (D-05). This is a row with every label blank, or a row with only the source placeholder (PadChest `[]`, OpenI "No Indexing"). | `tests/test_lessons.py::test_l016_a_row_with_no_label_at_all_is_nan` | ee71a75, af112ba | `prove_rule.py --bad 7a339e7 --good af112ba --with tests/test_lessons.py -- tests/test_lessons.py -k l016` |
+| L-017 | The embedding cache raises `ValueError` when an input that sets the features changes: the encoder, the transform, `autocast_dtype` or the image folder (`base_image_dir`) (D-41). | `tests/test_lessons.py::test_l017_the_embedding_cache_raises_when_an_input_of_the_features_changes` | 0306556 | `prove_rule.py --bad 436bd47 --good 0306556 --with tests/test_lessons.py -- tests/test_lessons.py -k l017` |
+| L-018 | The default 3-D transform, with and without `with_spacing`, keeps each box on its object, for 0, 1 and 3 boxes. A row with no box gives a `(0, 6)` box (D-28). | `tests/test_lessons.py::test_l018_3d_box_stays_on_its_cube` | a9341d9, e45a855 | `prove_rule.py --bad 436bd47 --good e45a855 --with tests/test_lessons.py --with scripts/dataset_paths.py --with configs/data_paths.json -- tests/test_lessons.py -k l018` |
+| L-019 | Each module that the model code of a backbone imports at module level is named in its extra or in the core dependencies of `pyproject.toml`. A package that comes only through another package does not count. | `tests/test_lessons.py::test_l019_backbone_extra_names_every_module_that_the_model_code_imports` (where the model code is on the machine) | b70e9de | `prove_rule.py --bad 840d159 --good b70e9de --with tests/test_lessons.py -- tests/test_lessons.py -k l019` |
+| L-020 | In `radharmony/harmonizer/`, an `except` does not end in a silent `pass` or `continue`. A file that cannot be read warns with the count of lost rows or boxes (D-07). | lint: `ruff` (S110 and S112, only on `radharmony/harmonizer/`, set in `pyproject.toml`), and `tests/test_ruff_rules.py::test_l020_no_silent_except_in_harmonizer_code` | 6499757 | `prove_rule.py --bad 20162a9 --good 6499757 --with pyproject.toml --with tests/test_ruff_rules.py -- tests/test_ruff_rules.py` |
+| L-021 | A release can have the age or the sex of the patient, in a CSV or in the DICOM tags. Then its `expected_stats` list `sex` and `age_years`, from the raw files (D-06, D-26). The stats test then fails when the table has no `age_years` or no `sex`. | `tests/test_dataset_stats.py::test_stat_matches_expected` (full run, real data) | 97910c4 | `prove_rule.py --bad 64a3ab3 --good 97910c4 --with tests/test_dataset_stats.py --with configs/datasets/vindr_pcxr.json --with configs/datasets/rsna_abdominal_trauma_2023.json --with scripts/dataset_paths.py --with configs/data_paths.json -- tests/test_dataset_stats.py -k "stat_matches_expected and (pcxr or abdominal) and (sex or age_years)"` |
+| L-022 | A harmonizer does not copy the base `harmonize()`. An override of `harmonize()` calls `super().harmonize()`, so a fix of the base steps reaches every harmonizer (D-30). | `tests/test_lessons.py::test_l022_every_harmonize_override_calls_the_base_steps` | 031d08d | `prove_rule.py --bad 4f7a98e --good 031d08d --with tests/test_lessons.py --with scripts/dataset_paths.py --with configs/data_paths.json -- tests/test_lessons.py -k l022` |
+| L-023 | Each dataset and harmonizer module is in its own folder: `<name>/<name>.py` with an `__init__.py`, in `radharmony/dataset/`, `radharmony/harmonizer/` and the same folders of `radharmony_internal/`. Only `__init__.py`, the base files, `transforms.py`, `collate.py` and the helpers (`_*.py`) are flat files. | `tests/test_lessons.py::test_l023_each_dataset_is_in_its_own_folder` | c8dbefc, ac8fe0f | `prove_rule.py --bad eedc5b8^ --good eedc5b8 --with tests/test_lessons.py -- tests/test_lessons.py -k l023` |
+| B-001 | A base-code change has the approval text (see `CLAUDE.md`). | `.githooks/commit-msg`, `base_guard.py --pr-body` | `CLAUDE.md` | `tests/test_evalkit.py::test_base_guard_texts` |
+| STE-01, 02, 03, 04, 06, 10, 11 | Prose follows the STE rules that a computer can check. | lint: `ste` | | `tests/test_evalkit.py::test_ste_rule` |
+| ruff | Python code has none of the bug patterns in `[tool.ruff.lint]`. | lint: `ruff` | | |
+| BLOCK | Each doc code block compiles. A full run also runs it. | docs: `blocks`, `blocks_run` | | `tests/test_evalkit.py` |
+| CLAIM | A number with a claim note matches its command. A paper number names the paper (`source=`) and is in the text. | docs: `claims` | | `tests/test_evalkit.py::test_claim_pass_and_fail` |
+
+## Judgement rules
+
+The Follows our rules? reviewer checks the changed code and docs against these rules. Each finding names the rule ID.
+
+The Why column names finding IDs (for example V-H3-1). An ID always names the same finding, in every run. `reports/eval/index.json` gives its run folder. The index and the folder are local only (not in git).
+
+| ID | Rule | Why (evidence) |
+|---|---|---|
+| J-01 | Do not change base code if a subclass override or the dataset's own file can do the job. A base-code change needs the steps in `CLAUDE.md`. | `CLAUDE.md` |
+| J-02 | A harmonizer gives one row per image, or the unit that its docs name. No patient is in two splits. The ids are unique. A declared column is not all empty. A saved and loaded table equals the original. | V-H3-1, V-H3-2, V-H3-3, V-H1-1, V-H1-2, V-H2-1 |
+| J-03 | Boxes are finite, in [0, 1], with min < max, and they move with every resize, pad and flip. | V-D-1, V-D-2, V-H3-4 |
+| J-04 | Label names come from the same sorted list as the `cls` vector. | V-A-4, V-D-5 |
+| J-05 | A backbone factory gives the same features as the authors' own pipeline (input size, crop, mean, std, pooled token). | V-B-1 (EVA-X), V-B-2 (Ark+) |
+| J-06 | An evaluator does not use test labels to pick a model, a threshold or a setting. Every probe drops NaN labels. Every random step has a seed. | V-E-2, V-E-3, V-E-4 |
+| J-07 | Frozen-feature probes L2-normalize the features. | project decision (fair comparison across probes) |
+| J-08 | A test's expected value comes from the source data or the spec, not from the code under test. | `.claude/skills/fix/SKILL.md` |
+| J-09 | A doc edit never hides a code bug. If a doc block fails because the code is wrong, report the code bug. | project decision (2026-10-27) |
+| J-10 | A comment says why, or gives an outside fact (a data quirk, a paper). It does not repeat the code. No commented-out code. A `TODO` has an owner or an issue link. | project decision (2026-10-27) |
+| J-11 | Prose uses active voice and one instruction per sentence. Do not use an "-ing" word as a noun. Keep the articles ("the", "a"). | STE rules that a computer cannot check |
+| J-12 | Common code smells, as a judgement call: copied code, a long function, a long argument list, dead code, unused options, magic numbers. Our own rules come first. | code-review practice |
+| J-13 | A design rule that says "every harmonizer (or dataset) does X" has one shared helper or a contract test. A copy of the step in each class is a finding. | R-code-17 (the D-07 box rule in 2 of 15 box harmonizers), V-H1-32 (the no-label-row warning only in the JPG class) |

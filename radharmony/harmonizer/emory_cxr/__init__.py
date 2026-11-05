@@ -1,3 +1,3 @@
-from .emory_cxr import EmoryCXRHarmonizer
+from .emory_cxr import EmoryCXRDeidHarmonizer, EmoryCXRDicomHarmonizer, EmoryCXRHarmonizer
 
-__all__ = ["EmoryCXRHarmonizer"]
+__all__ = ["EmoryCXRHarmonizer", "EmoryCXRDeidHarmonizer", "EmoryCXRDicomHarmonizer"]

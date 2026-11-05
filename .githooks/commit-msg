@@ -1,0 +1,7 @@
+#!/bin/sh
+# Stop a commit that changes base code with no "BASE CODE CHANGE:" line (CLAUDE.md).
+# A merge brings in commits that were checked already, so it is not checked again.
+git rev-parse -q --verify MERGE_HEAD >/dev/null && exit 0
+PY="$(git rev-parse --show-toplevel)/.venv/bin/python"
+[ -x "$PY" ] || PY=python3
+exec "$PY" scripts/evalkit/base_guard.py --staged --commit-msg "$1"

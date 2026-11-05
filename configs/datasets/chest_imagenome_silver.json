@@ -85,5 +85,43 @@
   },
 
   "hu_window": null,
-  "custom_preprocessing": "Per-box findings are carried in the harmonized 'bbox_findings' column via the harmonizer's EXTRA_OUTPUT_COLS (anatomy in bbox_labels, findings in bbox_findings) - NOT aggregated to an image-level cls vector. The dataset sets SUPPORTS_BBOX_FINDINGS=True, so with output_bbox=True all three (bbox, bbox_labels, bbox_findings) are threaded into each sample, index-aligned through augmentation; the app labels each box 'anatomy: findings'. Instantiating a full split parses scene_graph.zip and reads one DICOM header per image for bbox normalization (cached by the harmonizer's save()). MIMIC-derived, PhysioNet data: never commit the harmonized DataFrame, saved CSVs, or images."
+  "custom_preprocessing": "Per-box findings are carried in the harmonized 'bbox_findings' column via the harmonizer's EXTRA_OUTPUT_COLS (anatomy in bbox_labels, findings in bbox_findings) - NOT aggregated to an image-level cls vector. The dataset sets SUPPORTS_BBOX_FINDINGS=True, so with output_bbox=True all three (bbox, bbox_labels, bbox_findings) are threaded into each sample, index-aligned through augmentation; the app labels each box 'anatomy: findings'. Instantiating a full split parses scene_graph.zip and reads one DICOM header per image for bbox normalization (cached by the harmonizer's save()). MIMIC-derived, PhysioNet data: never commit the harmonized DataFrame, saved CSVs, or images.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources (2026-11-03): silver_dataset/splits/{train,valid,test}.csv and images_to_avoid.csv read with pandas, silver_dataset/scene_graph.zip read with json, and the Rows and Columns tags of every DICOM header read with pydicom. The split CSV files have 166,521 (train), 23,953 (valid) and 47,393 (test) rows. No row is in images_to_avoid.csv. 17 train, 2 valid and 4 test images have no scene graph file, so the table does not keep them. So the table has 166,504, 23,951 and 47,389 images, 149,251, 21,479 and 42,495 studies, and 44,133, 6,274 and 12,538 patients. No patient is in 2 splits. Every image has boxes and a readable header. Boxes: a box with x1 > x2 or y1 > y2, or with no area inside the image after the clip to the image, goes (D-07). No box is inverted. 1,528 train, 235 valid and 463 test boxes have no area after the clip, so 5,948,710, 855,232 and 1,693,926 boxes stay. Every image keeps at least one box. sex comes from the scene graph gender (F or M, empty for 153 train, 11 valid and 14 test images, D-26). Split sex counts: F 76,345, 10,781 and 22,918, M 90,006, 13,159 and 24,457. age_years is the low edge of the scene graph age_decile group: 0-10 gives 0, '20-Oct' (the group 10-20) gives 10, and >=90 gives 90 (D-06). No paper number is used: the counts come from the split files.",
+    "patients_in_two_splits": 0,
+    "chest_imagenome_silver_train": {
+      "images": 166504,
+      "studies": 149251,
+      "patients": 44133,
+      "rows_with_bbox": 166504,
+      "boxes": 5948710,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 76345, "M": 90006},
+      "age_years": [0, 90]
+    },
+    "chest_imagenome_silver_valid": {
+      "images": 23951,
+      "studies": 21479,
+      "patients": 6274,
+      "rows_with_bbox": 23951,
+      "boxes": 855232,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 10781, "M": 13159},
+      "age_years": [0, 90]
+    },
+    "chest_imagenome_silver_test": {
+      "images": 47389,
+      "studies": 42495,
+      "patients": 12538,
+      "rows_with_bbox": 47389,
+      "boxes": 1693926,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 22918, "M": 24457},
+      "age_years": [0, 90]
+    }
+  }
 }

@@ -2,17 +2,17 @@
 
 ``ImageEncoderWrapper`` is a thin ``nn.Module`` adapter that registers a
 backbone as a submodule and routes its forward through caller-supplied
-``model_call`` / ``pool`` functions. Its purpose is to satisfy the
-evaluator contract (``forward(x) -> Tensor[B, D]``) *without* hiding
-image preprocessing: channel expansion, resize, and input normalization
-are expected to live on the data-pipeline (MONAI transform) side so
-they stay encoder-specific and run in DataLoader workers.
+``model_call`` / ``pool`` functions. It meets the evaluator contract
+(``forward(x) -> Tensor[B, D]``) *without* hiding image preprocessing.
+Channel expansion, resize, and input normalization belong on the
+data-pipeline (MONAI transform) side. So they stay encoder-specific and
+run in DataLoader workers.
 
 Why an ``nn.Module`` instead of a ``lambda``:
 
 - ``self.model`` registers as a submodule, so ``.to(device)``,
   ``state_dict()``, and ``.parameters()`` propagate. A closure over a
-  loose ``nn.Module`` silently fails all three — particularly bad for
+  loose ``nn.Module`` silently fails all three. This is bad for
   ``FinetuneEvaluator``, which calls ``encoder.parameters()`` to
   build the optimizer when ``freeze_backbone=False``.
 """
@@ -30,7 +30,7 @@ class ImageEncoderWrapper(nn.Module):
 
     ``forward(x: Tensor) -> Tensor[B, D]``
 
-    No image preprocessing is done here — ``x`` is passed straight to
+    This class does not preprocess the image. It passes ``x`` to
     ``model_call`` (or ``model(x)``). Build any channel expansion /
     resize / normalization into your dataset's MONAI transform.
 
@@ -40,11 +40,11 @@ class ImageEncoderWrapper(nn.Module):
         The backbone. Registered as a submodule.
     model_call : callable, optional
         ``(model, x) -> raw_output``. Defaults to ``model(x)``.
-        Use this to route through non-default call signatures, e.g.
+        Use this to route through non-default call signatures, for example
         ``lambda m, x: m(pixel_values=x)`` for HuggingFace vision models.
     pool : callable, optional
         ``raw_output -> Tensor[B, D]``. Defaults to identity (backbone
-        already returns ``(B, D)`` — e.g. ``timm`` with ``num_classes=0``).
+        already returns ``(B, D)``, for example ``timm`` with ``num_classes=0``).
     """
 
     def __init__(
@@ -79,8 +79,8 @@ class ImageEncoderWrapper(nn.Module):
     ) -> "ImageEncoderWrapper":
         """Wrap a backbone with caller-supplied ``model_call`` / ``pool`` hooks.
 
-        Equivalent to the base constructor — exposed as a classmethod so
-        the non-HuggingFace path is discoverable alongside
+        Same as the base constructor. It is a classmethod so
+        the non-HuggingFace path is easy to find next to
         :meth:`from_huggingface`. Use this for ``timm`` (bare wrap when
         ``num_classes=0``), OpenCLIP (``model_call=lambda m, x: m.encode_image(x)``),
         or any bespoke backbone.
@@ -95,7 +95,7 @@ class ImageEncoderWrapper(nn.Module):
                 timm.create_model("resnet50", pretrained=True, num_classes=0),
             )
 
-            # OpenCLIP / BiomedCLIP — route through .encode_image
+            # OpenCLIP / BiomedCLIP: route through .encode_image
             import open_clip
             clip_model, _, _ = open_clip.create_model_and_transforms("ViT-B-16")
             encoder = ImageEncoderWrapper.from_custom(
@@ -123,12 +123,12 @@ class ImageEncoderWrapper(nn.Module):
         Routes the forward through ``model(pixel_values=x)``. ``pool``
         selects how to reduce the output to ``(B, D)``:
 
-        - ``"cls"`` — ``out.last_hidden_state[:, 0]`` (raw CLS token).
-        - ``"mean"`` — ``out.last_hidden_state.mean(dim=1)`` (token mean).
-        - ``"pooler"`` — ``out.pooler_output`` (the model's learned
-          projection of the CLS token, when present; raises if the
-          model does not populate it).
-        - callable — ``pool(raw_output) -> Tensor[B, D]`` for any
+        - ``"cls"``: ``out.last_hidden_state[:, 0]`` (raw CLS token).
+        - ``"mean"``: ``out.last_hidden_state.mean(dim=1)`` (token mean).
+        - ``"pooler"``: ``out.pooler_output`` (the model's learned
+          projection of the CLS token, when present). It raises if the
+          model does not set it.
+        - callable: ``pool(raw_output) -> Tensor[B, D]`` for any
           custom reduction.
         """
         def _call(m, x):

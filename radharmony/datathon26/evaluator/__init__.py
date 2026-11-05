@@ -1,4 +1,4 @@
-"""datathon26 evaluators — score pre-computed reportbench results."""
+"""datathon26 evaluators: score pre-computed reportbench results."""
 
 from ._identity import IdentityEncoder, identity_generator
 from .classification import (

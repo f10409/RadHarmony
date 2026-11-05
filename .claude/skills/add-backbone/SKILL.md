@@ -1,311 +1,189 @@
 ---
 name: add-backbone
 description: >
-  Scaffold a new image encoder backbone into the RadHarmony evaluator subsystem.
-  Creates the make_<name>() factory in radharmony/evaluator/backbones/, wires it
-  into the package exports, adds an optional-dependency extra in pyproject.toml,
-  and updates both backbone-recipe tables (README extras + evaluator wiki). Use
-  when the user says "add a backbone", "wire <model> into the
-  evaluator", "make a recipe for <model>", or hands you a notebook in
-  notebooks/backbones/ and asks to turn it into a recipe. Covers both vision-only
-  and vision-language (zero-shot capable) models.
+  Add a new image encoder to RadHarmony as a backbone recipe. It writes the make_<name>() factory in
+  radharmony/evaluator/backbones/, the exports, the install extra, the backbone page and its table rows. It
+  checks the input size, the crop, the mean, the std and the pooled token against the authors' code. Use when
+  the user says "add a backbone", "wire <model> into the evaluator", "make a recipe for <model>", or gives a
+  notebook in notebooks/backbones/ to turn into a recipe. To run an existing backbone, use use-radharmony. To
+  add a dataset, use add-dataset. To review the branch, use evaluate.
 ---
 
-# Add Backbone Skill
+# Add a backbone
 
-Wire a new image encoder into RadHarmony's evaluator subsystem as a drop-in
-`make_<name>()` factory. The factory returns a ready-to-use MONAI transform
-plus an `ImageEncoderWrapper`-wrapped encoder, so the user can pair it with
-any RadHarmony dataset and any evaluator (`LinearProbeEvaluator`,
-`ZeroShotEvaluator`, etc.) in three lines.
+A backbone recipe is a `make_<name>()` function. It returns a dataset transform and an encoder, and for a
+text-and-image model also a text encoder and a tokenizer. The person's guide is
+`docs/wiki/how-to/add-a-backbone.md`. This skill follows the same rules and adds the steps for the repo.
 
-## When This Skill Triggers
+This skill changes the repo. Run it in a RadHarmony clone, not in a project that installs RadHarmony as a
+package. It uses 2 venvs:
 
-- User asks to "add a backbone", "wire <model> into the evaluator", "make a
-  recipe for <model>", "scaffold a backbone".
-- User hands you a notebook in `notebooks/backbones/` (e.g.
-  `backbone_<model>.ipynb`) and asks to turn it into a callable recipe.
-- User asks how `make_raddino` / `make_biomed_clip` / etc. were built and
-  wants to replicate the pattern for a new model.
+- The dev venv: `.venv/bin/python`.
+- The model venv: `$RADHARMONY_MODEL_PYTHON`, the Python of a venv with the backbone packages, for example
+  `/path/to/model/.venv/bin/python`. Make it with `uv pip install -e ".[<name>]"`
+  (`docs/wiki/get-started/install.md`). If the variable is not set, ask the user for the path, and set it.
 
-## Mental model
+Real data. Steps 6 and 7 need 4 chest X-rays of Montgomery County CXR (key `montgomery_cxr`). The data
+folders come from the data paths file: `configs/data_paths.json`, or the file that `RADHARMONY_DATA_PATHS`
+names (`docs/wiki/get-started/install.md`, "Data paths for the checks"). Read them with `paths(key)` of
+`scripts/dataset_paths.py`. If the file or the key is missing, `paths()` raises `MissingPathsError` with a hint.
+Then ask the user for the folder, and offer one of 3 choices:
 
-RadHarmony's evaluator contract is `Callable[[Tensor], Tensor[B, D]]` — every
-encoder must satisfy it. Two pieces solve the gap from raw weights to that
-contract, and they live on opposite sides:
+1. Add the entry to their data paths file. Copy `configs/data_paths.example.json` first if the file is missing.
+2. Give the folder for this run only. Montgomery is public and small: `docs/wiki/how-to/get-the-data.md`
+   shows the download.
+3. Skip the real-data check, and say so in the report.
 
-| Piece | Lives on | Responsibility |
-|---|---|---|
-| **Preprocessing transform** | Dataset side (CPU, DataLoader workers) | Read image file → resize → normalize → return `Tensor[C, H, W]` per sample |
-| **Encoder wrapper** | Model side (GPU) | Route `forward(x)` to the backbone, extract a pooled `Tensor[B, D]` |
+A sub-agent cannot ask the user: it skips, and it reports what it skipped.
 
-Each backbone has a unique pretraining recipe (ImageNet norm for HF ViTs,
-`(0.5, 0.5, 0.5)` for BiomedCLIP, raw `[-1, 1]` for some CXR-SSL models).
-Mixing readers or normalization between recipes silently perturbs pixel
-statistics. **Each `make_<name>()` factory bundles both pieces — preprocessing
-on the transform side, forward routing on the wrapper side — so the caller
-gets a guaranteed-correct pair.**
+`<name>` is the short name of the new recipe, in snake case, for example `my_model`. It names the file
+`radharmony/evaluator/backbones/<name>.py`, the factory `make_<name>()`, the install extra `<name>` and the page
+`docs/wiki/reference/backbones/<name>.md`.
 
-## Mandatory design rules
+The references are in `.claude/skills/add-backbone/references/`:
 
-These hold for **every** recipe. The template (`_template.py`) follows them;
-existing recipes (`raddino.py`, `chexagent.py`, `medsiglip.py`, `dinov3.py`)
-illustrate them.
+- `authors-check.md`: the fact table, the compare script and the test (J-05).
+- `recipe-rules.md`: the rules for the recipe file, and more `model_call` functions.
+- `backbone-page.md`: the backbone page template and the other doc changes.
 
-1. **All backbone imports are lazy** (inside the factory body). This lets
-   `from radharmony.evaluator import backbones` succeed even when the user
-   hasn't installed the optional dep.
-2. **A single model instance** is created and shared between the transform's
-   preprocess closure and the encoder wrapper — never load weights twice.
-3. **Preprocessing lives entirely on the transform side**, never inside
-   `ImageEncoderWrapper`. If you find yourself resizing or normalizing inside
-   `_model_call`, move it back to `_preprocess`.
-4. **Read variant-specific config dynamically** when the model exposes it.
-   E.g. for DINOv2/v3 read `model.config.num_register_tokens` rather than
-   hardcoding `4` — this makes the recipe survive variant swaps.
-5. **Two-mode encoder**: classification (default, returns `[B, D]`) vs
-   segmentation (`"mask"` in `output_keys`, returns `[B, D, H, W]`). Gate
-   the difference on `_seg_mode = output_keys is not None and "mask" in
-   output_keys`. For ViTs use `patches_to_spatial` (from `_utils.py`).
-6. **Mask preprocess closure** mirrors the image one but with
-   `do_normalize=False, do_rescale=False, resample=0` (nearest-neighbour)
-   so class indices survive.
+## Step 0. Read first
 
-## File touched by every recipe
+1. `CLAUDE.md`, section "Design decisions and rules". Read D-16 (backbones match their authors) and D-17
+   (L2-normalize features) in `docs/wiki/design.md`.
+2. `CLAUDE.md`, section "Base code needs explicit approval". A recipe does not need base code. If you think
+   that it does, stop and follow that section.
+3. `docs/wiki/how-to/add-a-backbone.md` and `docs/wiki/reference/backbones/index.md`.
+4. Ask the user for what you do not know: the model card or the authors' repo, the variant, `<name>`, and
+   where the weights are. Ask one question at a time. When no user can answer (a sub-agent, a headless run),
+   write the question and the answer that you chose in the report, and go on.
 
-| File | What you do |
-|---|---|
-| **New** `radharmony/evaluator/backbones/<name>.py` | The recipe itself — copy `_template.py` and fill in. |
-| **New** `docs/wiki/backbones/<name>.md` | Per-backbone wiki page (embed dim, input size, install, override knobs, usage, segmentation mode). |
-| **Modified** `radharmony/evaluator/backbones/__init__.py` | `from .<name> import make_<name>`, add to `__all__`, add docstring entry. |
-| **Modified** `pyproject.toml` | One row under `[project.optional-dependencies]`. |
-| **Modified** `docs/wiki/backbones/index.md` | One row in the recipes table (linking to `<name>.md`); for manual-setup backbones also add a row in the override-paths table. |
-| **Modified** `mkdocs.yml` | One `nav:` entry under `Backbones:` pointing at the new page. |
-| **Modified** `README.md` | One row in the extras table. |
+## Step 1. Find the authors' facts
 
-Skipping any of these breaks discovery, install, or docs. The verification
-step below catches a missing export; doc drift is caught by the
-`update-docs` skill.
+Fill the fact table of `references/authors-check.md`, part 1, before you write code. It has 4 facts: the input
+size, the resize and crop, the mean and std, and the pooled token. Give a source for each value. Also find:
 
-## Workflow
+- The feature size `D`: `model.config.hidden_size`, or one forward pass on a zero tensor.
+- The patch size and the register tokens `R` (ViT only), for the segmentation grid.
+- The ecosystem: Hugging Face, OpenCLIP, timm, a pip package, or a clone of the authors' repo.
 
-### 1. Confirm the model's ecosystem
+Show the table to the user. When 2 sources of the authors give different values and D-16 does not say which
+one to use, ask the user with `.claude/skills/evaluate/references/decisions.md`.
 
-Different ecosystems use different call signatures — figure out which one
-applies before writing the recipe.
+## Step 2. Write the recipe
 
-| Ecosystem | `_model_call` pattern | Notes |
-|---|---|---|
-| HuggingFace ViT (DINOv2/v3, RAD-DINO HF version, BEiT) | `lambda m, x: m(pixel_values=x).last_hidden_state[:, 0]` | CLS token |
-| HuggingFace SigLIP / CLIP-family | `lambda m, x: m(pixel_values=x).pooler_output` | learned pooler projection |
-| HuggingFace SigLIP `.vision_model` | `lambda m, x: m.vision_model(pixel_values=x).pooler_output` | when `AutoModel` returns the joint model |
-| OpenCLIP / BiomedCLIP | `lambda m, x: m.encode_image(x)` | image tower call |
-| timm (`num_classes=0`) | `None` (model already returns `(B, D)`) | bare wrap with `ImageEncoderWrapper.from_custom(model)` |
-| RAD-DINO (`rad-dino` package) | `cls, _ = m.encode(BatchFeature({"pixel_values": x})); return cls` | custom return tuple |
-| ViT with register tokens (DINOv3) | Skip CLS + register tokens for segmentation: `m(...).last_hidden_state[:, 1+R:]` | read `R` from `model.config.num_register_tokens` |
-| SSL backbone (MAE, SimCLR) | `lambda m, x: m.backbone(x)` or whichever attribute holds the extractor | check the package's docs |
+1. Copy `radharmony/evaluator/backbones/_template.py` to `radharmony/evaluator/backbones/<name>.py`. Rename
+   `make_my_model`, `_MY_MODEL_HUB`, `MyModel` and the `my_model` extra to the names of `<name>`.
+2. Fill the sections in order. Follow `references/recipe-rules.md`.
+3. Pick `model_call` from the table in the how-to page (step 1) or in `references/recipe-rules.md`.
+4. Image only: return `(transform, encoder)`. Text and image: return
+   `(transform, image_encoder, text_encoder, tokenizer)`.
 
-If you have a working notebook (`notebooks/backbones/backbone_<name>.ipynb`),
-read its forward-pass cells — the pattern is usually visible in two or three
-lines. Convert that pattern verbatim; don't second-guess.
+## Step 3. Register the recipe
 
-### 2. Confirm input shape, embedding dim, register tokens
+In `radharmony/evaluator/backbones/__init__.py`:
 
-You need three numbers before writing the recipe:
-
-- **Input size** (e.g. 224, 518). Usually set by the model's processor; check
-  `processor.crop_size` or `processor.size` for HF, or `preprocess_val` for
-  OpenCLIP.
-- **Embedding dim `D`** (e.g. 768, 1024). Run a forward pass on a dummy
-  tensor and print `.shape[-1]`, or check `model.config.hidden_size`.
-- **Register tokens (`R`, ViT only)**. Check `getattr(model.config,
-  "num_register_tokens", 0)`. Non-zero R changes the segmentation-mode
-  slice: skip `1 + R` tokens (CLS + registers) before reshaping.
-
-These numbers go into the doc-table row, the docstring's "Returns" section,
-and the segmentation-mode slice.
-
-### 3. Scaffold from `_template.py`
-
-```bash
-cp radharmony/evaluator/backbones/_template.py radharmony/evaluator/backbones/<name>.py
-```
-
-The template has marked blocks for every concern: lazy imports, model load,
-helper transforms, loader compose, preprocess closure, model-call closure,
-mask preprocess closure, assemble. **Fill the blocks in order — don't
-delete the section headers; they make future recipe authors' jobs easier.**
-
-For a typical HuggingFace recipe, the body shrinks to ~40 lines plus
-docstring. `dinov3.py` is a good size reference; `chexagent.py` is the
-canonical vision-language reference (4-tuple return with text encoder).
-
-### 4. Pick a hub identifier
-
-Make `hub` a kwarg if the model family has multiple variants (ViT-B / ViT-L
-/ ViT-H), so users can swap variants without editing the recipe. Use the
-default that matches the project's typical compute budget (often ViT-B/16
-for ~85M-param ViT models). Set a module-level `_<NAME>_HUB` constant for
-the default.
-
-### 5. Vision-only vs vision-language
-
-- **Vision-only** (RAD-DINO, DINOv3, CheXFound): return
-  `(transform, encoder)`.
-- **Vision-language** (BiomedCLIP, CheXagent, MedSigLIP, MedImageInsights):
-  return `(transform, image_encoder, text_encoder, tokenizer_or_processor)`.
-  The text encoder closure typically wraps `model.text_model` or
-  `model.encode_text` and moves outputs to CPU as float32 (so the evaluator
-  can manipulate them with NumPy).
-
-For vision-language, also update the doc table column "Returns" with the
-full 4-tuple form.
-
-### 6. Wire up exports
-
-In [radharmony/evaluator/backbones/__init__.py](radharmony/evaluator/backbones/__init__.py):
-
-- Add a docstring entry near the others (8-line block: function ref +
-  one-line summary + extra install command).
+- Add an entry to the module docstring, next to the others. Give the function, one line on the model, the
+  feature size, the input size, the return value and the install command.
 - Add `from .<name> import make_<name>`.
-- Append `"make_<name>"` to `__all__`.
+- Add `"make_<name>"` to `__all__`.
 
-### 7. Add the extras row
+## Step 4. Add the install extra
 
-In [pyproject.toml](pyproject.toml), under `[project.optional-dependencies]`:
+1. In `pyproject.toml`, add `<name> = [...]` under `[project.optional-dependencies]`, next to the other
+   backbone extras. Name each package that the recipe imports. When the authors' model code is a clone or
+   Hugging Face remote code, also name each package that it imports (L-019). A pip package of the authors
+   (for example `rad-dino`) brings its own dependencies, so name only that package. A Hugging Face recipe often
+   needs only `"transformers>=5.6.0"`. Add `sentencepiece` and `protobuf` when the tokenizer needs them.
+2. Add pairs to the `[tool.uv]` `conflicts` list. A pair is one line:
+   `[{ extra = "chexagent_gen" }, { extra = "<name>" }],`. If the extra needs `transformers>=5.6.0`, add a
+   pair with `chexagent_gen` and a pair with `maira2_gen`. If it needs only `torchvision>=0.26.0`, add the
+   pair with `chexagent_gen`.
+3. If the recipe imports `torchvision`, add `"<module>": "<extra>"` to `BACKBONE_EXTRA` in
+   `tests/test_packaging.py`, for example `"eva_x": "eva_x"`.
+4. If the recipe imports the authors' model code (a clone or Hugging Face remote code), add a case to
+   `_L019_CASES` in `tests/test_lessons.py`.
 
-```toml
-<name> = ["<pip-package>", ...]
-```
+## Step 5. Smoke test
 
-If the model is HF-distributed, this is typically just
-`["transformers>=5.6.0"]`. Add extras for tokenizer packages (e.g.
-`sentencepiece`, `protobuf`) when the processor needs them.
-
-Order: place the new extra near related extras (other backbones), keep the
-file's existing grouping intact.
-
-### 8. Write the per-backbone wiki page + update doc tables
-
-New file: [docs/wiki/backbones/<name>.md](docs/wiki/backbones/). Match the
-structure of the existing pages (raddino, biomed_clip, etc. for hub-fetch
-recipes; ark_plus, medical_mae, eva_x, chexfound for manual-setup recipes).
-Required sections:
-
-- One-paragraph model intro (family, intent, hub identifier).
-- Defaults table: embed dim, input size, returns-tuple shape, extra name.
-- Install section: extras command + manual setup steps if any.
-- Override default paths (only for manual-setup recipes): table of kwargs +
-  defaults + purpose, plus a code example showing a non-default redirect.
-- Usage code block: `make_<name>(...)` + a dataset call.
-- Segmentation mode block: `output_keys={"img", "mask"}` + explicit
-  `forward(x) -> Tensor[B, D, H, W]` shape (compute `H = W = input/patch`).
-
-Then update the same row in two tables — keep the columns consistent:
-
-- [docs/wiki/backbones/index.md](docs/wiki/backbones/index.md) — recipes
-  table (Factory / Embed dim / Input size / Returns / Extra). Link the
-  Factory cell to the new `<name>.md`. For manual-setup recipes also add a
-  row to the "Override default paths" table.
-- [README.md](README.md) — extras table (Extra / Adds / Install).
-
-Append the new row under [mkdocs.yml](mkdocs.yml) `nav:` → `Backbones:`.
-
-Append below the existing entries; don't alphabetize unless the existing
-order is alphabetical.
-
-### 9. Verify
+Without the extra, the import must work, because the model imports are lazy. Block each top-level package
+that the recipe imports (here `transformers`), so the check works also in a venv that has the extra:
 
 ```bash
-# Smoke import — confirms exports are wired
-python -c "from radharmony.evaluator.backbones import make_<name>; print(make_<name>)"
+.venv/bin/python -c "import sys; sys.modules['transformers'] = None; import radharmony.evaluator.backbones as b; print('make_<name>' in b.__all__)"
 ```
 
-If the user has the extra installed and can spare a few seconds:
+Then use the model venv and one free GPU (here GPU 0). Check both modes:
 
 ```bash
-python <<'EOF'
+CUDA_VISIBLE_DEVICES=0 PYTHONPATH=$PWD $RADHARMONY_MODEL_PYTHON - <<'EOF'
 import torch
 from radharmony.evaluator.backbones import make_<name>
-transform, encoder = make_<name>(device="cpu")
-# Match the input size you documented:
-out = encoder(torch.zeros(1, 3, 224, 224))
-print("Embed shape:", out.shape)   # should match the doc-table embed dim
+x = torch.zeros(1, 3, 224, 224, device="cuda")  # use the input size of the recipe
+_, encoder = make_<name>(device="cuda", dtype=torch.float32)[:2]
+print(encoder(x).shape)  # [1, D]
+_, encoder = make_<name>(device="cuda", output_keys={"img", "mask"}, dtype=torch.float32)[:2]
+print(encoder(x).shape)  # [1, D, G, G], G = input size / patch size
 EOF
 ```
 
-If the doc table claims `D=768` and the forward pass returns `D=1024`,
-something in `_model_call` or the model load is wrong — fix before
-considering the work done.
+## Step 6. Check against the authors
 
-### 10. (Optional) Segmentation smoke test
+A right shape does not prove a right recipe. Do parts 2 and 3 of `references/authors-check.md`:
 
-Only run this if segmentation mode is in scope.
+1. Write the authors' pipeline in a file in a temporary folder, for example `/tmp/`. Run
+   `.claude/skills/add-backbone/scripts/compare_with_authors.py` with the model venv on 4 real images
+   ("Real data" above). It must print `PASS`. If the recipe has a segmentation mode, run it again with
+   `--seg`. It must print `PASS` again.
+2. Add a test to `tests/test_backbones.py` that compares the input and the feature with the authors' code.
+   Run it with the model venv. It must pass.
+
+If the script fails, fix the recipe, not the authors file. Then run the script again.
+
+## Step 7. Write the docs
+
+1. Run the Quick use and Segmentation mode blocks of the template (`references/backbone-page.md`) one time by
+   hand. Use the model venv, and the Montgomery folder ("Real data" above) as `base_image_dir`.
+2. Write `docs/wiki/reference/backbones/<name>.md` from the template. Put the printed output of item 1 in the
+   comments of the blocks. Keep `/data/...` in the page.
+3. Do each item of "Other doc changes" in `references/backbone-page.md`.
+
+Check the new page. The block runner runs a page again with `$RADHARMONY_MODEL_PYTHON` when a package is
+missing:
 
 ```bash
-python <<'EOF'
-import torch
-from radharmony.evaluator.backbones import make_<name>
-transform, encoder = make_<name>(device="cpu", output_keys={"img", "mask"})
-out = encoder(torch.zeros(1, 3, 224, 224))
-print("Spatial shape:", out.shape)   # should be [1, D, H, W] with H = W = input/patch
-EOF
+.venv/bin/python scripts/evalkit/wiki_audit.py --page reference/backbones/<name>.md
+CUDA_VISIBLE_DEVICES=0 .venv/bin/python scripts/evalkit/run_blocks.py --level full \
+    --page docs/wiki/reference/backbones/<name>.md
 ```
 
-For a 224-px input with 16-px patches and 0 register tokens, you should see
-`[1, D, 14, 14]`. For DINOv3 with 4 register tokens, the patches grid is
-still 14×14 — the recipe skips the register-token positions, it doesn't
-shrink the grid.
+The audit must give 0 errors. The block runner must give no `failed`. It gives `blocked needs data` for a
+`/data/...` path, because it does not map that path to the real folder. That is why item 1 runs by hand.
 
-## What NOT to do
+## Step 8. Proof
 
-- **Do not import the heavy dependency at module top.** It will break
-  `from radharmony.evaluator import backbones` for any user who hasn't
-  installed the extra. Always import inside the factory body.
-- **Do not load weights twice.** Some authors instinctively create one
-  model for the transform and another for the encoder. Use a single
-  `_model` and capture it in both closures.
-- **Do not preprocess images inside `ImageEncoderWrapper`.** Channel
-  expansion, resize, and normalization belong in `_preprocess`. The
-  wrapper is a routing adapter, not a pipeline.
-- **Do not hardcode register-token counts** when `model.config` exposes
-  them. Variants change; reading the config makes the recipe robust.
-- **Do not skip the docstring's "Returns" section.** Users discover the
-  embed dim and segmentation shape from there — leaving it generic forces
-  them to inspect the source.
-- **Do not invent recipe parameters** for things the model doesn't expose.
-  `_template.py`'s parameter list (`device`, `hub`, `output_keys`) is what
-  every backbone needs. Add more only when the model has a real knob
-  (e.g. CheXFound's `checkpoint_path=` because it needs a manual download).
-- **Do not commit a recipe whose smoke-import test fails.** A broken
-  import in `backbones/__init__.py` blocks every evaluator workflow.
+1. A fast first check: run the STE linter on each changed `.md` and `.py` file,
+   `.venv/bin/python scripts/evalkit/ste_lint.py <files>`. It must print nothing.
+2. Run the fast checks: `.venv/bin/python scripts/evalkit/run_all.py --group lint,docs`, and the tests of
+   step 4 and step 6 with the model venv:
+   `PYTHONPATH=$PWD $RADHARMONY_MODEL_PYTHON -m pytest tests/test_backbones.py tests/test_packaging.py -q`
+   (about 30 s). Add `tests/test_lessons.py -k l019` when you added an L-019 case.
+3. Run the automatic checks once: `.venv/bin/python scripts/evalkit/run_all.py`. Run it in the background and
+   wait for the notice: it can take more than 1 hour. Add `--full` only where the data is:
+   `.venv/bin/python -m pytest tests/test_data_paths.py -k paths_exist_on_nas -q` passes (it skips when the
+   data is not mounted). The checks must pass.
+4. Run `/evaluate` on the work. Uncommitted work: use `--base <current branch>`. Committed work: use
+   `--base <the commit before the first change>`. Do not run the full checks a second time: `/evaluate` step 3
+   runs them.
+5. The work is done only when the automatic checks pass and the report has no open high finding. If
+   `/evaluate` reports an open high finding, fix it, or tell the user why not.
+6. If you found a new kind of mistake, add a rule to `eval/RULES.md` as a test or a lint. Follow its section
+   "How to add a rule (lessons)". Do not add the rule to this skill as text.
 
-## Style rules
+## Report to the user
 
-- Module docstring: model name, input format, key constraints (input size,
-  bit depth, etc.), and the install line as an indented code block.
-- Section comments: keep the template's `# ── Section ──` dividers so
-  future readers see the same structure across recipes.
-- Type annotations: match `_template.py` — `mt.Compose, ImageEncoderWrapper`
-  for vision-only, plus `Callable[[torch.Tensor], torch.Tensor], Any` for
-  the text-encoder and tokenizer in vision-language.
-- Hub constants: module-level `_<NAME>_HUB = "..."` (private, single
-  source of truth, overridable via the `hub=` kwarg).
-- Inline comments: explain the *why* of non-obvious slices
-  (`# CLS + register tokens`), never the *what*.
-
-## Editing this skill
-
-The copy in the repo, `.claude/skills/add-backbone/SKILL.md`, is the one to edit and commit.
-There is no `docs/` mirror anymore.
-
-## Output Format
-
-For each artifact:
-1. Show the new recipe file path + a one-sentence summary of the
-   `_model_call` pattern chosen.
-2. Show the modified files (init, pyproject, three doc tables) — one
-   line each.
-3. Report the smoke-import result.
-4. Flag anything that couldn't be tested without the heavy extra
-   installed (e.g. a forward pass) so the user can run it manually.
+1. The recipe file, and the `model_call` that you chose, in one sentence.
+2. The filled fact table, with a source for each fact.
+3. The output of `compare_with_authors.py`, and the name of the new test.
+4. The other changed files, one line each.
+5. The checks and their results. Name each check that you could not run (no GPU, no weights, no extra), so the
+   user can run it.

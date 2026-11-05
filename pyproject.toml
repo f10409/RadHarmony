@@ -4,15 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "radharmony"
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.10"
 dependencies = [
     "monai[itk]",
     "torch",
     "pandas",
+    "openpyxl",  # pd.read_excel for CheXpert race labels .xlsx
     "numpy",
     "pydicom",
     "pycocotools",
+    "opencv-python-headless",  # cv2.polylines for the RANZCR CLiP catheter masks
     "simpleitk>=2.5.3",
     "pyarrow>=15",
     "tqdm",
@@ -43,6 +45,7 @@ raddino = [
 biomed = [
     "open-clip-torch",
     "transformers>=5.6.0",
+    "torchvision>=0.26.0",
 ]
 chexagent = ["transformers>=5.6.0", "sentencepiece", "protobuf"]
 # Generative CheXagent-2-3b. The model card PINS transformers==4.40.0 +
@@ -55,7 +58,7 @@ chexagent_gen = [
     "torchvision==0.22.1",
     "accelerate",
     "einops",
-    "opencv-python",
+    "opencv-python-headless",  # same cv2 as the core install, no second copy
     "albumentations",
     "sentencepiece",
     "protobuf",
@@ -77,11 +80,10 @@ maira2_gen = [
     "sentencepiece",
     "protobuf",
 ]
-# Generative MedGemma-4B (google/medgemma-4b-it) for VQA / report generation.
-# Gemma-3-based → needs a recent transformers; GATED on Hugging Face (accept
-# the license + `huggingface-cli login` first). Its own env — conflicts with
-# chexagent_gen (transformers==4.40.0) and maira2_gen (transformers<4.47).
-# `uv pip install -e ".[medgemma_gen]"`.
+# Generative MedGemma-4B (google/medgemma-4b-it) for VQA and report generation.
+# It is based on Gemma 3, so it needs a recent transformers. It is GATED on Hugging
+# Face: accept the license and run `huggingface-cli login` first. It pins torch 2.7.1,
+# so it needs its own env: `uv pip install -e ".[medgemma_gen]"`.
 medgemma_gen = [
     "transformers>=5.6.0",
     "accelerate>=0.27.0",
@@ -95,12 +97,15 @@ medgemma_gen = [
 # jbdel/RadEval (v2.2.1, EMNLP 2025). NOT on PyPI — the PyPI `radeval` 0.0.x
 # is an unrelated package. Install the real framework from GitHub source.
 # Stage B only: separate env (newer transformers) — never with chexagent_gen.
+# RadEval needs Python 3.11 or newer. On Python 3.10 this extra installs nothing.
 radeval = [
     "radeval[api] @ git+https://github.com/jbdel/RadEval.git ; python_version >= '3.11'",
 ]
 medsiglip  = ["transformers>=5.6.0", "sentencepiece", "protobuf"]
-medimageinsights = ["mup", "fvcore", "tenacity", "huggingface_hub"]
-chexfound = ["omegaconf"]
+# The model code imports these at module level (V-A-46, rule L-019).
+medimageinsights = ["mup", "fvcore", "tenacity", "huggingface_hub", "torchvision>=0.26.0",
+                    "transformers>=5.6.0", "timm", "einops", "safetensors", "yacs", "pyyaml", "pillow"]
+chexfound = ["omegaconf", "torchvision>=0.26.0"]
 dinov3 = ["transformers>=5.6.0"]
 eva_x = ["timm", "huggingface_hub", "torchvision>=0.26.0"]
 ark_plus = ["torchvision>=0.26.0"]
@@ -111,9 +116,9 @@ all = [
 ]
 
 [tool.uv]
-# chexagent_gen (transformers==4.40.0, torch==2.7.1) and maira2_gen
-# (transformers>=4.46,<4.47) intentionally pin older versions per their model
-# cards; they cannot resolve alongside any extra pulling transformers>=5.6.0 or
+# chexagent_gen (transformers==4.40.0, torch==2.7.1), maira2_gen
+# (transformers>=4.46,<4.47) and medgemma_gen (torch==2.7.1, torchvision==0.22.1)
+# intentionally pin older versions per their model cards; they cannot resolve alongside any extra pulling transformers>=5.6.0 or
 # torch/torchvision>=recent. Declared pairwise so `uv lock` produces separate
 # resolutions per install space instead of failing outright.
 conflicts = [
@@ -129,6 +134,8 @@ conflicts = [
     [{ extra = "chexagent_gen" }, { extra = "eva_x" }],
     [{ extra = "chexagent_gen" }, { extra = "ark_plus" }],
     [{ extra = "chexagent_gen" }, { extra = "medical_mae" }],
+    [{ extra = "chexagent_gen" }, { extra = "medimageinsights" }],
+    [{ extra = "chexagent_gen" }, { extra = "chexfound" }],
     [{ extra = "maira2_gen" }, { extra = "all" }],
     [{ extra = "maira2_gen" }, { extra = "model" }],
     [{ extra = "maira2_gen" }, { extra = "biomed" }],
@@ -137,6 +144,7 @@ conflicts = [
     [{ extra = "maira2_gen" }, { extra = "dinov3" }],
     [{ extra = "maira2_gen" }, { extra = "siglip2" }],
     [{ extra = "maira2_gen" }, { extra = "radeval" }],
+    [{ extra = "maira2_gen" }, { extra = "medimageinsights" }],
     [{ extra = "chexagent_gen" }, { extra = "medgemma_gen" }],
     [{ extra = "maira2_gen" }, { extra = "medgemma_gen" }],
     [{ extra = "medgemma_gen" }, { extra = "all" }],
@@ -149,14 +157,15 @@ conflicts = [
     [{ extra = "medgemma_gen" }, { extra = "eva_x" }],
     [{ extra = "medgemma_gen" }, { extra = "ark_plus" }],
     [{ extra = "medgemma_gen" }, { extra = "medical_mae" }],
+    [{ extra = "medgemma_gen" }, { extra = "medimageinsights" }],
+    [{ extra = "medgemma_gen" }, { extra = "chexfound" }],
 ]
 
-# Keep the lock universal (resolves for every platform), but minimise the number
-# of version-forks uv explores. The default "requires-python" strategy forks a
-# separate resolution per compatible version, which — combined with the many
-# conflicting extras that pull an unpinned torch and its huge NVIDIA
-# `cuda-toolkit` metapackage tree — makes `uv lock` backtrack for ~90 min.
-# "fewest" prefers the smallest set of versions, collapsing that explosion.
+# Keep the lock universal (it resolves for every platform), but make uv try fewer
+# version forks. The default "requires-python" strategy makes one resolution for
+# each Python version. With the many conflicting extras that pull an unpinned torch
+# and its large NVIDIA `cuda-toolkit` tree, `uv lock` then backtracks for about 90 min.
+# "fewest" prefers the smallest set of versions.
 fork-strategy = "fewest"
 
 [tool.setuptools.packages.find]
@@ -166,4 +175,18 @@ include = ["radharmony*"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "ruff==0.17.3",
+    "vulture>=2.16",
 ]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["radharmony/evaluator/backbones/_template.py", "scripts/legacy", "notebooks"]
+
+[tool.ruff.lint]
+# Rules that find bugs. Style is not checked here.
+select = ["E9", "F", "B", "PLE", "PLW0177", "PLR0124", "S110", "S112"]
+
+[tool.ruff.lint.per-file-ignores]
+# L-020: no silent `except: pass` or `except: continue` around a file read in a harmonizer.
+"!radharmony/harmonizer/**" = ["S110", "S112"]

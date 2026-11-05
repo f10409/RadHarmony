@@ -92,7 +92,7 @@
   },
 
   "bboxes": {
-    "_comment": "image_level_labels_2024.csv ships 15,632 (patient_id, series_id, instance_number, injury_name=Active_Extravasation) point annotations. Could be wired as 3-D bbox dots like the lumbar-spine integration (commit d1d0535) in a follow-up.",
+    "_comment": "image_level_labels_2024.csv has 15,632 slice labels (patient_id, series_id, instance_number, injury_name): 8,400 Active_Extravasation and 7,232 Bowel. Could be wired as 3-D bbox dots like the lumbar-spine integration (commit d1d0535) in a follow-up.",
     "supported": false,
     "column": null
   },
@@ -111,5 +111,22 @@
   },
 
   "hu_window": [-150, 250],
-  "custom_preprocessing": "Custom harmonize() reads both train_2024.csv (per-patient labels) and train_series_meta.csv (per-series), inner-joins on patient_id to emit one row per series with patient labels replicated. Aortic_hu and incomplete_organ ride through as EXTRA_OUTPUT_COLS. image_path is a DICOM series directory, so the harmonizer and dataset both override verify_images to use os.path.isdir."
+  "custom_preprocessing": "Custom harmonize() reads both train_2024.csv (per-patient labels) and train_series_meta.csv (per-series), inner-joins on patient_id to emit one row per series with patient labels replicated. Aortic_hu and incomplete_organ ride through as EXTRA_OUTPUT_COLS. image_path is a DICOM series directory, so the harmonizer and dataset both override verify_images to use os.path.isdir.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: train_series_meta.csv, train_2024.csv and train_demographics_2024.csv read with pandas. The table has one row per series: 4,711 series of 3,147 patients. Age and sex come from the demographics file and are the same for each series of a patient. Age \"90+\" (90 patients) gives 90, and \"Unknown\" gives NaN (D-06). Sex Unknown gives NaN (D-26). The test split has no demographics file. Only these counts are written here (L-021, V-H3-32).",
+    "rsna_abdominal_trauma_2023_train": {
+      "images": 4711,
+      "studies": 3147,
+      "patients": 3147,
+      "sex": {
+        "F": 1326,
+        "M": 3332
+      },
+      "age_years": [
+        18.0,
+        90.0
+      ]
+    }
+  }
 }

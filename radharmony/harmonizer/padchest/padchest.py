@@ -5,33 +5,27 @@ import ast
 import numpy as np
 import pandas as pd
 
+from .._age import to_years
+from .._ids import warn_shared_study_ids
 from ..base import BaseHarmonizer
 
 
 class PadChestHarmonizer(BaseHarmonizer):
     """Harmonize PadChest into the standard RadHarmony format.
 
-    PadChest (BIMCV) is a Spanish chest-X-ray dataset of 160,861 images from
-    ~67,000 patients at Hospital San Juan de Alicante. Labels (193 distinct
-    findings) are NLP-derived from Spanish radiology reports plus manual
-    review and stored as Python literal string lists in the ``Labels``
-    column (e.g. ``"['cardiomegaly', 'pleural effusion']"``). Some raw
-    labels have leading-space variants (`` pneumonia`` vs ``pneumonia``);
-    per-label whitespace is stripped so both merge into the same one-hot
-    column.
+    PadChest (BIMCV) has 160,861 Spanish chest X-ray images of about 67,000 patients from
+    Hospital San Juan de Alicante. The 193 labels come from NLP on the Spanish reports and
+    a manual review. The ``Labels`` column holds Python list text, for example
+    ``"['cardiomegaly', 'pleural effusion']"``. Some labels have a leading space
+    (`` pneumonia``). The harmonizer strips it, so both forms give one column.
 
-    Images are PNG files distributed across 52 sibling subdirectories
-    under ``base_image_dir`` (e.g. ``.../PadChest/images/``):
-    ``0/``, ``1/``, …, ``50/``, plus ``54/`` (slots 51/52/53 don't exist).
-    This is the same structural-exception pattern as ChestX-ray14's
-    ``images_001/…/images_012/`` — ``base_image_dir`` is the deepest stable
-    directory and ``image_path`` carries the subdir name.
+    The PNG files are in 52 subfolders of ``base_image_dir`` (``0/`` to ``50/`` and ``54/``).
+    ``image_path`` has the subfolder name, as for ChestX-ray14.
 
     Args:
-        csv_path: Path to
-            ``PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz``.
-        base_image_dir: Root directory containing ``0/``, ``1/``, …, ``54/``
-            subdirectories (e.g. ``/mnt/.../PadChest/images/``).
+        csv_path: Path to ``PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz``.
+        base_image_dir: Root folder with the subfolders ``0/`` to ``54/``, for example
+            ``/data/PadChest/images/``.
     """
 
     LABEL_COLS = [
@@ -231,8 +225,8 @@ class PadChestHarmonizer(BaseHarmonizer):
     ]
 
     LABEL_JOIN_COLS = None
-    # The "Projection" column is cleaner than ViewPosition_DICOM (PA/L/AP/
-    # AP_horizontal/COSTAL vs the raw POSTEROANTERIOR/LATERAL/...).
+    # ``Projection`` has short names (PA, L, AP, AP_horizontal, COSTAL). ``ViewPosition_DICOM``
+    # has the raw names.
     VIEW_POSITION_SOURCE_COL = "Projection"
     VIEW_POSITION_JOIN_COLS = None
     MASK_SOURCE_COL = None
@@ -242,53 +236,62 @@ class PadChestHarmonizer(BaseHarmonizer):
     REPORT_JOIN_COLS = None
     REPORT_PATH_COL = None
 
-    #: Meta-labels that signal annotation quality / image-level rejection
-    #: rather than a clinical finding. When ``drop_uncertain=True`` (default,
-    #: mirroring the CheXpert pattern), rows positive for any of these are
-    #: dropped at the end of :meth:`_build_labels`.
+    #: ``PatientSex_DICOM``: M, F, O or empty. The base step makes ``sex`` (D-26).
+    #: The CSV has no age, only ``PatientBirth`` (a year). See ``_build_age_years``.
+    SEX_SOURCE_COL = "PatientSex_DICOM"
+
+    #: Labels about the quality of the image, not a finding. With ``drop_uncertain=True``
+    #: (default, as in CheXpert), :meth:`_build_labels` drops the rows with any of them.
     _UNCERTAIN_META_LABELS = ("exclude", "suboptimal_study")
 
     def __init__(self, csv_path: str, base_image_dir: str = None):
         super().__init__(csv_path=csv_path)
         self.base_image_dir = base_image_dir
-        self.drop_uncertain = True  # default; overridden by harmonize() kwarg
+        self.drop_uncertain = True  # harmonize() can change it
 
     def harmonize(self, *args, drop_uncertain: bool = True, **kwargs):
         """Harmonize PadChest.
 
-        PadChest has no CheXpert-style ``-1`` per-label uncertainty marker.
-        The closest analog is two image-level meta-labels that the
-        annotators used to flag bad data: ``exclude`` (1,312 rows) and
-        ``suboptimal_study`` (1,839 rows; ~3,151 rows total after dedup).
-        When ``drop_uncertain=True`` (default), rows positive for either
-        are removed.  Pass ``drop_uncertain=False`` to keep them — useful
-        when training on the full noisy distribution.
+        PadChest has no CheXpert-style ``-1`` mark. Two image labels flag bad data: ``exclude``
+        (1,312 rows) and ``suboptimal_study`` (1,839 rows, about 3,151 rows in total after
+        de-duplication). With ``drop_uncertain=True`` (default), the rows with either label are
+        dropped. Use ``drop_uncertain=False`` to keep them.
         """
         self.drop_uncertain = drop_uncertain
         return super().harmonize(*args, **kwargs)
+
+    def _build_age_years(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Give ``age_years`` = study year - ``PatientBirth`` (D-06).
+
+        The age can be 1 year too high, because the CSV has no birth date. A
+        missing birth year, or an age outside 0 to 130, gives NaN.
+        """
+        if not {"PatientBirth", "StudyDate_DICOM"} <= set(df.columns):
+            return super()._build_age_years(df)
+        study_year = pd.to_numeric(df["StudyDate_DICOM"], errors="coerce") // 10000
+        df = df.copy()
+        df["age_years"] = to_years(study_year - pd.to_numeric(df["PatientBirth"], errors="coerce"), "years")
+        return df
 
     def _build_patient_id(self) -> None:
         self.df["patient_id"] = self.df["PatientID"].astype(str)
 
     def _build_study_id(self) -> None:
         self.df["study_id"] = self.df["StudyID"].astype(str)
+        # The 2019 release gives 1 StudyID to 2 patients (V-H2-32).
+        warn_shared_study_ids(self.df, "PadChest", "StudyID")
 
     def _build_image_path(self) -> None:
-        # ImageDir is stored as int in the CSV (0..50, 54); cast to str so
-        # the resulting relative path is e.g. "0/<hash>_<slug>.png".
+        # ImageDir is an integer in the CSV. The path is like "0/<hash>_<slug>.png".
         self.df["image_path"] = (
             self.df["ImageDir"].astype(str) + "/" + self.df["ImageID"].astype(str)
         )
 
     def _build_labels(self) -> None:
-        """Parse the string-encoded Labels list and one-hot encode.
+        """Parse the ``Labels`` list text and make one 0/1 column for each label.
 
-        Labels are stored as Python literal lists in the CSV (e.g.
-        ``"['cardiomegaly', 'pleural effusion']"``). Some raw labels have
-        leading-space variants (`` pneumonia`` vs ``pneumonia``); per-label
-        whitespace is stripped so both merge.  Rows with NaN / unparseable
-        Labels (~103 of 160,861) are dropped per the config's
-        ``uncertain_handling.drop_uncertain_rows = true``.
+        It strips the space of a label such as `` pneumonia``. It drops the rows with NaN or
+        unreadable ``Labels`` (about 103 of 160,861).
         """
 
         def _parse(s):
@@ -307,13 +310,13 @@ class PadChestHarmonizer(BaseHarmonizer):
         self.df = self.df[keep].copy()
         parsed = parsed[keep]
 
-        # Single-pass one-hot: build the (n_rows, 193) int8 matrix from the
-        # parsed label sets, then concat as one block. Avoids the per-column
-        # frame.insert cost (and the resulting PerformanceWarning) of writing
-        # 193 columns one at a time.
+        # One matrix and one concat, not 193 column inserts (those give a PerformanceWarning).
         label_idx = {col: i for i, col in enumerate(self.LABEL_COLS)}
-        arr = np.zeros((len(parsed), len(self.LABEL_COLS)), dtype=np.int8)
+        arr = np.zeros((len(parsed), len(self.LABEL_COLS)), dtype=np.float32)
         for row_i, labels_set in enumerate(parsed.values):
+            if not labels_set:
+                arr[row_i] = np.nan  # an empty list says nothing, so not 0 for all (D-05, Q-15)
+                continue
             for lbl in labels_set:
                 col_i = label_idx.get(lbl)
                 if col_i is not None:
@@ -321,8 +324,7 @@ class PadChestHarmonizer(BaseHarmonizer):
         label_df = pd.DataFrame(arr, columns=self.LABEL_COLS, index=self.df.index)
         self.df = pd.concat([self.df, label_df], axis=1)
 
-        # Inline labels: snake-case rename here (base class only does this
-        # for separate-CSV labels).
+        # The base class renames only the labels of a separate CSV.
         for col in self.LABEL_COLS:
             snake = col.lower().replace(" ", "_")
             if snake != col:
@@ -336,12 +338,10 @@ class PadChestHarmonizer(BaseHarmonizer):
             self.df = self.df[~mask].copy()
 
     def _build_report(self) -> None:
-        """Copy the Spanish Report column directly into ``self.df["report"]``.
+        """Copy the ``Report`` column to ``report``.
 
-        PadChest reports are pre-processed (stemmed/lemmatized) Spanish text
-        stored inline in the CSV — there is no separate report file to
-        read, so the base class's file-path-based ``_build_report`` is
-        bypassed.  NaN entries propagate as NaN.
+        The reports are Spanish text, stemmed, inside the CSV. There is no report file, so the
+        base method is not used. NaN stays NaN.
         """
         if "Report" in self.df.columns:
             self.df["report"] = self.df["Report"]

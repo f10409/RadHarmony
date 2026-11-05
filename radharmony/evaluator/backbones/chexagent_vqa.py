@@ -1,27 +1,28 @@
-"""Generative CheXagent-2 backbone — visual question answering (VQA).
+"""Generative CheXagent-2 backbone for visual question answering (VQA).
 
 Wraps ``StanfordAIMI/CheXagent-2-3b`` as a question-conditioned answerer for
 :class:`VQAEvaluator`. Unlike ``make_chexagent_generator`` (report
-generation, which bakes in a fixed multi-step report prompt), this passes
+generation, which uses a fixed multi-step report prompt), this passes
 each sample's **question** as the prompt.
 
 Loading follows the official CheXagent-2 model card (see
 ``chexagent_gen`` for the verbatim recipe). Greedy decoding.
 
-DEPENDENCY ISOLATION: CheXagent-2 pins ``transformers==4.40.0``; install the
+DEPENDENCY ISOLATION: CheXagent-2 pins ``transformers==4.40.0``. Install the
 ``chexagent_gen`` extra in its own env.
 """
 
 from __future__ import annotations
 
 import os
-import tempfile
 from typing import Callable
 
 import monai.transforms as mt
 import torch
 
-from ._utils import normalize_to_uint8, squeeze_frame_dim, to_3channel, to_pil_rgb
+from ._utils import (
+    display_255, load_image, png_cache_dir, png_path, squeeze_frame_dim, to_3channel, to_pil_rgb, to_uint8,
+)
 
 _CHEXAGENT_HUB = "StanfordAIMI/CheXagent-2-3b"
 # Concise-answer instruction so closed (yes/no) questions get short answers.
@@ -53,29 +54,29 @@ def make_chexagent_vqa(
     )
 
     tokenizer = AutoTokenizer.from_pretrained(hub, trust_remote_code=True)
+    # device_map=device keeps the whole model on device. "auto" can spread it over all
+    # visible GPUs (V-B-15).
     model = AutoModelForCausalLM.from_pretrained(
-        hub, device_map="auto", trust_remote_code=True
+        hub, device_map=device, trust_remote_code=True
     )
     model = model.to(dtype).eval()
 
-    _tmp = tmp_dir or tempfile.mkdtemp(prefix="chexagent_vqa_png_")
-    os.makedirs(_tmp, exist_ok=True)
+    _tmp = png_cache_dir(tmp_dir, "chexagent_vqa_png_")
 
     _loader = mt.Compose(
         [
-            mt.LoadImage(image_only=True, ensure_channel_first=True),
+            load_image(),
             mt.Lambda(squeeze_frame_dim),
             mt.Transpose(indices=[0, 2, 1]),
+            mt.Lambda(display_255),
             mt.Lambda(to_3channel),
-            mt.Lambda(normalize_to_uint8),
+            mt.Lambda(to_uint8),
         ]
     )
 
     def transform(sample: dict) -> dict:
         src = str(sample["img"])
-        png = os.path.join(
-            _tmp, os.path.splitext(os.path.basename(src))[0] + ".png"
-        )
+        png = png_path(_tmp, src)
         if not os.path.exists(png):
             to_pil_rgb(_loader(src).float()).save(png)
         sample["img"] = png
@@ -103,6 +104,6 @@ def make_chexagent_vqa(
 
     @torch.no_grad()
     def vqa_answerer(img_paths: list[str], questions: list[str]) -> list[str]:
-        return [_answer(str(p), str(q)) for p, q in zip(img_paths, questions)]
+        return [_answer(str(p), str(q)) for p, q in zip(img_paths, questions, strict=True)]
 
     return transform, vqa_answerer

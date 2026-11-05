@@ -2,9 +2,11 @@
 
 Uses ``facebook/dinov3-vitb16-pretrain-lvd1689m`` by default (ViT-B/16,
 hidden size 768, 16-px patches, 4 register tokens). Accepts any format
-supported by MONAI's ``LoadImage`` (PNG, JPEG, DICOM, NIfTI, …). Images
-are min-max normalized to uint8 and passed through ``AutoImageProcessor``
-(resize + ImageNet-style normalization handled by the processor).
+supported by MONAI's ``LoadImage`` (PNG, JPEG, DICOM, NIfTI, …). 
+The loader gives the image as the dataset load shows it, in 0 to 255
+(D-13, D-27). A DICOM file gets its VOI window, and an 8-bit image keeps
+its values. Any other image is scaled with its minimum and maximum. Then
+``AutoImageProcessor`` resizes and normalizes it (ImageNet style).
 
 DINOv3's token sequence is ``[CLS, reg_0, …, reg_{R-1}, patch_0, …, patch_{N-1}]``.
 The number of register tokens ``R`` is read from ``model.config.num_register_tokens``
@@ -23,7 +25,7 @@ import monai.transforms as mt
 
 from radharmony.evaluator.transforms import EncoderPreprocessTransform, RadiologyEncoderTransform
 from radharmony.evaluator.wrappers import ImageEncoderWrapper
-from ._utils import squeeze_frame_dim, to_3channel, normalize_to_uint8, patches_to_spatial
+from ._utils import display_255, load_image, squeeze_frame_dim, to_3channel, to_uint8, patches_to_spatial
 
 _DINOV3_HUB = "facebook/dinov3-vitb16-pretrain-lvd1689m"
 
@@ -36,27 +38,27 @@ def make_dinov3(
 ) -> tuple[mt.Compose, ImageEncoderWrapper]:
     """Return ``(transform, encoder)`` for DINOv3.
 
-    A single HF model + processor pair is created and shared: the processor
-    is captured in the transform's preprocess closure and the backbone is
+    A single HF model + processor pair is created and shared. The processor
+    is captured in the transform's preprocess closure. The backbone is
     registered in the returned ``ImageEncoderWrapper``. No weights are
     loaded twice.
 
     Parameters
     ----------
     device :
-        Target device for the encoder (e.g. ``"cuda"``, ``"cuda:7"``,
+        Target device for the encoder (for example ``"cuda"``, ``"cuda:7"``,
         ``"cpu"``). The transform's preprocess step runs on CPU in
         DataLoader workers regardless of this setting.
     hub :
         HuggingFace model identifier. Defaults to the ViT-B/16 LVD-1689M
         pretrain. Other variants (ViT-L, ViT-H, ViT-7B) work with the same
-        recipe — only the embedding dim and input size change.
+        recipe, only the embedding dim and input size change.
     output_keys :
         Keys to keep in each sample dict. Defaults to ``{"img", "cls"}``.
         Pass ``{"img", "mask"}`` or ``{"img", "cls", "mask"}`` for
-        segmentation — the mask is processed through the same spatial
+        segmentation. The mask is processed through the same spatial
         pipeline as the image (processor resize + crop) using
-        nearest-neighbour interpolation.
+        nearest-neighbor interpolation.
 
     dtype :
         Output tensor dtype set by the final ``ToTensorD``. Defaults to
@@ -71,11 +73,11 @@ def make_dinov3(
         MONAI transform suitable for passing to a RadHarmony dataset via
         the ``transform=`` kwarg.
     encoder : ImageEncoderWrapper
-        Classification mode (default): ``forward(x) -> Tensor[B, D]`` —
+        Classification mode (default): ``forward(x) -> Tensor[B, D]``:
         the CLS-token / pooler output (``D = 768`` for ViT-B/16).
 
         Segmentation mode (``"mask"`` in *output_keys*):
-        ``forward(x) -> Tensor[B, D, H, W]`` — spatial patch feature map,
+        ``forward(x) -> Tensor[B, D, H, W]``, spatial patch feature map,
         where ``H = W = 14`` for 224 px input (16-px patches). Register
         tokens are skipped.
 
@@ -103,11 +105,12 @@ def make_dinov3(
     _skip = 1 + _n_register  # CLS + register tokens
 
     _loader = mt.Compose([
-        mt.LoadImage(image_only=True, ensure_channel_first=True),
+        load_image(),
         mt.Lambda(squeeze_frame_dim),
         mt.Transpose(indices=[0, 2, 1]),
+        mt.Lambda(display_255),
         mt.Lambda(to_3channel),
-        mt.Lambda(normalize_to_uint8),
+        mt.Lambda(to_uint8),
     ])
     _loader_mask = mt.Compose([
         mt.LoadImage(image_only=True, ensure_channel_first=True),
@@ -139,7 +142,7 @@ def make_dinov3(
         def _model_call(m, x: torch.Tensor) -> torch.Tensor:
             return m(pixel_values=x).pooler_output  # [B, D]
 
-    pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess)
+    pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess, processor=_processor)
     transform = (
         RadiologyEncoderTransform(
             preprocess=pp,

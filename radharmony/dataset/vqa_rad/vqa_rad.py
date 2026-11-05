@@ -13,21 +13,22 @@ class VQARadDataset(BaseVQADataset):
     """VQA dataset over VQA-RAD.
 
     Args:
-        base_image_dir: ``VQA_RAD Image Folder/`` directory, e.g.
+        base_image_dir: ``VQA_RAD Image Folder/`` directory, for example
             ``/data/VQA-RAD/VQA_RAD Image Folder/``.
         json_path: Path to ``VQA_RAD Dataset Public.json``. Auto-discovered
             in the parent of ``base_image_dir`` when ``None``.
         transform: MONAI transform pipeline. Defaults to the standard VQA
-            2-D pipeline (loads ``img``; text fields pass through unchanged).
+            2-D pipeline (loads ``img``, text fields pass through unchanged).
         cache_dir: Root directory for MONAI PersistentDataset cache.
         output_struct: Include ``answer_struct`` in each sample (unset for
-            VQA-RAD — its answers are plain strings, not structured).
+            VQA-RAD: its answers are plain strings, not structured).
         output_question_type: Include ``question_type`` in each sample.
         harmonized_df, harmonizer, harmonizer_path: Standard harmonizer
-            resolution paths; when used, ``json_path`` is not required.
+            resolution paths. When used, ``json_path`` is not required.
     """
 
     _HARMONIZER_CLS = VQARadHarmonizer
+    IMG_CHANNELS = 3  # color figures (D-42)
 
     def __init__(
         self,
@@ -43,7 +44,7 @@ class VQARadDataset(BaseVQADataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = VQARadHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = _h.base_image_dir
 
         if (
@@ -59,7 +60,7 @@ class VQARadDataset(BaseVQADataset):
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._json_path = infer_path(
-                base_image_dir, "VQA_RAD Dataset Public.json", user_path=json_path or "",
+                base_image_dir, "VQA_RAD Dataset Public.json", user_path=json_path or "", required=True, arg="json_path",
             ) or json_path
         else:
             self._json_path = json_path
@@ -77,7 +78,7 @@ class VQARadDataset(BaseVQADataset):
         )
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
-            self._harmonizer = VQARadHarmonizer(
+            self._harmonizer = self._HARMONIZER_CLS(
                 json_path=self._json_path,
                 base_image_dir=base_image_dir,
             )

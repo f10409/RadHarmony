@@ -1,14 +1,21 @@
 """Base radiological dataset wrapping MONAI PersistentDataset."""
 
+import functools
+import hashlib
+import json
+import types
 import warnings
 
+import numpy as np
 import pandas as pd
 import torch
 import monai as mn
 import pydicom
+from monai.data.utils import set_rnd
 from pydicom.pixel_data_handlers.util import apply_voi_lut
 
 from radharmony.utils.data_utils import get_data_dict, split_data, kfold_splits
+from radharmony.utils.dicom import PHOTOMETRIC_TAG, is_dicom, stored_value_sum
 
 
 # Columns not treated as classification labels when inferring labels from a raw DataFrame
@@ -23,6 +30,8 @@ _HARMONIZED_NON_LABEL_COLS = frozenset(
         "bbox",
         "report",
         "split",
+        "age_years",
+        "sex",
     }
 )
 
@@ -33,24 +42,26 @@ def _fix_missing_highbit(x):
     ITKReader (GDCM) cannot decode these and returns a constant image.
     pydicom assumes HighBit = BitsStored - 1. The result is written in the
     same form ITK uses (rescale applied, MONOCHROME1 as s*(M - raw) + b), so
-    later steps are unchanged. No-op for non-DICOM images or files with HighBit.
+    later steps are unchanged. No-op for non-DICOM images, files with HighBit and
+    color DICOMs (more than 1 sample per pixel), as in ``CXRPreprocessor``.
     Module-level so it is picklable for DataLoader workers.
     """
     path = str(x.meta.get("filename_or_obj", ""))
-    if not path.lower().endswith((".dcm", ".dicom")):
+    if not is_dicom(path, PHOTOMETRIC_TAG in x.meta):
         return x
-    if "HighBit" in pydicom.dcmread(path, stop_before_pixels=True):
+    head = pydicom.dcmread(path, stop_before_pixels=True, force=True)
+    if "HighBit" in head or head.get("SamplesPerPixel", 1) != 1:
         return x
-    ds = pydicom.dcmread(path)
+    ds = pydicom.dcmread(path, force=True)
     try:
         arr = ds.pixel_array.astype("float32")
-    except Exception as e:  # e.g. compressed data with no pydicom decoder
-        warnings.warn(f"No HighBit and pydicom cannot decode {path}: {e}")
+    except Exception as e:  # For example, compressed data with no pydicom decoder.
+        warnings.warn(f"No HighBit and pydicom cannot decode {path}: {e}", stacklevel=2)
         return x
     s = float(ds.get("RescaleSlope", 1) or 1)
     b = float(ds.get("RescaleIntercept", 0) or 0)
     if getattr(ds, "PhotometricInterpretation", "") == "MONOCHROME1":
-        arr = (2 ** int(ds.BitsStored) - 1) - arr
+        arr = stored_value_sum(ds) - arr  # M is -1 for signed values (D-13)
     arr = s * arr + b
     if arr.shape != tuple(x.shape[1:]):
         arr = arr.T
@@ -61,27 +72,34 @@ def _fix_missing_highbit(x):
 def _apply_voi_lut(x):
     """Apply DICOM VOI LUT (WindowCenter/Width or LUT sequence) to a MetaTensor.
 
-    No-op for non-DICOM images. Reads only the DICOM header (no pixel re-read).
+    No-op for non-DICOM images, and for a DICOM that is not MONOCHROME1 or
+    MONOCHROME2 (for example RGB), as in ``CXRPreprocessor`` (V-P-21).
+    Reads only the DICOM header (no pixel re-read).
     Module-level so it is picklable for DataLoader workers.
     """
     path = str(x.meta.get("filename_or_obj", ""))
-    if not path.lower().endswith((".dcm", ".dicom")):
+    if not is_dicom(path, PHOTOMETRIC_TAG in x.meta):
         return x
-    ds = pydicom.dcmread(path, stop_before_pixels=True)
+    ds = pydicom.dcmread(path, stop_before_pixels=True, force=True)
+    photometric = ds.get("PhotometricInterpretation", "")
+    # The DICOM standard applies a VOI LUT only to MONOCHROME images.
+    if photometric not in ("MONOCHROME1", "MONOCHROME2"):
+        return x
     arr = x.numpy().squeeze()
     # ITKReader (GDCM) loads MONOCHROME1 as s*(M - raw) + b (flip, then
-    # rescale), but the window tags refer to s*raw + b: undo the flip,
-    # window, then flip back.
-    flip = getattr(ds, "PhotometricInterpretation", "") == "MONOCHROME1" and (
+    # rescale). But the window tags refer to s*raw + b. So undo the flip,
+    # apply the window, then flip back.
+    flip = photometric == "MONOCHROME1" and (
         "WindowCenter" in ds or "VOILUTSequence" in ds
     )
     if flip:
         s = float(ds.get("RescaleSlope", 1) or 1)
         b = float(ds.get("RescaleIntercept", 0) or 0)
-        # M is 2**BitsStored - 1, except JPEG 2000 where GDCM uses
-        # 2**BitsAllocated - 1; flipped values above the first rule it out.
-        m = 2 ** int(ds.BitsStored) - 1
-        if (arr.max() - b) / s > m:
+        # M is 2**BitsStored - 1 for unsigned values and -1 for signed values (D-13).
+        # For unsigned JPEG 2000, GDCM uses 2**BitsAllocated - 1. Flipped values
+        # above the first M show this case.
+        m = stored_value_sum(ds)
+        if m > 0 and (arr.max() - b) / s > m:
             m = 2 ** int(ds.BitsAllocated) - 1
         arr = (s * m + 2 * b) - arr
     arr = apply_voi_lut(arr, ds).astype("float32")
@@ -91,26 +109,175 @@ def _apply_voi_lut(x):
     return x
 
 
-def _convert_monochrome1_to_2(x):
-    """Invert pixel values if the DICOM PhotometricInterpretation is MONOCHROME1.
+def _const_text(c) -> str:
+    """Return the text of a code constant. It is the same in every process: a set is sorted."""
+    if isinstance(c, types.CodeType):
+        return _code_hash(c)
+    if isinstance(c, (set, frozenset)):
+        return "{" + ",".join(sorted(_const_text(x) for x in c)) + "}"
+    if isinstance(c, tuple):
+        return "(" + ",".join(_const_text(x) for x in c) + ")"
+    return repr(c)
 
-    MONOCHROME1 encodes air as white (high values) and bone as black (low
-    values), opposite to the MONOCHROME2 convention used by most models.
-    This inverts the image so that all inputs follow the MONOCHROME2 convention.
 
-    No-op for non-DICOM images or images already in MONOCHROME2.
-    Module-level so it is picklable for DataLoader workers.
+def _code_hash(code, doc: str | None = None) -> str:
+    """Return a short hash of a code object: bytecode, constants and names (V-D-37).
+
+    The docstring ``doc`` is left out, so a docstring edit keeps the cache.
     """
-    path = str(x.meta.get("filename_or_obj", ""))
-    # print(f"[monochrome-debug] filename_or_obj={path!r}, endswith_dcm={path.lower().endswith('.dcm')}")
-    if not path.lower().endswith(".dcm"):
-        return x
-    ds = pydicom.dcmread(path, stop_before_pixels=True)
-    pi = getattr(ds, "PhotometricInterpretation", "")
-    # print(f"[monochrome-debug] PhotometricInterpretation={pi!r}, will_invert={pi == 'MONOCHROME1'}")
-    if pi == "MONOCHROME1":
-        x[:] = x.max() - x
-    return x
+    consts = code.co_consts[1:] if doc is not None and code.co_consts[:1] == (doc,) else code.co_consts
+    text = "|".join([code.co_code.hex(), *map(_const_text, consts), *code.co_names])
+    return hashlib.sha1(text.encode()).hexdigest()[:12]
+
+
+def _describe(obj, depth: int = 0):
+    """Return a JSON-ready description of a transform and its settings.
+
+    Private attributes, random states and the train mode of a model are left
+    out, so the description does not change when the transform runs. The one
+    private attribute in it is ``_loader``, which holds the reader of
+    ``LoadImaged``. A function, and the ``__call__`` of a RadHarmony step, add a
+    ``"code"`` hash (V-D-37).
+    """
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return [_describe(x, depth + 1) for x in obj]
+    if isinstance(obj, (set, frozenset)):
+        return sorted((_describe(x, depth + 1) for x in obj), key=str)
+    if isinstance(obj, dict):
+        return {str(k): _describe(v, depth + 1) for k, v in sorted(obj.items(), key=lambda kv: str(kv[0]))}
+    if isinstance(obj, (torch.dtype, np.dtype, type)):
+        return str(obj)
+    if isinstance(obj, torch.Tensor):
+        # numpy cannot read a bfloat16, CUDA or requires_grad tensor.
+        obj = obj.detach().cpu()
+        obj = obj.float() if obj.dtype == torch.bfloat16 else obj
+    if isinstance(obj, (np.ndarray, torch.Tensor)):
+        return hashlib.sha1(np.ascontiguousarray(np.asarray(obj)).tobytes()).hexdigest()[:12]
+    if isinstance(obj, (staticmethod, classmethod)):
+        return _describe(obj.__func__, depth)
+    if isinstance(obj, functools.partial):  # its function and its arguments (D-15)
+        return {"partial": _describe(obj.func, depth + 1), "args": _describe(list(obj.args), depth + 1),
+                "keywords": _describe(dict(obj.keywords), depth + 1)}
+    if isinstance(obj, (types.BuiltinFunctionType, types.BuiltinMethodType, np.ufunc)):
+        return {"builtin": f"{getattr(obj, '__module__', None)}.{getattr(obj, '__qualname__', obj.__name__)}"}
+    if isinstance(obj, (types.FunctionType, types.MethodType)):
+        # Name and code at any depth. The closure keeps the depth limit: a function can hold itself.
+        fn = getattr(obj, "__func__", obj)
+        desc = {"fn": f"{fn.__module__}.{fn.__qualname__}", "code": _code_hash(fn.__code__, fn.__doc__)}
+        if depth <= 6:
+            desc["closure"] = [_describe(c.cell_contents, depth + 1) for c in (fn.__closure__ or ())]
+            desc["defaults"] = _describe([fn.__defaults__, fn.__kwdefaults__], depth + 1)
+            if isinstance(obj, types.MethodType):  # the object holds the settings of a bound method
+                desc["self"] = _describe(obj.__self__, depth + 1)
+        return desc
+    if isinstance(obj, np.random.RandomState) or depth > 6:
+        return type(obj).__name__
+    if not hasattr(obj, "__dict__"):
+        return type(obj).__name__
+    attrs = {k: v for k, v in vars(obj).items()
+             if (not k.startswith("_") or k == "_loader") and k not in ("R", "training")}
+    desc = {"type": f"{type(obj).__module__}.{type(obj).__qualname__}",
+            **{k: _describe(v, depth + 1) for k, v in sorted(attrs.items())}}
+    call = type(obj).__call__ if callable(obj) else None
+    if type(obj).__module__.startswith("radharmony") and isinstance(call, types.FunctionType):
+        desc["code"] = _code_hash(call.__code__, call.__doc__)  # a fix of a RadHarmony step gives a new key (V-D-37)
+    return desc
+
+
+def _transform_key(transform) -> str:
+    """Return a short key of the steps that ``PersistentDataset`` caches (D-15, V-D-8).
+
+    These are the steps before the first random step, as in MONAI. A new image
+    size, pad or reader gives a new key. A new setting of an augmentation, for
+    example the flip strength, does not. New code in a function or in the
+    ``__call__`` of a RadHarmony step also gives a new key.
+    """
+    if isinstance(transform, (list, tuple)):
+        transform = mn.transforms.Compose(transform)  # as PersistentDataset does
+    steps = transform.transforms if isinstance(transform, mn.transforms.Compose) else [transform]
+    cached = []
+    for step in steps:
+        if isinstance(step, mn.transforms.RandomizableTrait) or not isinstance(step, mn.transforms.Transform):
+            break
+        cached.append(step)
+    text = json.dumps(_describe(cached), sort_keys=True, default=str)
+    return hashlib.sha1(text.encode()).hexdigest()[:12]
+
+
+def _has_random_step(transform) -> bool:
+    """Return True if the transform has a random step (a MONAI ``RandomizableTrait``).
+
+    Looks inside a list and a nested ``Compose`` (D-49). ``OneOf``, ``SomeOf`` and
+    ``RandomOrder`` are random steps.
+    """
+    if isinstance(transform, (list, tuple)):
+        return any(_has_random_step(t) for t in transform)
+    random_compose = (mn.transforms.OneOf, mn.transforms.SomeOf, mn.transforms.RandomOrder)
+    if isinstance(transform, mn.transforms.Compose) and not isinstance(transform, random_compose):
+        return any(_has_random_step(t) for t in transform.transforms)
+    return isinstance(transform, mn.transforms.RandomizableTrait)
+
+
+def _warn_random_val(transform, val_transform) -> None:
+    """Warn when the val split gets the dataset transform and it has a random step (D-49)."""
+    if val_transform is None and _has_random_step(transform):
+        warnings.warn(
+            "The dataset transform has a random step, and the val split uses it, because "
+            "val_transform is None. So the val images get augmentation. Pass val_transform= "
+            "with no random step (D-49).",
+            stacklevel=3,
+        )
+
+
+class _WorkerSeeded:
+    """Seed the random steps from PyTorch (D-15, V-D-7, Q-3).
+
+    In a DataLoader worker: seed once with the worker seed. ``monai.data.DataLoader``
+    does this in its ``worker_init_fn``. A plain ``torch.utils.data.DataLoader`` does
+    not, so each worker made the same random augmentation, and each epoch repeated
+    the one before. PyTorch gives each worker a new seed in each epoch.
+
+    In the main process (``ds[i]``, ``num_workers=0``): seed for each sample with a
+    number from the PyTorch random generator. So ``torch.manual_seed(0); ds[0]``
+    gives the same augmentation in each process and after each new seed. A
+    transform with no random step takes no number.
+    """
+
+    def __getitem__(self, index):
+        info = torch.utils.data.get_worker_info()
+        if info is None:
+            if _has_random_step(self.transform):
+                set_rnd(self.transform, seed=int(torch.randint(0, 2**32, ()).item()))
+        elif getattr(self, "_worker_seed", None) != info.seed:
+            set_rnd(self.transform, seed=info.seed)
+            self._worker_seed = info.seed
+        return super().__getitem__(index)
+
+
+class _Dataset(_WorkerSeeded, mn.data.Dataset):
+    pass
+
+
+class _PersistentDataset(_WorkerSeeded, mn.data.PersistentDataset):
+    pass
+
+
+def _sample_boxes(sample: dict) -> list:
+    """Return the boxes of a sample as a list of flat lists ([] if none).
+
+    Accepts an ``(N, 4)`` or ``(N, 6)`` tensor, one flat box, or a JSON string.
+    """
+    raw = sample.get("bbox")
+    if raw is None:
+        return []
+    boxes = raw.tolist() if hasattr(raw, "tolist") else raw
+    if isinstance(boxes, str):
+        boxes = json.loads(boxes)
+    if boxes and not isinstance(boxes[0], (list, tuple)):
+        boxes = [boxes]
+    return [[float(v) for v in b] for b in boxes]
 
 
 def _bbox_rect_for_projection(b, spatial, projection_axis):
@@ -142,6 +309,21 @@ def _bbox_rect_for_projection(b, spatial, projection_axis):
     return (x_min, y_min), x_max - x_min, y_max - y_min
 
 
+def _require_image_folder(df: pd.DataFrame, base_image_dir) -> None:
+    """Raise ``ValueError`` when ``image_path`` is relative and ``base_image_dir`` is not set (D-04).
+
+    Without the folder, ``verify_images()`` reads each path from the working folder. Then every row looks
+    missing, and the method drops them all.
+    """
+    import os
+
+    if not base_image_dir and not df["image_path"].astype(str).map(os.path.isabs).all():
+        raise ValueError(
+            "image_path is relative to base_image_dir (D-04). Give base_image_dir, "
+            "or every row looks missing."
+        )
+
+
 class BaseRadiologicalDataset:
     """Base class for MONAI-backed radiological datasets.
 
@@ -156,9 +338,9 @@ class BaseRadiologicalDataset:
         output_cls: Include label vector (``cls``) in each sample.
         output_mask: Include segmentation mask (``mask``) in each sample.
             Requires ``mask_path`` to be populated in the harmonized DataFrame
-            (e.g. via ``mask_output_dir``).
-        output_report: Include radiology report path (``report``) in each sample.
-            Requires a ``report_path`` column in the harmonized DataFrame.
+            (for example with ``mask_output_dir``).
+        output_report: Include the report text (``report``) in each sample.
+            It comes from the ``report`` column of the harmonized table.
         output_bbox: Include bounding box (``bbox``) in each sample.
             Requires a ``bbox`` column in the harmonized DataFrame.
         harmonized_df: If set, skip harmonization and use this DataFrame
@@ -175,17 +357,17 @@ class BaseRadiologicalDataset:
     """
 
     LABEL_COLS: list = []
-    #: Continuous target columns for regression tasks.  When a subclass sets
+    #: Continuous target columns for regression tasks. When a subclass sets
     #: this and the user passes ``output_reg=True``, each sample gets a
-    #: ``"reg"`` key aggregating those columns into a list (mirror of how
-    #: ``cls`` aggregates ``LABEL_COLS``).  Empty by default — only regression
-    #: datasets populate it (e.g. RSNA Bone Age).
+    #: ``"reg"`` key with those columns in a list. This is the same as how
+    #: ``cls`` collects ``LABEL_COLS``. Empty by default. Only regression
+    #: datasets populate it (for example RSNA Bone Age).
     REG_COLS: list = []
     _HARMONIZER_CLS = None
-    #: Output keys supported by this dataset.  Concrete subclasses override
-    #: this to advertise which output flags will actually populate data.
-    #: Passing an unsupported flag (e.g. ``output_mask=True`` on a cls-only
-    #: dataset) emits a ``UserWarning`` from ``__init__``.
+    #: Output keys supported by this dataset. Concrete subclasses override
+    #: this to show which output flags give data. A flag that is not
+    #: supported (for example ``output_mask=True`` on a cls-only dataset)
+    #: emits a ``UserWarning`` from ``__init__``.
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "mask", "bbox", "report", "reg"})
 
     #: Whether this dataset carries a per-box ``bbox_findings`` column (parallel
@@ -246,6 +428,21 @@ class BaseRadiologicalDataset:
                     stacklevel=3,
                 )
 
+        # A given transform that ends with SelectItemsD keeps only its keys. Warn when it drops
+        # the key of a supported flag (D-11). No image is loaded for this check.
+        steps = getattr(transform, "transforms", None)
+        last = steps[-1] if steps else None
+        if isinstance(last, mn.transforms.SelectItemsd):
+            kept = set(last.keys)
+            for _flag, _key in _flag_map.items():
+                if getattr(self, _flag) and _key in self.SUPPORTED_OUTPUTS and _key not in kept:
+                    warnings.warn(
+                        f"{_flag}=True, but the transform keeps only {sorted(kept)}, so samples have no "
+                        f"'{_key}' key. Add '{_key}' to output_keys of the transform.",
+                        UserWarning,
+                        stacklevel=3,
+                    )
+
     @property
     def _output_keys(self) -> set:
         keys = {"img"}
@@ -287,13 +484,14 @@ class BaseRadiologicalDataset:
     def _make_dataset(self, dicts: list, cache_subdir: str, transform=None):
         t = transform if transform is not None else self.transform
         if self.cache_dir is None:
-            return mn.data.Dataset(data=dicts, transform=t)
-        return mn.data.PersistentDataset(
+            return _Dataset(data=dicts, transform=t)
+        # The key of the cached steps is in the folder name, so a changed image size
+        # or pad does not read old tensors (D-15, V-D-8).
+        folder = f"{self.cache_dir}/{cache_subdir}" if cache_subdir else self.cache_dir
+        return _PersistentDataset(
             data=dicts,
             transform=t,
-            cache_dir=(
-                f"{self.cache_dir}/{cache_subdir}" if cache_subdir else self.cache_dir
-            ),
+            cache_dir=f"{folder}/{_transform_key(t)}",
         )
 
     def pre_cache(self, dataset, num_workers: int = 2):
@@ -339,17 +537,18 @@ class BaseRadiologicalDataset:
             indices: Explicit sequence of integer indices into *dataset*.
                 When provided, *n* and *per_label* are ignored.
             per_label: When ``True`` and ``LABEL_COLS`` is non-empty, pick
-                one random positive example per label by scanning the
-                pre-transform data dicts (no image loading required for
-                the scan).  Yields one figure per label; labels with no
-                positive example in *dataset* are skipped.
+                one random positive example per label. The scan reads the
+                pre-transform data dicts, so it loads no images.
+                It yields one grid figure with one panel for each label.
+                Labels with no positive example in *dataset* are skipped.
             random_state: Seed for reproducible random sampling.
             projection_axis: Spatial axis used for the mean projection when
                 collapsing 3-D volumes to 2-D for display.  ``0`` → axial
                 (default), ``1`` → coronal, ``2`` → sagittal.
 
         Yields:
-            ``matplotlib.figure.Figure`` — one figure per sample. The caller
+            ``matplotlib.figure.Figure``, one figure per sample, or one grid
+            figure with *per_label*. The caller
             is responsible for displaying (``plt.show()`` / ``display(fig)``)
             and closing (``plt.close(fig)``) each figure.
 
@@ -385,7 +584,7 @@ class BaseRadiologicalDataset:
                 ]
                 if positives:
                     selected.append((rng.choice(positives), label_name))
-                # else: no positive example for this label in the split — skip
+                # Else: no positive example for this label in the split, so skip it.
         else:
             per_label = False
             pool = list(range(len(dataset)))
@@ -416,23 +615,14 @@ class BaseRadiologicalDataset:
                 ax.imshow(img2d, cmap="gray", vmin=-1, vmax=1)
                 ax.set_title(label_name, fontsize=7)
                 ax.axis("off")
-                if "bbox" in sample:
-                    try:
-                        b = [float(v) for v in sample["bbox"]]
-                        rect = _bbox_rect_for_projection(
-                            b, img.shape[1:], projection_axis
-                        )
-                        if rect is not None:
-                            ax.add_patch(
-                                mpatches.Rectangle(
-                                    *rect,
-                                    linewidth=1,
-                                    edgecolor="lime",
-                                    facecolor="none",
-                                )
+                for b in _sample_boxes(sample):
+                    rect = _bbox_rect_for_projection(b, img.shape[1:], projection_axis)
+                    if rect is not None:
+                        ax.add_patch(
+                            mpatches.Rectangle(
+                                *rect, linewidth=1, edgecolor="lime", facecolor="none"
                             )
-                    except (TypeError, ValueError):
-                        pass
+                        )
 
             plt.tight_layout()
             yield fig
@@ -444,7 +634,6 @@ class BaseRadiologicalDataset:
 
             has_mask = "mask" in sample
             has_cls = "cls" in sample
-            has_bbox = "bbox" in sample
             has_report = "report" in sample
 
             # col 0 : image (+ bbox overlay when present)
@@ -459,7 +648,7 @@ class BaseRadiologicalDataset:
             is_3d = img.ndim == 4
             img2d = img[0].mean(axis=projection_axis) if is_3d else img[0]  # → (H, W)
 
-            ax_img.imshow(img2d, cmap="gray")  # , vmin=-1, vmax=1)
+            ax_img.imshow(img2d, cmap="gray")
             ax_img.axis("off")
 
             # ── title from cls labels ─────────────────────────────────────────
@@ -470,7 +659,7 @@ class BaseRadiologicalDataset:
                 cls_vals = sample["cls"].float().tolist()
                 pos = []
                 for i, v in enumerate(cls_vals):
-                    if v <= 0.5:
+                    if not v > 0.5:  # NaN (unknown) and -1 (uncertain) are not positive (D-05)
                         continue
                     grade = int(round(v))
                     pos.append(
@@ -480,20 +669,17 @@ class BaseRadiologicalDataset:
             ax_img.set_title("  ".join(title_parts), fontsize=8)
 
             # ── bbox overlay on image ─────────────────────────────────────────
-            if has_bbox:
-                try:
-                    b = [float(v) for v in sample["bbox"]]
-                    spatial = img.shape[1:]  # (H, W) or (D, H, W)
-                    rect = _bbox_rect_for_projection(b, spatial, projection_axis)
-                    if rect is not None:
-                        ax_img.add_patch(
-                            mpatches.Rectangle(
-                                *rect, linewidth=1.5, edgecolor="lime", facecolor="none"
-                            )
+            boxes = _sample_boxes(sample)
+            for b in boxes:
+                rect = _bbox_rect_for_projection(b, img.shape[1:], projection_axis)
+                if rect is not None:
+                    ax_img.add_patch(
+                        mpatches.Rectangle(
+                            *rect, linewidth=1.5, edgecolor="lime", facecolor="none"
                         )
-                        ax_img.set_title(ax_img.get_title() + "  [bbox]", fontsize=8)
-                except (TypeError, ValueError):
-                    pass
+                    )
+            if boxes:
+                ax_img.set_title(ax_img.get_title() + f"  [{len(boxes)} bbox]", fontsize=8)
 
             # ── mask overlay ──────────────────────────────────────────────────
             if has_mask:
@@ -507,7 +693,7 @@ class BaseRadiologicalDataset:
                 ax_mask.set_title("mask overlay", fontsize=8)
                 ax_mask.axis("off")
 
-            # ── report path as figure footnote ────────────────────────────────
+            # ── report text as figure footnote ────────────────────────────────
             if has_report:
                 fig.text(
                     0.5,
@@ -526,12 +712,17 @@ class BaseRadiologicalDataset:
         raise NotImplementedError
 
     def _infer_label_cols_from_df(self, df) -> list:
+        # Only declared labels: bbox_labels, age_months and the like are not labels (D-08).
+        if self._HARMONIZER_CLS is not None:
+            labels = {c.lower().replace(" ", "_") for c in self._HARMONIZER_CLS.LABEL_COLS or []}
+            return [c for c in df.columns if c in labels]
         return [c for c in df.columns if c not in _HARMONIZED_NON_LABEL_COLS]
 
     def _sync_label_cols_from_harmonizer(self, h) -> None:
-        # Prefer actual column names from the harmonized df (always snake_case)
-        # over the harmonizer's raw LABEL_COLS (which may still be title-case).
-        df_cols = self._infer_label_cols_from_df(h.harmonized_df)
+        # Take the declared labels of the harmonizer that are in the table, in snake case.
+        # Not every other column: age, bbox_labels and the like are not labels (D-08, L-014).
+        labels = {c.lower().replace(" ", "_") for c in h.get_label_cols()}
+        df_cols = [c for c in h.harmonized_df.columns if c in labels]
         if df_cols:
             self.LABEL_COLS = sorted(df_cols)
         elif not self.LABEL_COLS:
@@ -591,10 +782,15 @@ class BaseRadiologicalDataset:
         Returns:
             DataFrame of rows whose image file was not found (empty if all
             files exist).
+
+        Raises:
+            ValueError: If ``image_path`` is relative and ``base_image_dir`` is
+                ``None`` (D-04).
         """
         import os
 
         df = self._get_harmonized_df()
+        _require_image_folder(df, self.base_image_dir)
 
         def _exists(p):
             fp = os.path.join(self.base_image_dir, p) if self.base_image_dir else p
@@ -639,7 +835,8 @@ class BaseRadiologicalDataset:
                 Overrides the dataset-level transform. Useful for augmentations
                 that should only apply during training.
             val_transform: Optional MONAI transform for the validation set.
-                Overrides the dataset-level transform.
+                Overrides the dataset-level transform. If None and the dataset
+                transform has a random step, the method warns (D-49).
 
         Returns:
             A single ``PersistentDataset`` when ``n_splits`` is ``None``, or a
@@ -655,6 +852,7 @@ class BaseRadiologicalDataset:
             )
             return self._make_dataset(dicts, cache_subdir="")
 
+        _warn_random_val(self.transform, val_transform)
         train_df, val_df = split_data(df, "patient_id", n_splits, random_state)
 
         train_dicts = get_data_dict(
@@ -688,6 +886,8 @@ class BaseRadiologicalDataset:
             random_state: Seed for the patient shuffle (default: 56).
             train_transform: Optional MONAI transform override for training sets.
             val_transform: Optional MONAI transform override for validation sets.
+                If None and the dataset transform has a random step, the
+                method warns (D-49).
 
         Yields:
             Tuple of (train_dataset, val_dataset) for each fold.
@@ -696,6 +896,7 @@ class BaseRadiologicalDataset:
         self.LABEL_COLS = sorted(self.LABEL_COLS)
         cols = self._cols
 
+        _warn_random_val(self.transform, val_transform)
         for fold, (train_df, val_df) in enumerate(
             kfold_splits(df, "patient_id", n_splits, random_state)
         ):

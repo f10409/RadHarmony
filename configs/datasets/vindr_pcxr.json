@@ -1,0 +1,44 @@
+{
+  "_comment": "VinDr-PCXR 1.0.0. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "VinDr-PCXR",
+  "registry_key": "vindr_pcxr",
+  "modality": "2D",
+  "image_format": "DICOM",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: image_labels_train.csv and image_labels_test.csv read with pandas (7,728 and 1,397 images, one per patient), and the DICOM headers read with pydicom (PatientSex and PatientAge, D-06). The sex O (46 train and 16 test images) gives NaN (D-26). PatientAge is a DICOM age string with the unit Y, M or D. 294 train and 59 test images have no age (an empty tag, or 1 tag \"Y\" with no number). 150 images have 000D, which gives 0.0: D-06 keeps age 0 in a child dataset, because newborns are real. The paper says that every patient is under 10, but the tags give 72 train and 14 test images an age over 10 (for example 011Y, 019Y, 035Y). The table keeps the tag value. Only the image counts, sex and age are written here (L-021, V-H3-31).",
+    "vindr_pcxr_train": {
+      "harmonizer": "VinDrPCXRTrainHarmonizer",
+      "harmonizer_args": {
+        "base_dir": "base_image_dir"
+      },
+      "images": 7728,
+      "studies": 7728,
+      "patients": 7728,
+      "sex": {
+        "F": 3124,
+        "M": 4558
+      },
+      "age_years": [
+        0.0,
+        45.0
+      ]
+    },
+    "vindr_pcxr_test": {
+      "harmonizer": "VinDrPCXRTestHarmonizer",
+      "harmonizer_args": {
+        "base_dir": "base_image_dir"
+      },
+      "images": 1397,
+      "studies": 1397,
+      "patients": 1397,
+      "sex": {
+        "F": 585,
+        "M": 796
+      },
+      "age_years": [
+        0.0,
+        51.0
+      ]
+    }
+  }
+}

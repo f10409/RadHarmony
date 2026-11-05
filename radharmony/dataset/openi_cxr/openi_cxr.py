@@ -3,10 +3,10 @@
 3,955 radiology reports with 7,470 paired PNG images from the Indiana
 University hospital network.
 
-``base_image_dir`` must point at the **dataset root** — the directory
+``base_image_dir`` must point at the **dataset root**, the directory
 containing ``ecgen-radiology/`` (XML reports) and ``images/`` (PNG files).
 ``image_path`` in the harmonized DataFrame is relative to this root,
-e.g. ``images/CXR1_1_IM-0001-3001.png``.
+for example ``images/CXR1_1_IM-0001-3001.png``.
 """
 
 import os
@@ -32,7 +32,7 @@ class OpenICXRDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Dataset root directory (contains ``ecgen-radiology/``
-            and ``images/``), e.g. ``.../OpenI-IU-CXR/``.  Required unless
+            and ``images/``), for example ``.../OpenI-IU-CXR/``.  Required unless
             ``harmonizer_path`` or ``harmonized_df`` is provided.
         transform: MONAI Compose transform.  Defaults to the standard 2-D
             224 px pipeline.
@@ -41,12 +41,12 @@ class OpenICXRDataset(BaseRadiologicalDataset):
         output_cls: Yield 8 binary CheXpert-compatible labels under ``"cls"``.
         output_report: Yield full report text (findings + impression) under
             ``"report"``.
-        output_mask / output_bbox: Not supported; ignored with a warning.
-        dtype: Output tensor dtype.  Default ``torch.bfloat16``.
+        output_mask / output_bbox / output_reg: Not supported. A warning, and no key (D-11).
+        dtype: Dtype of ``img``. The labels stay float32. Default ``torch.bfloat16``.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "report"})
-    LABEL_COLS = _LABEL_COLS
+    LABEL_COLS = sorted(_LABEL_COLS)  # the order of cls (D-05)
     _HARMONIZER_CLS = OpenICXRHarmonizer
 
     def __init__(
@@ -57,6 +57,7 @@ class OpenICXRDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -67,7 +68,7 @@ class OpenICXRDataset(BaseRadiologicalDataset):
             base_image_dir = os.path.expanduser(base_image_dir)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = OpenICXRHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_dir", None)
 
         if (
@@ -101,6 +102,7 @@ class OpenICXRDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,

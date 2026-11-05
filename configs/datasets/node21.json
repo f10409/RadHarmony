@@ -1,0 +1,81 @@
+{
+  "_comment": "NODE21 (Sogancioglu et al., arXiv:2401.02192; Zenodo DOI 10.5281/zenodo.5548363, md5 0bc7a2f16d6ad41b343bfb568964c6d8) — nodule detection and generation on frontal CXR. 4,882 images: 1,134 with 1,476 radiologist-drawn nodule boxes, 3,748 nodule-free controls. Images pooled from ChestX-ray14, PadChest, JSRT and Open-I. VERIFIED AGAINST THE RELEASE 2026-09-05 — all four counts match the paper exactly. SIX TRAPS: (1) the directory is misspelled `proccessed_data` (two c's). (2) images are nested one level down in `<variant>/images/`, not beside metadata.csv. (3) negatives are a real row with x=y=width=height=0, which read literally is a zero-area box at the top-left corner — 3,748 spurious boxes if label 0 is not special-cased. (4) metadata.csv is one row per BOX, not per image: 5,224 rows for 4,882 images, so row counting double-counts positives. (5) `original_data` is ragged in shape AND dtype (1024x1024, 2828x2320, 2991x3000; uint8 and uint16 mixed) while `proccessed_data` is uniformly 1024x1024 uint16. (6) box coordinates differ between the two variants — measured, only 0.4% of positive rows share coordinates — so boxes from one variant are invalid against the other's pixels. Boxes are (x, y, width, height) pixel-space with a TOP-LEFT origin; the release does not document the corner, it was verified by rendering the largest-box positives and confirming every box lands in a lung field on a rounded opacity. LICENSE: CC BY-NC-ND 4.0 — non-commercial AND no-derivatives, more restrictive than anything else in this repo.",
+  "dataset_name": "NODE21",
+  "registry_key": "node21",
+  "modality": "2D",
+  "image_format": "MHA",
+  "base_image_dir": "<dataset root containing cxr_images/, e.g. <DATA_ROOT>/NODE21/>",
+  "primary_csv": {
+    "_comment": "One row per BOX. Columns: unnamed index, height, img_name, label, width, x, y. `label` is 1 for a nodule row and 0 for the zero-filled control encoding. Ids are n#### for nodule cases and c#### for controls.",
+    "path": "<DATA_ROOT>/NODE21/cxr_images/proccessed_data/metadata.csv",
+    "filename_variants": ["metadata.csv"]
+  },
+  "patient_id": {
+    "_comment": "NOT AVAILABLE. NODE21 ships no patient identifier. The harmonizer sets patient_id = filename stem, i.e. one image per patient. Deliberate: it prevents a caller believing a patient-level split is possible when it is not. Do NOT claim patient-disjoint splits on this dataset.",
+    "column": null,
+    "derivation": "filename stem"
+  },
+  "study_id": {
+    "_comment": "Same as patient_id — no study grouping exists.",
+    "column": null,
+    "derivation": "filename stem"
+  },
+  "image_path": {
+    "_comment": "'cxr_images/<variant_dir>/images/<img_name>' where variant_dir is `proccessed_data` (default) or `original_data`. Note the release's own misspelling.",
+    "column": "img_name",
+    "derivation": "cxr_images/<variant_dir>/images/ + img_name",
+    "prefix_to_strip": null
+  },
+  "labels": {
+    "_comment": "Single class. Image-level nodule presence derived from the box rows: 1,134 positive, 3,748 negative. Absence of a box means no annotated nodule, which is not the same as a radiologist ruling one out.",
+    "columns": ["nodule"],
+    "separate_csv": {
+      "_comment": "Labels are in the primary CSV.",
+      "path": null, "filename_variants": [], "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "No uncertainty labels.",
+      "nan_action": "none", "negative_one_action": "none", "drop_uncertain_rows": false
+    }
+  },
+  "view_position": {
+    "_comment": "Not provided; all images are frontal.",
+    "column": null, "source": null,
+    "separate_csv": {"path": null, "filename_variants": [], "join_columns": []}
+  },
+  "masks": {
+    "_comment": "No segmentation masks for the CXRs. The ct_patches/ tree ships 1,186 LUNA16 nodule patches with segmentations for the GENERATION track; those are 3-D CT patches, not radiographs, and are not exposed by this dataset class.",
+    "supported": false, "column": null, "format": null
+  },
+  "bboxes": {
+    "_comment": "THE POINT OF THIS DATASET. Released as pixel (x, y, width, height) top-left; harmonized to RadHarmony's [dim0_min, dim0_max, dim1_min, dim1_max] normalised to [0,1] with dim0 = row. Stored JSON-ENCODED (like MS-CXR and ChestX-Det10), so the boxes stay readable after a CSV save and load. The transform reads a JSON string or a list. Each image has 0 to 3 boxes. 1,476 boxes total, all verified within [0,1] after conversion.",
+    "supported": true, "column": "boxes"
+  },
+  "reports": {
+    "_comment": "No reports.",
+    "supported": false, "format": null,
+    "separate_csv": {"_comment": null, "path": null, "filename_variants": [], "join_columns": []},
+    "base_dir": null, "path_column": null
+  },
+  "extra_init_params": {
+    "_comment": "variant: 'processed' (default) | 'original'. keep_negatives: bool = True — keep the 3,748 nodule-free controls, the benchmark's negative class."
+  },
+  "hu_window": null,
+  "custom_preprocessing": "Harmonizer collapses one-row-per-box into one-row-per-image and discards the zero-filled coordinates on label-0 rows. Image size is read per image via SimpleITK rather than hardcoded to 1024, because `original_data` is genuinely ragged and a hardcoded size would mis-scale every box without erroring. Images are uint16 (12-bit, observed 0..4095), so the percentile windowing in RadiologyTransform2D is load-bearing — a plain 8-bit cast clips almost everything to black. PROVENANCE: filenames_orig_and_new.csv maps ids back to the source corpus for the 1,134 nodule images ONLY (chestxray14 617, padchest 314, jsrt 149, openi 54); the 3,748 controls get source_dataset='unknown' and their provenance is unrecoverable, so NODE21 controls cannot be de-duplicated against a ChestX-ray14/PadChest/Open-I copy held elsewhere. EVALUATION: the official metric is a free-response ROC (sensitivity vs average FP/image), not mAP. Nothing in RadHarmony computes it. NO TEST SPLIT: the public release is the challenge's training data; the evaluation set is held out on Grand Challenge, so a published NODE21 test number is not reproducible from this data alone.",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources (2026-11-03): the paper (Sogancioglu et al., arXiv:2401.02192: 4,882 images, 1,134 with 1,476 nodule boxes, 3,748 controls), and cxr_images/proccessed_data/metadata.csv read with pandas, with the image sizes read with SimpleITK. All of these counts match the paper. metadata.csv has 5,224 rows: one row for each box (1,476) and one row with label 0 and zero coordinates for each control (3,748). The source has no patient ID, so patient_id and study_id are the file stem (one image is one patient). No label is uncertain. Every box stays after the clip to the image (D-07). The source has no sex and no age. There is no official split, so there is one block. node21_original has no block: the test builds Node21Harmonizer with only base_image_dir, so it reads the processed variant, not original_data.",
+    "node21": {
+      "images": 4882,
+      "studies": 4882,
+      "patients": 4882,
+      "positives": {
+        "nodule": 1134
+      },
+      "uncertain": {},
+      "rows_with_bbox": 1134,
+      "boxes": 1476,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    }
+  }
+}

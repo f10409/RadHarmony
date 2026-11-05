@@ -1,0 +1,132 @@
+{
+  "_comment": "QaTa-COV19 — COVID-19 chest X-rays with ground-truth infection-region segmentation masks, compiled by Qatar University and Tampere University. RadHarmony integrates the QaTa-COV19-v2 release, which is the version with a publisher-defined Train/Test split and a 1:1 image-to-mask pairing (7,145 train + 2,113 test = 9,258 images, every one of them COVID-19-positive and every one of them masked). Images and masks are 224x224 8-bit grayscale PNGs; masks are binary {0, 255}. There is no metadata CSV anywhere in the release — the harmonizer scans the Images/ directory and derives every column from the filename plus the sibling Ground-truths/ directory. Two filename schemes coexist: the original QaTa scheme (covid_<n>.png, 2,951 files, all in the train split) and a BIDS-style scheme (sub-<subject>_ses-<session>[_acq-<n>]_run-<n>_bp-chest[_vp-<view>]_<cr|dx>.png, 4,194 train + 2,113 test) that also carries subject, session and view position. Distributed on Kaggle by the dataset's own first author (aysendegerli = Aysen Degerli, Tampere University), so Kaggle IS the primary channel here, not a third-party mirror. Download: https://www.kaggle.com/datasets/aysendegerli/qatacov19-dataset (kagglehub dataset slug 'aysendegerli/qatacov19-dataset'; public, no auth needed). Papers: Degerli et al., 'COVID-19 infection map generation and detection from chest X-ray images', Health Inf Sci Syst 2021; Yamac et al., 'COVID-19 infection localization and severity grading from chest X-ray images', Comput Biol Med 2021.",
+
+  "dataset_name": "QaTa-COV19 (v2)",
+  "registry_key": "qata_cov19",
+  "modality": "2D",
+  "image_format": "PNG",
+
+  "base_image_dir": "<path_to_QaTa-COV19>/QaTa-COV19-v2/Train Set/Images/   (test split: .../QaTa-COV19-v2/Test Set/Images/)",
+
+  "primary_csv": {
+    "_comment": "No primary CSV — the release ships no metadata spreadsheet of any kind. The harmonizer lists base_image_dir for *.png and builds the DataFrame from filenames.",
+    "path": null,
+    "filename_variants": []
+  },
+
+  "patient_id": {
+    "_comment": "BIDS-style names carry a real subject id: sub-S08047_ses-E16280_... -> patient_id = 'S08047' (474 distinct subjects across the 2,113 test images). The original QaTa scheme carries no patient identity at all, so covid_1000.png -> patient_id = 'covid_1000' (one pseudo-patient per image). Never group-split on patient_id across the two schemes without checking filename_scheme first.",
+    "column": null,
+    "derivation": "Value of the 'sub-' token when present, else the filename stem"
+  },
+
+  "study_id": {
+    "_comment": "BIDS-style names carry a session id: ses-E16280 -> study_id = 'E16280' (2,092 distinct sessions over 2,113 test images, so a handful of sessions contribute more than one image). QaTa-scheme rows fall back to patient_id.",
+    "column": null,
+    "derivation": "Value of the 'ses-' token when present, else same as patient_id"
+  },
+
+  "image_path": {
+    "_comment": "Bare filename (e.g. covid_1000.png). base_image_dir is the split's Images/ directory, so no prefix is needed.",
+    "column": null,
+    "derivation": "Filename of the PNG in base_image_dir",
+    "prefix_to_strip": null
+  },
+
+  "labels": {
+    "_comment": "Every image in QaTa-COV19-v2 is COVID-19-positive, so 'covid' is a constant 1 column. It exists so output_cls has something to yield and so the class composes with a negative-control dataset; it is NOT a classification task on its own. The classification flavour of QaTa-COV19 comes from its Control_Group/ folders, which RadHarmony deliberately does not wire — see custom_preprocessing.",
+    "columns": ["covid"],
+    "separate_csv": {
+      "_comment": "No label file — the label is definitional for this release.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Constant 1; no uncertainty, no NaN.",
+      "nan_action": "keep",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": false
+    }
+  },
+
+  "view_position": {
+    "_comment": "Parsed from the 'vp-' token in BIDS-style filenames and upper-cased: vp-ap -> AP, vp-pa -> PA, vp-ll -> LL. Test split: 1,606 AP, 312 PA, 16 LL, 179 with no vp- token (NaN). QaTa-scheme rows (covid_<n>.png) have no view information and are always NaN.",
+    "column": null,
+    "source": "filename",
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+
+  "masks": {
+    "_comment": "COVID-19 infection-region masks, one binary PNG per image, in the split's sibling Ground-truths/ directory named mask_<image filename>. Already decoded image files — no RLE, no mask_output_dir, no preprocessing step. mask_path is stored ABSOLUTE because get_data_dict only prepends base_image_dir to image_path, never to mask_path.",
+    "supported": true,
+    "column": "mask_path",
+    "format": "file_path"
+  },
+
+  "bboxes": {
+    "_comment": "Not provided.",
+    "supported": false,
+    "column": null
+  },
+
+  "reports": {
+    "_comment": "Not provided — the release contains images and masks only.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+
+  "extra_init_params": {
+    "masks_dir": "Optional override for the Ground-truths/ directory. Defaults to the sibling '../Ground-truths/' of base_dir, which is correct for an unmodified download."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "No CSV — the harmonizer scans base_image_dir. Deliberately NOT wired, with reasons: (1) QaTa-COV19-v1 (4,603 images) — its 2,951 masked images are the same filenames already present in the v2 train split, and its other 1,652 images have no masks at all, so wiring it would silently overlap the v2 train set; v1 is the only place the images exist at native resolution (1050x1050 and similar) rather than resampled to 224x224, so it is worth adding if that is what is wanted. (2) Control_Group/ (128,909 images) — Control Group II is a re-upload of ChestX-ray14 (already a first-class RadHarmony dataset, registry key 'chestxray14') plus the Kermany pediatric pneumonia set, and Control Group I is an unattributed 'normal' set; per .claude/skills/add-dataset/SKILL.md we do not wire third-party re-uploads of datasets we already support from their primary source. (3) Early-QaTa-COV19/ (1,054 unique filenames, all a subset of v1; 211 of them also in the v2 train split) — a labelled difficulty subset, not an independent split.",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources (2026-11-03): readme.txt of the source (QaTa-COV19-v2 has 9,258 COVID-19 chest X-rays, each with a mask_<file name>.png), and the file lists of Train Set/Images/, Train Set/Ground-truths/, Test Set/Images/ and Test Set/Ground-truths/ read with Python and pandas. Train has 7,145 images and test has 2,113 (sum 9,258, as the readme says). Every image has its mask file. The source has no CSV. A file name sub-<subject>_ses-<session>_... gives patient_id <subject> and study_id <session>. A file name covid_<n>.png has no subject, so patient_id and study_id are the file stem. Train: 4,194 sub- files (1,656 subjects, 4,188 sessions) and 2,951 covid_ files, so 4,607 patients and 7,139 studies. Test: 2,113 sub- files, 474 subjects, 2,092 sessions. No subject is in both splits. Every image is COVID-19 positive, so covid is 1 on every row and no label is uncertain. The source has no boxes, no sex and no age.",
+    "patients_in_two_splits": 0,
+    "qata_cov19_train": {
+      "harmonizer_args": {
+        "base_dir": "base_image_dir"
+      },
+      "images": 7145,
+      "studies": 7139,
+      "patients": 4607,
+      "positives": {
+        "covid": 7145
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_mask": 7145,
+      "rows_with_report": 0
+    },
+    "qata_cov19_test": {
+      "harmonizer_args": {
+        "base_dir": "base_image_dir"
+      },
+      "images": 2113,
+      "studies": 2092,
+      "patients": 474,
+      "positives": {
+        "covid": 2113
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_mask": 2113,
+      "rows_with_report": 0
+    }
+  }
+}

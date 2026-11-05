@@ -15,22 +15,22 @@ from ..transforms import RadiologyTransform2D
 class ChestImaGenomeGoldDataset(BaseRadiologicalDataset):
     """2-D MONAI dataset for Chest ImaGenome gold (1,000 verified images).
 
-    Chest ImaGenome ships annotations only; the pixels come from the MIMIC-CXR
+    Chest ImaGenome ships annotations only. The pixels come from the MIMIC-CXR
     **DICOM** tree.  Each sample carries up to ~26 anatomical-region bounding
-    boxes.  Per-box **anatomy** is in ``bbox_labels``; per-box **findings** are
+    boxes.  Per-box **anatomy** is in ``bbox_labels``. Per-box **findings** are
     in the harmonized ``bbox_findings`` column (see
     :class:`~radharmony.harmonizer.chest_imagenome.ChestImaGenomeGoldHarmonizer`).
 
     Args:
         base_image_dir: Root of the MIMIC-CXR DICOM file tree (children are
-            ``p10/``, ``p11/`` ...), e.g. ``.../MIMIC-CXR-V2-AWS/files/``.
+            ``p10/``, ``p11/`` ...), for example ``.../MIMIC-CXR-V2-AWS/files/``.
         annotation_dir: Chest ImaGenome release root (contains ``gold_dataset/``,
-            ``utils/``), e.g. ``/data/CHEST-IMAGENOME/``.
+            ``utils/``), for example ``/data/CHEST-IMAGENOME/``.
         transform: MONAI Compose transform. Defaults to standard 2-D pipeline.
         cache_dir: PersistentDataset cache directory. ``None`` disables caching.
         output_bbox: Yield boxes under ``bbox`` and anatomy under ``bbox_labels``
             (default ``True`` - boxes are this dataset's sole annotation).
-        dtype: Output tensor dtype. Default ``torch.bfloat16``.
+        dtype: Dtype of ``img``. The labels stay float32. Default ``torch.bfloat16``.
 
     Note:
         This is MIMIC-derived, PhysioNet-credentialed data - never commit the
@@ -51,6 +51,7 @@ class ChestImaGenomeGoldDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = True,
         harmonized_df=None,
         harmonizer=None,
@@ -65,7 +66,7 @@ class ChestImaGenomeGoldDataset(BaseRadiologicalDataset):
         _preset = harmonizer_path is not None or harmonized_df is not None or harmonizer is not None
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = ChestImaGenomeGoldHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if base_image_dir is None and not _preset:
@@ -98,6 +99,7 @@ class ChestImaGenomeGoldDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,

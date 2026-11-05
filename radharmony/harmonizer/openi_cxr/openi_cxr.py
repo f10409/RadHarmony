@@ -1,57 +1,29 @@
 """Harmonizer for the OpenI Indiana University Chest X-Ray dataset (IU X-Ray).
 
-3,955 radiology reports with 7,470 paired chest X-ray images from the Indiana
-University hospital network, released by the NLM/LHNCBC under open-access license.
+3,955 reports with 7,470 chest X-ray images from the Indiana University hospital network. The
+NLM/LHNCBC released them under an open-access license. Source:
+https://openi.nlm.nih.gov/faq?download=true (PNG: ``NLMCXR_png.tgz``, DICOM: ``NLMCXR_dcm.tgz``,
+reports: ``NLMCXR_reports.tgz``). Cite: Demner-Fushman D, et al. *JAMIA* 2016;23(2):304-310.
 
-**Source:**
-  https://openi.nlm.nih.gov/faq?download=true
-  - PNG images: NLMCXR_png.tgz  (~1.36 GB)
-  - DICOM:      NLMCXR_dcm.tgz  (~75 GB)
-  - Reports:    NLMCXR_reports.tgz (~1.1 MB)
+``base_dir`` has ``ecgen-radiology/<n>.xml`` (reports), ``images/<id>.png`` and one DICOM
+folder for each patient (``<n>/<n>_IM-XXXX-XXXX.dcm``). The ``parentImage id`` of the XML (for
+example ``CXR1_1_IM-0001-3001``) is the file name of the PNG.
 
-**Cite:**
-  Demner-Fushman D, et al. Preparing a collection of radiology examinations for
-  distribution and retrieval. *JAMIA*. 2016;23(2):304–310.
-  https://pubmed.ncbi.nlm.nih.gov/26133894/
+The table has one row for each image (7,470 rows). A report has about 2 images (frontal and
+lateral), and both rows get the same report text.
 
-**Layout after extraction:**
+Labels come from the ``<MeSH><major>`` tags. A term matches whole words only. The terms give
+CheXpert-style binary columns. The raw terms stay in ``mesh_major`` (JSON list). A report with
+only the term "No Indexing" has no label, so all its labels are NaN (D-05).
 
-    <base_dir>/
-      ecgen-radiology/
-        1.xml  ...  3955.xml
-      images/
-        CXR1_1_IM-0001-3001.png
-        ...
-      1/                        ← DICOM folders (one per patient)
-        1_IM-0001-3001.dcm
-        1_IM-0001-4001.dcm
-      2/
-        ...
+The figure number gives a first view (F1 frontal, F2 lateral). The DICOM ``ViewPosition`` tag
+corrects it if the tag says AP or a lateral view. A PA tag counts only on F1, because many
+lateral images also have PA (V-H2-40).
 
-**One row per image** (7,470 rows). Each report contributes one row per associated
-image (usually 2: frontal PA + lateral). The report text (FINDINGS + IMPRESSION)
-is duplicated across both rows.
+Text columns: ``findings``, ``impression``, ``indication`` (``AbstractText`` labels) and
+``report`` (findings and impression joined).
 
-**Image IDs and filenames:** the ``parentImage id`` attribute in the XML (e.g.
-``CXR1_1_IM-0001-3001``) corresponds to ``images/<id>.png``.
-
-**Labels:** extracted from ``<MeSH><major>`` tags using prefix matching to
-produce CheXpert-compatible binary columns. Raw terms are preserved as a
-JSON list in ``mesh_major``.
-
-**Report text fields:**
-  ``findings``   — ``<AbstractText Label="FINDINGS">``
-  ``impression`` — ``<AbstractText Label="IMPRESSION">``
-  ``report``     — findings + " " + impression (concatenated)
-  ``indication`` — ``<AbstractText Label="INDICATION">``
-
-**Harmonized columns:**
-  ``patient_id``, ``study_id``, ``image_path``, ``dicom_path``,
-  ``view_position``, ``report``, ``findings``, ``impression``, ``indication``,
-  ``mesh_major`` (JSON list),
-  ``no_finding``, ``cardiomegaly``, ``edema``, ``atelectasis``,
-  ``consolidation``, ``pleural_effusion``, ``pneumothorax``,
-  ``support_devices``
+Details: ``docs/wiki/reference/datasets/vqa-text/openi_cxr.md``.
 """
 
 import json
@@ -61,42 +33,74 @@ import xml.etree.ElementTree as ET
 
 import pandas as pd
 
+from .._dicom_tags import read_dicom_tags, tag_values
 from ..base import BaseHarmonizer
 
 
-# ------------------------------------------------------------------
-# MeSH → CheXpert-compatible binary label mapping
-# Each entry: (binary_col, list_of_mesh_prefixes_that_trigger_it)
-# Matching is case-insensitive prefix/substring on the raw MeSH term.
-# ------------------------------------------------------------------
+# MeSH terms and the label that each one sets: (label column, phrases).
+# A phrase matches whole words of the MeSH term, in any case. Part of a word does not match:
+# "tube" is not in "Tuberculosis" and "normal" is not in "Abnormal" (V-H2-7). A final "s"
+# can follow a phrase ("Tubes").
 _MESH_LABEL_MAP = [
     ("no_finding",       ["normal"]),
     ("cardiomegaly",     ["cardiomegaly"]),
     ("edema",            ["pulmonary edema", "pulmonary congestion", "edema"]),
-    ("atelectasis",      ["atelectasis", "pulmonary atelectasis", "lung/hypoinflation"]),
+    ("atelectasis",      ["atelectasis", "pulmonary atelectasis"]),
     ("consolidation",    ["consolidation", "pneumonia", "airspace disease"]),
     ("pleural_effusion", ["pleural effusion", "effusion/pleural"]),
     ("pneumothorax",     ["pneumothorax"]),
-    ("support_devices",  ["catheters", "pacemaker", "leads", "tube", "defibrillator"]),
+    # The MeSH terms of a pacemaker study are "Implanted Medical Device" or "Medical Device" (V-H2-42).
+    ("support_devices",  ["catheter", "tube", "medical device", "stent"]),
 ]
+
+# A report with only these terms has no label at all (D-05, V-H2-41).
+_NO_LABEL_TERMS = {"no indexing"}
+
+# A device term on the breast ("Medical Device/breast/bilateral") is a breast implant.
+_BREAST_RE = re.compile(r"\bbreast\b")
+
+# DICOM ViewPosition values of a lateral image.
+_LATERAL_TAGS = {"LL", "RL", "LAT", "LATERAL", "LARGE LATERAL"}
 
 _LABEL_COLS = [col for col, _ in _MESH_LABEL_MAP]
 
+_MESH_LABEL_RE = [
+    (col, re.compile(r"\b(?:" + "|".join(re.escape(p) for p in phrases) + r")s?\b"))
+    for col, phrases in _MESH_LABEL_MAP
+]
+
 
 def _mesh_to_labels(terms: list[str]) -> dict:
-    """Map a list of raw MeSH major terms to binary label dict."""
+    """Map the MeSH major terms of a report to a dict of binary labels.
+
+    A list with only "No Indexing" gives NaN in every label (D-05).
+    """
     lower_terms = [t.lower() for t in terms]
-    result = {col: 0 for col, _ in _MESH_LABEL_MAP}
-    for col, prefixes in _MESH_LABEL_MAP:
-        for lt in lower_terms:
-            if any(lt.startswith(p) or p in lt for p in prefixes):
-                result[col] = 1
-                break
-    return result
+    if all(t in _NO_LABEL_TERMS for t in lower_terms):
+        return {col: float("nan") for col, _ in _MESH_LABEL_RE}
+    return {col: int(any(rx.search(lt) and not (col == "support_devices" and _BREAST_RE.search(lt))
+                         for lt in lower_terms))
+            for col, rx in _MESH_LABEL_RE}
+
+
+def _view_from_tag(figure_view: str, tag: str) -> str:
+    """Return the view of one image from its figure view and its DICOM ``ViewPosition`` tag.
+
+    The tag wins when it says AP or a lateral view. A PA tag counts only on a frontal
+    figure, because many lateral images also have PA. With no tag, the figure view stays.
+    """
+    tag = (tag or "").strip().upper()
+    if tag == "AP":
+        return "AP"
+    if tag in _LATERAL_TAGS:
+        return "lateral"
+    if tag == "PA" and figure_view == "frontal":
+        return "PA"
+    return figure_view
 
 
 def _parse_xml(path: str) -> list[dict]:
-    """Parse one XML report file into a list of rows (one per parentImage)."""
+    """Parse one XML report into a list of rows, one for each ``parentImage``."""
     try:
         tree = ET.parse(path)
     except ET.ParseError:
@@ -104,7 +108,6 @@ def _parse_xml(path: str) -> list[dict]:
 
     root = tree.getroot()
 
-    # --- report text fields ---
     def _text(label: str) -> str | None:
         el = root.find(f'.//AbstractText[@Label="{label}"]')
         t = el.text.strip() if el is not None and el.text else None
@@ -115,7 +118,6 @@ def _parse_xml(path: str) -> list[dict]:
     indication = _text("INDICATION")
     report     = " ".join(filter(None, [findings, impression])) or None
 
-    # --- MeSH labels ---
     mesh_terms = [
         m.text.strip()
         for m in root.findall(".//MeSH/major")
@@ -123,25 +125,23 @@ def _parse_xml(path: str) -> list[dict]:
     ]
     labels = _mesh_to_labels(mesh_terms)
 
-    # --- IDs ---
     uid = root.findtext("uId[@id]") or root.find("uId").get("id") if root.find("uId") is not None else None
     study_id = root.findtext("pmcId") or (root.find("pmcId").get("id") if root.find("pmcId") is not None else None)
-    patient_id = uid  # one patient per report in this dataset
+    patient_id = uid  # one patient for each report
 
-    # --- images ---
     images = root.findall(".//parentImage")
     rows = []
-    for idx, img in enumerate(images):
+    for img in images:
         img_id = img.get("id")
         if not img_id:
             continue
-        # view position: F1 = frontal, F2+ = lateral (heuristic)
+        # First view from the figure number. _build_view_position() corrects it with the DICOM tag.
         fig_id = img.findtext("figureId", "").strip()
         view = "frontal" if fig_id == "F1" else ("lateral" if fig_id == "F2" else "other")
 
-        # DICOM path: two XML patterns both map to {n}/{n}_IM-XXXX-XXXX.dcm
-        #   CXR1_1_IM-0001-3001  →  1/1_IM-0001-3001.dcm
-        #   CXR2_IM-0652-1001    →  2/2_IM-0652-1001.dcm
+        # Two XML id patterns give {n}/{n}_IM-XXXX-XXXX.dcm:
+        #   CXR1_1_IM-0001-3001 gives 1/1_IM-0001-3001.dcm
+        #   CXR2_IM-0652-1001 gives 2/2_IM-0652-1001.dcm
         _dcm = re.match(r'^CXR(\d+)_(?:\1_)?(.*)', img_id)
         if _dcm:
             _n, _rest = _dcm.group(1), _dcm.group(2)
@@ -171,8 +171,8 @@ class OpenICXRHarmonizer(BaseHarmonizer):
     """Harmonize the OpenI Indiana University CXR dataset.
 
     Args:
-        base_dir: Dataset root — the directory containing ``ecgen-radiology/``
-            and ``images/``, e.g. ``.../OpenI-IU-CXR/``.
+        base_dir: Dataset root, with ``ecgen-radiology/`` and ``images/``, for example
+            ``.../OpenI-IU-CXR/``.
     """
 
     LABEL_COLS = _LABEL_COLS
@@ -199,7 +199,8 @@ class OpenICXRHarmonizer(BaseHarmonizer):
         snap.pop("csv_path", None)
         return snap
 
-    def harmonize(self, *args, **kwargs) -> pd.DataFrame:
+    def _read_source(self) -> pd.DataFrame:
+        """Parse the XML reports into one row for each image, in the order of the report number."""
         report_dir = os.path.join(self.base_dir, "ecgen-radiology")
         if not os.path.isdir(report_dir):
             raise FileNotFoundError(
@@ -212,9 +213,26 @@ class OpenICXRHarmonizer(BaseHarmonizer):
             if not fname.endswith(".xml"):
                 continue
             rows.extend(_parse_xml(os.path.join(report_dir, fname)))
+        return pd.DataFrame(rows)
 
-        self.df = pd.DataFrame(rows)
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
+    def _build_patient_id(self) -> None:
+        """``_parse_xml`` sets ``patient_id``."""
 
-        return self._select_harmonized_columns(self.df)
+    def _build_study_id(self) -> None:
+        """``_parse_xml`` sets ``study_id``."""
+
+    def _build_image_path(self) -> None:
+        """``_parse_xml`` sets ``image_path``."""
+
+    def _build_view_position(self) -> None:
+        """Correct the figure view of each row with the DICOM ``ViewPosition`` tag (V-H2-40).
+
+        A row whose DICOM file is missing or cannot be read keeps its figure view.
+        ``read_dicom_tags`` warns with the number of these files.
+        """
+        if not len(self.df):
+            return
+        headers = read_dicom_tags(self.base_dir, self.df["dicom_path"].dropna().unique().tolist(), ["ViewPosition"])
+        tags = tag_values(headers, self.df["dicom_path"], "ViewPosition")
+        self.df["view_position"] = [_view_from_tag(v, t if isinstance(t, str) else "")
+                                    for v, t in zip(self.df["view_position"], tags, strict=True)]

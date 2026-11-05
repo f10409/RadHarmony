@@ -1,0 +1,3 @@
+# Tools to build the docs site (mkdocs.yml). CI installs them in .github/workflows/docs.yml.
+mkdocs-material==9.8.0
+mkdocs-redirects==1.2.3

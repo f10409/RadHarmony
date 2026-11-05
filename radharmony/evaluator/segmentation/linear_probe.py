@@ -14,10 +14,11 @@ classification.
   per-image GT / Pred / Prob PNGs are written under
   ``<output_dir>/{GT,Pred,Prob}/<run-id>/``.
 - **Saving**: ``store_final_model=True`` (or calling ``fit()``) trains a
-  deployment head on all data and stores it as ``final_head_``; ``save_head``
-  / ``load_head`` persist just the trainable head (the frozen backbone is
-  rebuilt from its factory), and ``predict`` runs a head over any dataset,
-  returning per-image masks (and, optionally, the input image for overlays).
+  deployment head on all data and stores it as ``final_head_``.
+  ``save_head`` and ``load_head`` save and load only the trainable head. The
+  frozen backbone is rebuilt from its factory.
+- **Predict**: ``predict`` runs a head over any dataset. It returns
+  per-image masks and, if you ask, the input image for overlays.
 """
 
 from __future__ import annotations
@@ -32,11 +33,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image
-from sklearn.model_selection import GroupKFold, GroupShuffleSplit
-from torch.utils.data import DataLoader, Subset
+from sklearn.model_selection import GroupKFold
+from torch.utils.data import Subset
 from tqdm.auto import tqdm
 
 from .._registry import register_evaluator
+from ..sampling import bootstrap_indices, carve_val, group_ids, image_ids, png_name, seed_torch, RUN_FINAL, RUN_FIXED, RUN_KFOLD
 from ..metrics.segmentation import (
     METRIC_KEYS,
     compute_metrics as compute_seg_metrics,
@@ -114,11 +116,13 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
     def _mask_to_target(self, mask: torch.Tensor) -> torch.Tensor:
         """Convert a batch mask to class-index targets ``[B, H, W]`` (int64).
 
-        Accepts ``[B, 1, H, W]`` / ``[B, H, W]`` single-channel masks
-        (any value range — {0,1}, {0,255}, etc.) or ``[B, C, H, W]`` one-hot.
-        Single-channel masks are rescaled to ``[0, num_classes-1]`` by
-        dividing by the per-batch max — so {0, 255} binary PNGs and
-        proper {0, 1, ..., K-1} indices both land on the right targets.
+        Accepts ``[B, 1, H, W]`` or ``[B, H, W]`` single-channel masks, or
+        ``[B, C, H, W]`` one-hot masks. In a binary mask (``num_classes=2``),
+        any value above 0 is foreground, for example 1 or 255 (D-14). So a
+        mask with 0, 1 and 2 gives 0, 1 and 1 (V-E-32). A multi-class mask
+        must hold the class indices 0 to K-1. The batch maximum does not set
+        the scale, because a batch with no class K-1 then moves the other
+        classes (V-E-6). Other multi-class values raise ``ValueError``.
         """
         if mask.ndim == 4 and mask.shape[1] > 1:
             return mask.argmax(dim=1).long()
@@ -131,10 +135,26 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
                 f"Unexpected mask shape {tuple(mask.shape)}; "
                 f"expected [B,1,H,W], [B,C,H,W], or [B,H,W]."
             )
+        if self.num_classes == 2:
+            return (m > 0).long()
         m_max = float(m.max().item())
-        if m_max > 0:
-            m = m / m_max * (self.num_classes - 1)
+        if m_max > self.num_classes - 1:
+            raise ValueError(
+                f"A mask for num_classes={self.num_classes} must hold class indices "
+                f"0 to {self.num_classes - 1}. It has the value {m_max:g}."
+            )
         return m.round().long().clamp(0, self.num_classes - 1)
+
+    def _train_loader(self, torch_ds, idx: np.ndarray):
+        """Return the shuffled train loader over the rows ``idx``.
+
+        It drops a short last batch, because a batch of 1 row breaks BatchNorm
+        in the UPerNet head. But when all rows fit in one batch, it keeps that
+        batch, so the head always trains (V-E-17).
+        """
+        return self._make_loader(
+            Subset(torch_ds, idx.tolist()), shuffle=True, drop_last=len(idx) > self.batch_size
+        )
 
     # ── Train / predict loops ────────────────────────────────────────────────
     def _train_one(
@@ -175,11 +195,14 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
             if val_loader is not None:
                 val_metric = self._val_metric(head, val_loader)
                 postfix[self.early_stop_metric] = f"{val_metric:.4f}"
-                if val_metric > best_metric:
+                # -inf means no signal (no foreground value in the val part).
+                # Such an epoch does not count for patience (V-E-16).
+                has_signal = np.isfinite(val_metric)
+                if has_signal and val_metric > best_metric:
                     best_metric = val_metric
                     best_state = copy.deepcopy(head.state_dict())
                     patience = 0
-                else:
+                elif has_signal:
                     patience += 1
                     if patience >= self.early_stop_patience:
                         pbar.set_postfix(**postfix)
@@ -194,13 +217,14 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
     def _val_metric(self, head: nn.Module, loader) -> float:
         """Macro foreground ``early_stop_metric`` across the val loader.
 
-        Background (class 0) is excluded so the signal tracks the actual
-        segmentation target — otherwise a head that predicts all-background
-        scores near-perfect on most CXR mask datasets.
+        Background (class 0) is excluded so the signal tracks the real
+        segmentation target. Otherwise a head that predicts all background
+        scores near perfect on most CXR mask datasets.
         """
         head.eval()
         self._freeze_encoder()
         per_image_panels: list[dict[int, dict]] = []
+        has_foreground = False
         for batch in loader:
             imgs = batch["img"].to(self.device, non_blocking=True)
             with self._autocast_cm():
@@ -208,11 +232,14 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
             logits = head(feats.float())
             preds = logits.argmax(dim=1).cpu().numpy()
             y = self._mask_to_target(batch["mask"]).cpu().numpy()
+            has_foreground = has_foreground or bool((y > 0).any())
             for i in range(preds.shape[0]):
                 per_image_panels.append(
                     compute_seg_metrics(y[i], preds[i], self.num_classes)
                 )
-        if not per_image_panels:
+        # A val part with no foreground pixel has no signal (V-E-16). A false
+        # positive then gives Dice 0, and every head looks the same.
+        if not per_image_panels or (self.num_classes > 1 and not has_foreground):
             return -float("inf")
         fg = range(1, self.num_classes) if self.num_classes > 1 else range(self.num_classes)
         vals: list[float] = []
@@ -273,15 +300,17 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
         return rows
 
     def _bootstrap_rows(
-        self, per_image: list[dict[int, dict]], tmpl: dict, seed: int
+        self, per_image: list[dict[int, dict]], tmpl: dict, seed: int, groups=None
     ) -> list[dict]:
+        """Return the metric rows of the bootstrap samples of the test images.
+
+        Each sample draws test patients (``groups``, one id per image) and keeps
+        all their images (D-32).
+        """
         if self.n_bootstrap <= 0 or not per_image:
             return []
-        rng = np.random.default_rng(seed)
-        n = len(per_image)
         rows: list[dict] = []
-        for b in range(self.n_bootstrap):
-            idx = rng.integers(0, n, size=n)
+        for b, idx in enumerate(bootstrap_indices(len(per_image), self.n_bootstrap, seed, groups)):
             tmpl_b = dict(tmpl, bootstrap=b)
             for c in range(self.num_classes):
                 row = dict(tmpl_b, label=f"class_{c}")
@@ -300,27 +329,28 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
             os.makedirs(d, exist_ok=True)
         scale = 255 // max(self.num_classes - 1, 1)
         for p in preds:
-            fn = p["image_id"]
+            fn = png_name(p["image_id"])  # one file per image, also for the same file name (V-E-24)
             Image.fromarray((p["y_true"] * scale).astype(np.uint8)).save(
-                os.path.join(roots["GT"], f"{fn}.png")
+                os.path.join(roots["GT"], fn)
             )
             Image.fromarray((p["y_pred"] * scale).astype(np.uint8)).save(
-                os.path.join(roots["Pred"], f"{fn}.png")
+                os.path.join(roots["Pred"], fn)
             )
-            # Foreground prob: class 1 for binary; max non-bg prob otherwise.
+            # Foreground prob: class 1 for binary, else the max non-bg prob.
             if self.num_classes == 2:
                 fg = p["prob"][1]
             else:
                 fg = p["prob"][1:].max(axis=0)
             Image.fromarray((fg * 255).astype(np.uint8)).save(
-                os.path.join(roots["Prob"], f"{fn}.png")
+                os.path.join(roots["Prob"], fn)
             )
 
     # ── Split helpers ────────────────────────────────────────────────────────
     def _iter_n_train(self, n_available: int) -> list[int]:
         if self.n_train_samples is None:
             return [-1]
-        return [min(n, n_available) for n in self.n_train_samples]
+        # Keep the requested n (also above n_available): one summary row per point (V-E-21).
+        return list(self.n_train_samples)
 
     @staticmethod
     def _subsample(n_available: int, n_train: int, rng) -> np.ndarray:
@@ -333,38 +363,21 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
     ) -> tuple[np.ndarray, np.ndarray | None]:
         """Carve a patient-grouped inner val slice from a train index array.
 
-        Returns ``(inner_train_idx, inner_val_idx)``. When ``val_fraction``
-        is zero, the subsample is too small, or all rows share one patient,
-        ``inner_val_idx`` is ``None`` and the full ``sub`` is returned as
-        train.
+        Returns ``(inner_train_idx, inner_val_idx)``. The full ``sub`` is the
+        train set and ``inner_val_idx`` is ``None`` in 3 cases. Either
+        ``val_fraction`` is zero, or the subsample is too small, or all rows
+        share one patient.
         """
-        if self.val_fraction <= 0.0 or len(sub) < 2:
-            return sub, None
-        sub_pids = patient_ids[sub]
-        if len(np.unique(sub_pids)) < 2:
-            return sub, None
-        gss = GroupShuffleSplit(
-            n_splits=1,
-            test_size=self.val_fraction,
-            random_state=int(rng.integers(0, 2**31 - 1)),
-        )
-        inner_train_pos, inner_val_pos = next(
-            gss.split(np.arange(len(sub)), groups=sub_pids)
-        )
-        return sub[inner_train_pos], sub[inner_val_pos]
+        return carve_val(sub, rng, patient_ids, self.val_fraction)
 
     @staticmethod
     def _patient_ids(ds) -> np.ndarray:
-        df = ds._get_harmonized_df().dropna(subset=["image_path"])
-        return df["patient_id"].astype(str).values
+        # The same ids as the classification probes: no column gives one id per image (D-32).
+        return group_ids(ds)
 
     @staticmethod
     def _image_ids(ds) -> list[str]:
-        df = ds._get_harmonized_df().dropna(subset=["image_path"])
-        return [
-            os.path.splitext(os.path.basename(p))[0]
-            for p in df["image_path"].astype(str).values
-        ]
+        return image_ids(ds)
 
     # ── Final-model fit, persistence, and prediction ─────────────────────────
     def _head_config(self) -> dict:
@@ -375,8 +388,8 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
         """Train one head on all of ``dataset`` (minus an inner-val slice for
         early stopping) and store it as ``self.final_head_``.
 
-        This is the *deployment* head — trained on every available image
-        rather than a fold's train split — so it is what ``save_head`` writes.
+        This is the *deployment* head. It trains on every available image,
+        not on a fold's train split, and ``save_head`` writes it.
         """
         torch_ds = dataset.get_datasets(n_splits=None, num_cores=self.num_workers)
         feat_dim, out_size = self._probe_shapes(self._make_loader(torch_ds, shuffle=False))
@@ -385,14 +398,13 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
         inner_train_idx, inner_val_idx = self._carve_inner_val(
             np.arange(len(torch_ds)), rng, patient_ids
         )
-        train_loader = self._make_loader(
-            Subset(torch_ds, inner_train_idx.tolist()), shuffle=True, drop_last=True
-        )
+        train_loader = self._train_loader(torch_ds, inner_train_idx)
         val_loader = (
             self._make_loader(Subset(torch_ds, inner_val_idx.tolist()), shuffle=False)
             if inner_val_idx is not None
             else None
         )
+        seed_torch(self.base_seed, RUN_FINAL)
         head = self._make_head(feat_dim, out_size)
         self._train_one(head, train_loader, val_loader)
         self.final_head_ = head
@@ -404,8 +416,8 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
         """Train and store a deployment head without running the k-fold benchmark.
 
         Trains on ``dataset`` (defaults to the evaluator's ``dataset`` /
-        ``train_dataset``), sets ``self.final_head_``, and returns it — so a
-        single head can be saved (:meth:`save_head`) and reused
+        ``train_dataset``), sets ``self.final_head_``, and returns it. You
+        can then save one head (:meth:`save_head`) and reuse it
         (:meth:`predict`) without the full cross-validated ``evaluate()`` run.
         """
         ds = dataset or self.dataset or self.train_dataset
@@ -419,13 +431,14 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
     def inner_val_indices(self, dataset=None) -> np.ndarray:
         """Dataset indices of the early-stopping inner-val slice ``fit()`` holds out.
 
-        Deterministic given ``base_seed`` and the dataset's patient grouping, so
-        it reproduces the exact slice :meth:`_fit_final_head` carved — without
-        retraining, and even after :meth:`load_head` (which never recomputes it).
-        These images are never in the gradient-training set — only used to pick
-        the early-stopping epoch — so they are the cheapest honest target for a
-        qualitative prediction viz (mild optimism remains, since they drove model
-        selection). Returns an empty array when ``val_fraction`` disables the slice.
+        The slice is fixed by ``base_seed`` and the dataset's patient grouping.
+        It gives the exact slice that :meth:`_fit_final_head` carved. No
+        retraining is needed, even after :meth:`load_head` (which never
+        recomputes it). These images are not in the gradient-training set.
+        They only pick the early-stopping epoch. So they are a cheap, fair
+        target for a qualitative prediction plot (some optimism remains,
+        because they drove model selection). Returns an empty array when
+        ``val_fraction`` turns the slice off.
         """
         ds = dataset or self.dataset or self.train_dataset
         if ds is None:
@@ -444,7 +457,7 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
         """Persist ``self.final_head_`` (state dict + shape/config metadata).
 
         ``path`` defaults to ``<output_dir>/final_head.pt``. Only the trainable
-        head is saved; the frozen backbone is rebuilt from its factory at load
+        head is saved. The frozen backbone is rebuilt from its factory at load
         time, so the checkpoint is small. Returns the path written.
         """
         if self.final_head_ is None:
@@ -474,7 +487,7 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
         """Rebuild a head from a :meth:`save_head` checkpoint and load its weights.
 
         Construct the evaluator with a matching configuration (same
-        ``num_classes`` and head hyper-params); the checkpoint's shape metadata
+        ``num_classes`` and head hyper-params). The checkpoint's shape metadata
         drives ``_make_head``. Sets and returns ``self.final_head_``.
         """
         ckpt = torch.load(path, map_location=self.device)
@@ -513,10 +526,10 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
         Each dict has ``image_id``, ``y_true`` ``[H, W]`` (class indices),
         ``y_pred`` ``[H, W]``, and ``prob`` ``[C, H, W]``. With
         ``return_images=True`` an ``image`` key holds a grayscale ``[H, W]``
-        view of the input — min-max normalized and resized to the mask grid —
+        view of the input (min-max normalized and resized to the mask grid),
         ready for overlay plots. ``indices`` restricts to a subset of the
-        dataset (e.g. a held-out fold or a few examples); ``head`` defaults to
-        ``self.final_head_``.
+        dataset (for example a held-out fold or a few examples). ``head``
+        defaults to ``self.final_head_``.
         """
         head = head if head is not None else self.final_head_
         if head is None:
@@ -588,11 +601,7 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
                 inner_train_idx, inner_val_idx = self._carve_inner_val(
                     sub, rng, patient_ids
                 )
-                train_loader = self._make_loader(
-                    Subset(torch_ds, inner_train_idx.tolist()),
-                    shuffle=True,
-                    drop_last=True,
-                )
+                train_loader = self._train_loader(torch_ds, inner_train_idx)
                 val_loader = (
                     self._make_loader(
                         Subset(torch_ds, inner_val_idx.tolist()), shuffle=False
@@ -604,6 +613,7 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
                     Subset(torch_ds, test_idx.tolist()), shuffle=False
                 )
 
+                seed_torch(self.base_seed, RUN_KFOLD, fold_i, n_train)
                 head = self._make_head(feat_dim, out_size)
                 self._train_one(head, train_loader, val_loader)
 
@@ -635,6 +645,7 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
         n_train_total = len(train_torch_ds)
         all_test_image_ids = self._image_ids(self.test_dataset)
         train_patient_ids = self._patient_ids(self.train_dataset)
+        test_patient_ids = self._patient_ids(self.test_dataset)
 
         probe_loader = self._make_loader(train_torch_ds, shuffle=False)
         feat_dim, out_size = self._probe_shapes(probe_loader)
@@ -648,11 +659,7 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
                 inner_train_idx, inner_val_idx = self._carve_inner_val(
                     sub, rng, train_patient_ids
                 )
-                train_loader = self._make_loader(
-                    Subset(train_torch_ds, inner_train_idx.tolist()),
-                    shuffle=True,
-                    drop_last=True,
-                )
+                train_loader = self._train_loader(train_torch_ds, inner_train_idx)
                 val_loader = (
                     self._make_loader(
                         Subset(train_torch_ds, inner_val_idx.tolist()), shuffle=False
@@ -662,6 +669,7 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
                 )
                 test_loader = self._make_loader(test_torch_ds, shuffle=False)
 
+                seed_torch(seed, RUN_FIXED, n_train)
                 head = self._make_head(feat_dim, out_size)
                 self._train_one(head, train_loader, val_loader)
 
@@ -680,6 +688,7 @@ class LinearProbeSegEvaluator(BaseSegEvaluator):
                         per_image,
                         tmpl,
                         self.bootstrap_seed + seed_i * 10_000 + max(n_train, 0),
+                        groups=test_patient_ids,
                     )
                 )
                 self._save_predictions(preds, run_id=f"seed{seed}_n{n_train}")

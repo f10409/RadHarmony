@@ -4,9 +4,9 @@ Wraps :class:`RSNAPneumoniaKaggleHarmonizer` which reads the two flat CSVs
 shipped with the Kaggle distribution.  Supports classification labels
 (3-class) and bounding boxes for lung opacities.
 
-Images are flat DICOMs under ``<base_image_dir>/stage_2_train_images/``:
-``<base_image_dir>/stage_2_train_images/<patientId>.dcm``
-(e.g. ``~/datasets/rsna-pneumonia-detection-challenge/``).
+``base_image_dir`` is the ``stage_2_train_images/`` folder itself, with flat
+DICOMs ``<base_image_dir>/<patientId>.dcm``. The two CSVs are found in its
+parent folder (D-35).
 """
 
 import os
@@ -32,17 +32,16 @@ class RSNAPneumoniaKaggleDataset(BaseRadiologicalDataset):
     annotations include bounding boxes (one or more per image).
 
     Args:
-        base_image_dir: Root directory containing ``stage_2_train_images/``
-            and the two CSVs (e.g. ``~/datasets/rsna-pneumonia-detection-challenge/``).
+        base_image_dir: The ``stage_2_train_images/`` folder itself (for example
+            ``~/datasets/rsna-pneumonia-detection-challenge/stage_2_train_images/``).
         csv_path: Path to ``stage_2_detailed_class_info.csv``. Auto-inferred
-            from ``base_image_dir`` when ``None``.
+            from ``base_image_dir`` or its parent when ``None``.
         bbox_csv_path: Path to ``stage_2_train_labels.csv``. Auto-inferred
             from ``base_image_dir`` when ``None``. Required for ``output_bbox=True``.
         transform: MONAI Compose transform. Defaults to standard 2-D pipeline.
         cache_dir: PersistentDataset cache directory. ``None`` disables caching.
         output_cls: Yield label vector under key ``cls``.
-        output_mask: Not supported; silently ignored.
-        output_report: Not supported; silently ignored.
+        output_mask / output_report / output_reg: Not supported. A warning, and no key (D-11).
         output_bbox: Yield bounding boxes under key ``bbox``.
     """
 
@@ -54,6 +53,10 @@ class RSNAPneumoniaKaggleDataset(BaseRadiologicalDataset):
     ]
     _HARMONIZER_CLS = RSNAPneumoniaKaggleHarmonizer
 
+    #: The train source files must exist (D-35). A test-split subclass that reads
+    #: only its test files sets False.
+    _TRAIN_FILES_REQUIRED: bool = True
+
     def __init__(
         self,
         base_image_dir: str = None,
@@ -64,6 +67,7 @@ class RSNAPneumoniaKaggleDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -78,7 +82,7 @@ class RSNAPneumoniaKaggleDataset(BaseRadiologicalDataset):
             bbox_csv_path = os.path.expanduser(bbox_csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RSNAPneumoniaKaggleHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -113,17 +117,16 @@ class RSNAPneumoniaKaggleDataset(BaseRadiologicalDataset):
                 base_image_dir,
                 "stage_2_detailed_class_info.csv",
                 user_path=csv_path or "",
+                required=self._TRAIN_FILES_REQUIRED,
+                arg="csv_path",
             ) or csv_path
-            if self._csv_path is None:
-                raise ValueError(
-                    "csv_path is required: stage_2_detailed_class_info.csv was not "
-                    "found automatically.\n"
-                    "Place it in base_image_dir or pass csv_path= explicitly."
-                )
+            # The boxes come from stage_2_train_labels.csv, so output_bbox needs it.
             self._bbox_csv_path = infer_path(
                 base_image_dir,
                 "stage_2_train_labels.csv",
                 user_path=bbox_csv_path or "",
+                required=output_bbox,
+                arg="bbox_csv_path",
             ) or bbox_csv_path
         else:
             self._csv_path = csv_path
@@ -135,6 +138,7 @@ class RSNAPneumoniaKaggleDataset(BaseRadiologicalDataset):
                 output_keys.add("cls")
             if output_bbox:
                 output_keys.add("bbox")
+                output_keys.add("bbox_labels")
             transform = RadiologyTransform2D(
                 img_size=224, output_keys=output_keys,
                 dtype=dtype,
@@ -147,6 +151,7 @@ class RSNAPneumoniaKaggleDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,

@@ -1,17 +1,17 @@
 """Classification evaluators over pre-extracted embeddings (datathon26).
 
 Thin subclasses of the standard probe evaluators that default their
-``image_encoder`` to :class:`IdentityEncoder`. Paired with
-:class:`~radharmony.datathon26.dataset.embedding_dataset.DatathonEmbeddingDataset`
-(which serves ``embedding.npy`` under the ``"img"`` key), the sole encoder
-forward pass in ``BaseClsEvaluator.extract_embeddings`` becomes a pass-through,
-so the pre-extracted embeddings flow straight into the probe. Every feature of
-the originals is inherited unchanged — patient-grouped k-fold, multi-seed,
+``image_encoder`` to :class:`IdentityEncoder`. Use them with
+:class:`~radharmony.datathon26.dataset.embedding_dataset.EmbeddingResultsDataset`
+(it serves ``embedding.npy`` under the ``"img"`` key). Then the only encoder
+forward pass in ``BaseClsEvaluator.extract_embeddings`` is a pass-through, so
+the pre-extracted embeddings go straight into the probe. The subclasses keep
+every feature of the originals unchanged: patient-grouped k-fold, multi-seed,
 bootstrap, threshold strategies, ``macro_average``, and the embedding cache.
 
 Usage::
 
-    ds = DatathonEmbeddingDataset(embeddings_dir, csv_path="dataset_DS1.csv")
+    ds = EmbeddingResultsDataset(embeddings_dir, csv_path="dataset_DS1.csv")
     ev = DatathonLinearProbeEvaluator(dataset=ds, n_folds=5)
     results = ev.evaluate()
 """

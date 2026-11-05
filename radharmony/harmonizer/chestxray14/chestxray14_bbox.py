@@ -5,6 +5,7 @@ import os
 import pandas as pd
 from PIL import Image
 
+from .._bbox import box_label, clip_boxes
 from ..base import BaseHarmonizer
 
 
@@ -17,16 +18,19 @@ class ChestXray14BboxHarmonizer(BaseHarmonizer):
 
     The bbox CSV has a malformed header (``Bbox [x,y,w,h]`` splits across
     multiple columns) so it is read with explicit column names.
-    Coordinates are pixel-space ``(x, y, w, h)``; we normalize to
-    ``[dim0_min, dim0_max, dim1_min, dim1_max]`` using the image
-    dimensions from the primary CSV (``OriginalImage[Width`` and
-    ``Height]`` columns).
+    Coordinates are pixel-space ``(x, y, w, h)`` of the released PNG
+    (1024 x 1024). They are divided by the size of the PNG file, to give
+    ``[dim0_min, dim0_max, dim1_min, dim1_max]`` (D-07). The
+    ``OriginalImage[Width`` and ``Height]`` columns of the primary CSV give
+    the size before the resize to the PNG, so the code does not use them.
 
     Args:
         csv_path: Path to ``Data_Entry_2017.csv``.
         bbox_csv_path: Path to ``BBox_List_2017.csv`` (required).
         base_image_dir: Root directory containing ``images_*/images/`` folders
-            (e.g. ``.../NIH_CXR/CXR14/``).
+            (for example ``.../NIH_CXR/CXR14/``). ``harmonize()`` needs it, because it
+            reads the size of each PNG. Without it, ``harmonize()`` raises
+            ``ValueError``.
     """
 
     LABEL_COLS = [
@@ -47,6 +51,11 @@ class ChestXray14BboxHarmonizer(BaseHarmonizer):
         "Pneumothorax",
     ]
 
+    #: ``BBox_List_2017.csv`` calls a finding "Infiltrate", but
+    #: ``Data_Entry_2017.csv`` calls it "Infiltration". Box labels use the
+    #: label column name, so code can match a box to its label column.
+    _BBOX_LABEL_NAMES = {"Infiltrate": "Infiltration"}
+
     LABEL_JOIN_COLS = None
     VIEW_POSITION_SOURCE_COL = "View Position"
     VIEW_POSITION_JOIN_COLS = None
@@ -57,9 +66,24 @@ class ChestXray14BboxHarmonizer(BaseHarmonizer):
     REPORT_JOIN_COLS = None
     REPORT_PATH_COL = None
 
+    # Same source columns as ChestXray14Harmonizer (D-06, D-26).
+    AGE_SOURCE_COL = "Patient Age"
+    AGE_SOURCE_UNIT = "years"
+    SEX_SOURCE_COL = "Patient Gender"
+
     def __init__(self, csv_path: str, bbox_csv_path: str, base_image_dir: str = None):
         super().__init__(csv_path=csv_path, bbox_csv_path=bbox_csv_path)
         self.base_image_dir = base_image_dir
+
+    def _read_source(self) -> pd.DataFrame:
+        """Read ``Data_Entry_2017.csv``. Raise ``ValueError`` if ``base_image_dir`` is not set."""
+        if not self.base_image_dir:
+            # V-H1-36: with no PNG, every box list was empty and the table had 0 rows, with no message.
+            raise ValueError(
+                "ChestXray14BboxHarmonizer needs base_image_dir, the folder with images_*/images/. "
+                "It reads the size of each PNG to scale the boxes."
+            )
+        return super()._read_source()
 
     def _build_patient_id(self) -> None:
         self.df["patient_id"] = self.df["Patient ID"].astype(str)
@@ -71,10 +95,6 @@ class ChestXray14BboxHarmonizer(BaseHarmonizer):
 
     def _build_image_path(self) -> None:
         """Resolve image filenames to relative paths by scanning subdirectories."""
-        if self.base_image_dir is None:
-            self.df["image_path"] = self.df["Image Index"]
-            return
-
         lookup = {}
         for entry in sorted(os.listdir(self.base_image_dir)):
             subdir = os.path.join(self.base_image_dir, entry, "images")
@@ -103,7 +123,7 @@ class ChestXray14BboxHarmonizer(BaseHarmonizer):
                 self.df.rename(columns={col: snake}, inplace=True)
 
     def _build_bbox(self) -> None:
-        """Normalize bounding boxes from BBox_List_2017.csv."""
+        """Normalize the boxes of BBox_List_2017.csv, clip them (D-07), and keep only the images with a box."""
         bbox_df = pd.read_csv(
             self.bbox_csv_path,
             header=0,
@@ -130,11 +150,10 @@ class ChestXray14BboxHarmonizer(BaseHarmonizer):
             if iid in img_sizes:
                 continue
             rel_path = irow.get("image_path", iid)
-            if self.base_image_dir and rel_path:
-                full_path = os.path.join(self.base_image_dir, rel_path)
-            else:
-                full_path = rel_path
-            if full_path and os.path.isfile(full_path):
+            if pd.isna(rel_path):
+                continue  # no PNG found: harmonize() drops the row
+            full_path = os.path.join(self.base_image_dir, rel_path)
+            if os.path.isfile(full_path):
                 with Image.open(full_path) as im:
                     img_sizes[iid] = im.size  # (width, height)
 
@@ -155,7 +174,8 @@ class ChestXray14BboxHarmonizer(BaseHarmonizer):
                         (x + w) / img_w,  # dim1_max (col)
                     ]
                 )
-                labels.append(row["finding_label"].lower().replace(" ", "_"))
+                name = self._BBOX_LABEL_NAMES.get(row["finding_label"], row["finding_label"])
+                labels.append(box_label(name))
             return pd.Series({"bbox": boxes, "bbox_labels": labels})
 
         bbox_agg = (
@@ -171,25 +191,7 @@ class ChestXray14BboxHarmonizer(BaseHarmonizer):
         self.df["bbox_labels"] = self.df["bbox_labels"].apply(
             lambda x: x if isinstance(x, list) else []
         )
-
-    def harmonize(self, **kwargs) -> pd.DataFrame:
-        """Read CSV, build bboxes, filter to only images with bboxes."""
-        self._harmonized_df_override = None
-        self.df = pd.read_csv(self.csv_path)
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_image_path()
-        self._build_labels()
-        self._build_view_position()
-        self._build_mask_path()
-        self._build_bbox()
-        self._build_report()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-
-        # Keep only images that have at least one bounding box
-        self.df = self.df[self.df["bbox"].apply(lambda x: len(x) > 0)]
-        self.df.reset_index(drop=True, inplace=True)
-
-        return self._select_harmonized_columns(self.df)
+        clip_boxes(self.df, "ChestX-ray14")  # D-07, before the filter below
+        # Keep only the images with at least one box.
+        # astype(bool): on 0 rows, apply() gives an object Series, and df[...] then picks columns (V-H2-30).
+        self.df = self.df[self.df["bbox"].apply(lambda x: len(x) > 0).astype(bool)]

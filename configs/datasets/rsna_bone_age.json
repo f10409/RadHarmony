@@ -1,0 +1,41 @@
+{
+  "_comment": "RSNA Pediatric Bone Age. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "RSNA Pediatric Bone Age",
+  "registry_key": "rsna_bone_age",
+  "modality": "2D",
+  "image_format": "PNG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources (2026-11-03): the challenge paper (Halabi et al., Radiology 2019: 12,611 train, 1,425 validation and 200 test images), and train.csv and Validation Dataset.csv read with pandas, with the PNG lists of the image folders. All counts match the paper. The source has no patient ID, so patient_id and study_id are the image id (one image is one patient). The train ids (1377 to 15610) and the val ids (1386 to 15612) do not overlap. Every id has a PNG: the 1,425 val PNGs are in boneage-validation-dataset-1 (800) and boneage-validation-dataset-2 (625). The class has no label columns (the bone age is the regression target age_months, D-05), so positives and uncertain are empty. sex comes from the True or False column male (D-26). The bone age is not the age of the patient, so the table has no age_years. rsna_bone_age_test is not on the NAS, so it has no block here.",
+    "patients_in_two_splits": 0,
+    "rsna_bone_age_train": {
+      "images": 12611,
+      "studies": 12611,
+      "patients": 12611,
+      "positives": {},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {
+        "M": 6833,
+        "F": 5778
+      }
+    },
+    "rsna_bone_age_val": {
+      "images": 1425,
+      "studies": 1425,
+      "patients": 1425,
+      "positives": {},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {
+        "M": 773,
+        "F": 652
+      }
+    }
+  }
+}

@@ -1,19 +1,15 @@
 """Harmonizer for the Montgomery County Tuberculosis CXR dataset.
 
-A collaboration between the National Library of Medicine (LHNCBC), the
-Department of Health and Human Services of Montgomery County, Maryland,
-and Shenzhen No.3 People's Hospital, Guangdong Medical College, Shenzhen,
-China.
+From the National Library of Medicine (LHNCBC), the Department of Health and
+Human Services of Montgomery County, Maryland, and Shenzhen No.3 People's
+Hospital, China. Source:
+https://data.lhncbc.nlm.nih.gov/public/Tuberculosis-Chest-X-ray-Datasets/Montgomery-County-CXR-Set/
 
-**Source:**
-  https://data.lhncbc.nlm.nih.gov/public/Tuberculosis-Chest-X-ray-Datasets/
-  Montgomery-County-CXR-Set/
+138 PA chest radiographs (80 normal, 58 TB-positive). All images are 4892 x
+4020 PNG. There are left and right lung masks and a clinical reading text file
+for each patient.
 
-138 PA chest radiographs (80 normal, 58 TB-positive).  All images are
-4892 × 4020 PNG.  Left- and right-lung binary masks are included, along
-with per-patient clinical reading text files.
-
-**Expected layout after download:**::
+Layout after download::
 
     <dataset_root>/                 # MontgomerySet/
       CXR_png/                      # base_dir points here
@@ -28,25 +24,24 @@ with per-patient clinical reading text files.
           MCUCXR_0001_0.png
           ...
       ClinicalReadings/             # sibling of CXR_png/
-        MCUCXR_0001_0.txt           # one file per patient
+        MCUCXR_0001_0.txt           # one file per image
         ...
       montgomery_consensus_roi.csv
       NLM-MontgomeryCXRSet-ReadMe.pdf
 
-``base_dir`` points at the ``CXR_png/`` image directory itself — the last
-common folder containing every image. ``ClinicalReadings/`` and
-``ManualMask/`` are read as sibling directories of ``base_dir``.
+``base_dir`` is the ``CXR_png/`` folder itself, the last common folder of all
+images. The code reads ``ClinicalReadings/`` and ``ManualMask/`` as sibling
+folders of ``base_dir``.
 
-**ClinicalReadings/<stem>.txt format (one file per image):**::
+Format of ``ClinicalReadings/<stem>.txt`` (one file for each image)::
 
     Patient's Sex: F
     Patient's Age: 027Y
-    <free-text clinical report — one or more lines>
+    <free-text clinical report, one or more lines>
 
-  ``_0`` filename suffix = normal (TB-negative).
-  ``_1`` filename suffix = TB-positive.
+  The file name suffix ``_0`` is normal (TB-negative). ``_1`` is TB-positive.
 
-**Harmonized columns produced:**
+Harmonized columns:
   ``patient_id``, ``study_id``, ``image_path``, ``tuberculosis`` (0/1 Int64),
   ``sex``, ``age`` (int years), ``report`` (str),
   ``mask_path_left``, ``mask_path_right``
@@ -60,7 +55,8 @@ import pandas as pd
 from ..base import BaseHarmonizer
 
 
-_SEX_RE  = re.compile(r"Patient['']s Sex:\s*([MF])", re.IGNORECASE)
+# Any sex letter: one file (MCUCXR_0080) has "O". The base step maps it (D-26).
+_SEX_RE  = re.compile(r"Patient['']s Sex:\s*([A-Z]+)", re.IGNORECASE)
 _AGE_RE  = re.compile(r"Patient['']s Age:\s*(\d+)\s*Y", re.IGNORECASE)
 
 
@@ -93,12 +89,11 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
     """Harmonize the Montgomery County TB CXR set into the RadHarmony format.
 
     Args:
-        base_dir: The ``CXR_png/`` images directory itself — the last common
-            folder containing every image. ``ClinicalReadings/`` and
-            ``ManualMask/`` are read as sibling directories. ``image_path``
-            entries in the harmonized DataFrame are bare filenames (relative
-            to ``base_dir``); mask paths use ``../ManualMask/...`` to reach
-            the sibling tree.
+        base_dir: The ``CXR_png/`` folder itself, the last common folder of
+            all images. The code reads ``ClinicalReadings/`` and ``ManualMask/``
+            as sibling folders. ``image_path`` values are bare file names
+            (relative to ``base_dir``). Mask paths start with
+            ``../ManualMask/`` to reach the sibling folder.
     """
 
     LABEL_COLS = ["tuberculosis"]
@@ -113,8 +108,20 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
     REPORT_JOIN_COLS = None
     REPORT_PATH_COL = None
 
-    EXTRA_OUTPUT_COLS = ["sex", "age", "mask_path_left", "mask_path_right"]
+    EXTRA_OUTPUT_COLS = ["age", "mask_path_left", "mask_path_right"]
 
+    #: Parsed from "Patient's Sex: F". The base step maps it in place (D-26).
+    SEX_SOURCE_COL = "sex"
+
+
+    #: Age unit declaration -- see radharmony/harmonizer/_age.py.
+
+    #: Parsed from "Patient's Age: 027Y" by _AGE_RE, which requires the Y and
+    #: captures only the number, so already years.
+
+    AGE_SOURCE_COL = "age"
+
+    AGE_SOURCE_UNIT = "years"
     def __init__(self, base_dir: str):
         self.base_dir = os.path.expanduser(base_dir)
         super().__init__(csv_path=None)
@@ -122,17 +129,36 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
     def _harmonizer_init_snapshot(self) -> dict:
         snap = super()._harmonizer_init_snapshot()
         snap["base_dir"] = self.base_dir
+        snap.pop("csv_path", None)  # not an argument of this class (V-H2-1)
         return snap
 
     # ------------------------------------------------------------------
     # Build hooks
     # ------------------------------------------------------------------
 
+    def _read_source(self) -> pd.DataFrame:
+        """List the PNG files of ``base_dir`` and read their clinical readings. Return one row per image."""
+        img_dir = self.base_dir
+        if not os.path.isdir(img_dir):
+            raise FileNotFoundError(f"Image directory not found: {img_dir}")
+
+        stems = sorted(
+            os.path.splitext(f)[0]
+            for f in os.listdir(img_dir)
+            if f.endswith(".png")
+        )
+        if not stems:
+            raise FileNotFoundError(f"No .png file in {img_dir}. Check the path of the image folder (D-35).")
+        # The patient ID step reads the reports, so read them here.
+        return self._read_clinical(pd.DataFrame({"_stem": stems}))
+
     def _build_patient_id(self) -> None:
         self.df["patient_id"] = self.df["_stem"].str.replace(r"_[01]$", "", regex=True)
+        self._link_same_patient()
 
     def _build_study_id(self) -> None:
-        self.df["study_id"] = self.df["patient_id"]
+        # One study per image. Not patient_id: _link_same_patient can change it.
+        self.df["study_id"] = self.df["_stem"].str.replace(r"_[01]$", "", regex=True)
 
     def _build_image_path(self) -> None:
         self.df["image_path"] = self.df["_stem"] + ".png"
@@ -144,23 +170,24 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
             .astype("Int64")
         )
 
-    def _build_clinical(self) -> None:
-        """Parse per-patient ClinicalReadings/<stem>.txt files (sibling dir)."""
+    def _read_clinical(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add sex, age and report from the ClinicalReadings/<stem>.txt files (sibling dir) to ``df``."""
         cr_dir = os.path.join(self.base_dir, "..", "ClinicalReadings")
         if not os.path.isdir(cr_dir):
-            return
+            return df
 
         records = []
-        for stem in self.df["_stem"]:
+        for stem in df["_stem"]:
             path = os.path.join(cr_dir, stem + ".txt")
             records.append(_parse_clinical_txt(path))
 
         clinical_df = pd.DataFrame(records)
         for col in ("sex", "age", "report"):
             if col in clinical_df.columns:
-                self.df[col] = clinical_df[col].values
+                df[col] = clinical_df[col].values
+        return df
 
-    def _build_masks(self) -> None:
+    def _build_mask_path(self) -> None:
         """Populate mask_path_left / mask_path_right from sibling ManualMask/.
 
         Mask paths are stored as ``../ManualMask/<side>/<stem>.png`` so they
@@ -171,12 +198,43 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
             if not os.path.isdir(mask_dir):
                 continue
             self.df[col] = self.df["_stem"].apply(
-                lambda s, d=mask_dir: (
+                lambda s, d=mask_dir, side=side: (
                     os.path.join("..", "ManualMask", side, s + ".png")
                     if os.path.exists(os.path.join(d, s + ".png"))
                     else None
                 )
             )
+
+    def _link_same_patient(self) -> None:
+        """Give one ``patient_id`` to the images of one patient (V-H2-15).
+
+        The file names have no patient ID. 3 clinical readings name the other
+        images of the same patient, for example ``(same pt as MCUCXR_0113_1)``
+        in ``MCUCXR_0117_1.txt``. The linked images get the smallest ID of
+        their group, so 138 images give 135 patients.
+        """
+        if "report" not in self.df.columns:
+            return
+        group = {pid: pid for pid in self.df["patient_id"]}
+
+        def _root(pid):
+            while group[pid] != pid:
+                pid = group[pid]
+            return pid
+
+        for pid, report in zip(self.df["patient_id"], self.df["report"], strict=True):
+            if not isinstance(report, str) or "same pt as" not in report.lower():
+                continue
+            for other in re.findall(r"(MCUCXR_\d{4})_[01]", report):
+                if other in group:
+                    a, b = sorted((_root(pid), _root(other)))
+                    group[b] = a
+        self.df["patient_id"] = self.df["patient_id"].map(_root)
+
+    def _build_report(self) -> None:
+        # "NO REPORT (same pt as ...)" is no report (D-33, Q-16). The patient ID step reads it, so clear it here.
+        if "report" in self.df.columns:
+            self.df.loc[self.df["report"].str.match(r"(?i)\s*no report\b", na=False), "report"] = None
 
     # ------------------------------------------------------------------
     # Mask preprocessing
@@ -205,9 +263,11 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
         if self.df is None:
             raise RuntimeError("Call harmonize() before preprocess_masks().")
         if "mask_path_left" not in self.df.columns or "mask_path_right" not in self.df.columns:
-            raise ValueError(
-                "mask_path_left / mask_path_right not in harmonized DataFrame; "
-                "ManualMask/ subdir was not found at harmonize() time."
+            # The masks need this folder, so it is a missing file (D-35, V-H2-36).
+            folder = os.path.normpath(os.path.join(self.base_dir, "..", "ManualMask"))
+            raise FileNotFoundError(
+                f"No {folder}/leftMask/ or rightMask/ folder, so Montgomery has no lung masks. "
+                "Download ManualMask/ next to CXR_png/, or leave mask_output_dir as None."
             )
 
         output_dir = os.path.abspath(os.path.expanduser(output_dir))
@@ -238,48 +298,3 @@ class MontgomeryCXRHarmonizer(BaseHarmonizer):
             fused_paths.append(out_path)
 
         self.df["mask_path"] = fused_paths
-
-    # ------------------------------------------------------------------
-    # Custom harmonize
-    # ------------------------------------------------------------------
-
-    def harmonize(
-        self,
-        *args,
-        mask_output_dir: str = None,
-        mask_num_cores: int = 1,
-        **kwargs,
-    ) -> pd.DataFrame:
-        img_dir = self.base_dir
-        if not os.path.isdir(img_dir):
-            raise FileNotFoundError(f"Image directory not found: {img_dir}")
-
-        stems = sorted(
-            os.path.splitext(f)[0]
-            for f in os.listdir(img_dir)
-            if f.endswith(".png")
-        )
-        self.df = pd.DataFrame({"_stem": stems})
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_image_path()
-        self._build_labels()
-        self._build_clinical()
-        self._build_masks()
-        self._build_view_position()
-        self._build_mask_path()
-        self._build_bbox()
-        self._build_report()
-
-        self.df.drop(columns=["_stem"], inplace=True, errors="ignore")
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
-
-        if mask_output_dir is not None:
-            self.preprocess_masks(
-                output_dir=mask_output_dir,
-                num_cores=mask_num_cores,
-            )
-
-        return self._select_harmonized_columns(self.df)

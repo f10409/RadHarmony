@@ -11,7 +11,7 @@ from .rsna_2022_cervical_spine import RSNA2022CervicalSpineDataset
 class RSNA2022CervicalSpineTrainDataset(RSNA2022CervicalSpineDataset):
     """Train split of :class:`RSNA2022CervicalSpineDataset`.
 
-    Identical to the base class; uses :class:`RSNA2022CervicalSpineTrainHarmonizer`
+    Identical to the base class. Uses :class:`RSNA2022CervicalSpineTrainHarmonizer`
     for correct save/load round-trips via ``load_from_saved()``.
     All constructor arguments are the same as :class:`RSNA2022CervicalSpineDataset`.
     """

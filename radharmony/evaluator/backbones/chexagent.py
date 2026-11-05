@@ -3,9 +3,11 @@
 Uses ``StanfordAIMI/XraySigLIP__vit-l-16-siglip-384__webli`` from HuggingFace.
 Despite the ``-384`` in the hub name, the model's processor resizes images to
 **512 × 512**. Accepts any format supported by MONAI's ``LoadImage`` (PNG,
-JPEG, DICOM, NIfTI, …). Images are min-max normalized to uint8 and passed
-through ``AutoProcessor`` (resize and [-1, 1] normalization handled by the
-processor).
+JPEG, DICOM, NIfTI, …). 
+The loader gives the image as the dataset load shows it, in 0 to 255
+(D-13, D-27). A DICOM file gets its VOI window, and an 8-bit image keeps
+its values. Any other image is scaled with its minimum and maximum. Then
+``AutoProcessor`` resizes it and normalizes it to [-1, 1].
 
 Requires the ``chexagent`` extra::
 
@@ -21,7 +23,7 @@ import monai.transforms as mt
 
 from radharmony.evaluator.transforms import EncoderPreprocessTransform, RadiologyEncoderTransform
 from radharmony.evaluator.wrappers import ImageEncoderWrapper
-from ._utils import squeeze_frame_dim, to_3channel, normalize_to_uint8, patches_to_spatial
+from ._utils import display_255, load_image, squeeze_frame_dim, to_3channel, to_uint8, patches_to_spatial
 
 _CHEXAGENT_HUB = "StanfordAIMI/XraySigLIP__vit-l-16-siglip-384__webli"
 
@@ -34,15 +36,15 @@ def make_chexagent(
 ) -> tuple[mt.Compose, ImageEncoderWrapper, Callable[[torch.Tensor], torch.Tensor], Any]:
     """Return ``(transform, image_encoder, text_encoder, processor)`` for XraySigLIP.
 
-    A single ``SiglipModel`` instance is created and shared: the processor is
-    captured in the transform's preprocess closure and the backbone is
+    A single ``SiglipModel`` instance is created and shared. The processor is
+    captured in the transform's preprocess closure. The backbone is
     registered in the returned ``ImageEncoderWrapper``. No weights are loaded
     twice.
 
     Parameters
     ----------
     device :
-        Target device for the encoder (e.g. ``"cuda"``, ``"cuda:7"``,
+        Target device for the encoder (for example ``"cuda"``, ``"cuda:7"``,
         ``"cpu"``). The transform's preprocess step runs on CPU in
         DataLoader workers regardless of this setting.
     hub :
@@ -50,9 +52,9 @@ def make_chexagent(
     output_keys :
         Keys to keep in each sample dict. Defaults to ``{"img", "cls"}``.
         Pass ``{"img", "mask"}`` or ``{"img", "cls", "mask"}`` for
-        segmentation — the mask is processed through the same spatial
+        segmentation. The mask is processed through the same spatial
         pipeline as the image (processor resize + crop to 512 × 512)
-        using nearest-neighbour interpolation.
+        using nearest-neighbor interpolation.
 
     dtype :
         Output tensor dtype set by the final ``ToTensorD``. Defaults to
@@ -68,13 +70,13 @@ def make_chexagent(
         the ``transform=`` kwarg.
     image_encoder : ImageEncoderWrapper
         Classification mode (default): ``forward(x) -> Tensor[B, 1024]``
-        — the pooled CLS embedding (pre-projection vision tower output).
+        Returns the pooled CLS embedding (pre-projection vision tower output).
 
         Segmentation mode (``"mask"`` in *output_keys*):
-        ``forward(x) -> Tensor[B, 1024, H, W]`` — spatial patch feature
+        ``forward(x) -> Tensor[B, 1024, H, W]``, spatial patch feature
         map, where ``H = W = 32`` for 512 px input (16-px patches).
     text_encoder : callable
-        ``(token_dict) -> Tensor[T, 768]`` — encodes tokenized text on
+        ``(token_dict) -> Tensor[T, 1024]``, encodes tokenized text on
         ``device`` and returns float32 on CPU. Pass to
         ``ZeroShotEvaluator(text_encoder=...)``.
     processor : SiglipProcessor
@@ -101,16 +103,17 @@ def make_chexagent(
     _model = AutoModel.from_pretrained(hub).to(device).eval()
     _processor = AutoProcessor.from_pretrained(hub)
     # Pad text to the text tower's 256 positions, not the tokenizer default (64).
-    # SigLIP pools the last position; at 64, zero-shot drops to chance
+    # SigLIP pools the last position. At 64, zero-shot drops to chance
     # (VinDr-CXR macro AUROC 0.488 at 64 vs 0.772 at 256).
     _processor.tokenizer.model_max_length = _model.config.text_config.max_position_embeddings
 
     _loader = mt.Compose([
-        mt.LoadImage(image_only=True, ensure_channel_first=True),
+        load_image(),
         mt.Lambda(squeeze_frame_dim),
         mt.Transpose(indices=[0, 2, 1]),
+        mt.Lambda(display_255),
         mt.Lambda(to_3channel),
-        mt.Lambda(normalize_to_uint8),
+        mt.Lambda(to_uint8),
     ])
     _loader_mask = mt.Compose([
         mt.LoadImage(image_only=True, ensure_channel_first=True),
@@ -135,8 +138,8 @@ def make_chexagent(
 
     if _seg_mode:
         def _model_call(m, x: torch.Tensor) -> torch.Tensor:
-            # SigLIP has no CLS token (uses attention-pool head); last_hidden_state
-            # is already pure patch tokens — do NOT slice [:, 1:].
+            # SigLIP has no CLS token (uses attention-pool head). Last_hidden_state
+            # is already pure patch tokens, do NOT slice [:, 1:].
             patches = m.vision_model(pixel_values=x).last_hidden_state
             return patches_to_spatial(patches)  # [B, 1024, H, W]
     else:
@@ -149,7 +152,7 @@ def make_chexagent(
                 **{k: v.to(device) for k, v in token_dict.items()}
             ).pooler_output.float().cpu()
 
-    pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess)
+    pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess, processor=_processor)
     transform = (
         RadiologyEncoderTransform(
             preprocess=pp,

@@ -3,10 +3,10 @@
 1,047 chest X-rays from MIMIC-CXR-JPG with 1,448 (phrase, bounding box)
 annotations across 8 pathology categories.
 
-``base_image_dir`` must point at the MIMIC-CXR ``files/`` directory — either the
-MIMIC-CXR-JPG tree (``.jpg``) or the MIMIC-CXR DICOM tree (``.dcm``); the
+``base_image_dir`` must point at the MIMIC-CXR ``files/`` directory, either the
+MIMIC-CXR-JPG tree (``.jpg``) or the MIMIC-CXR DICOM tree (``.dcm``). The
 extension is auto-detected.  ``image_path`` in the harmonized DataFrame is
-relative to this directory, e.g.
+relative to this directory, for example
 ``p10/p10233088/s54276838/675d792f-....dcm``.
 """
 
@@ -19,6 +19,7 @@ from radharmony.harmonizer.ms_cxr import MSCXRHarmonizer
 from radharmony.registry import register_dataset
 from radharmony.dataset.base import BaseRadiologicalDataset
 from radharmony.dataset.transforms import RadiologyTransform2D
+from radharmony.utils.infer import infer_path
 
 
 _LABEL_COLS = [
@@ -34,12 +35,14 @@ class MSCXRDataset(BaseRadiologicalDataset):
     Args:
         base_image_dir: MIMIC-CXR ``files/`` directory (JPG or DICOM tree).
             Required unless ``harmonizer_path`` or ``harmonized_df`` provided.
-        csv_path: Path to ``MS_CXR_Local_Alignment_v1.1.0.csv``.
+        csv_path: Path to ``MS_CXR_Local_Alignment_v1.1.0.csv``. Found in
+            ``base_image_dir`` or its parent when ``None``. It is usually in
+            its own folder, so pass it.
         transform: MONAI Compose transform.  Defaults to standard 2-D 224 px.
         cache_dir: MONAI PersistentDataset cache directory.
         output_cls: Yield 8 binary finding labels under ``"cls"``.
         output_bbox: Yield bounding boxes under ``"bbox"`` and ``"bbox_labels"``.
-        dtype: Output tensor dtype.  Default ``torch.bfloat16``.
+        dtype: Dtype of ``img``. The labels stay float32. Default ``torch.bfloat16``.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "bbox"})
@@ -55,6 +58,7 @@ class MSCXRDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -67,7 +71,7 @@ class MSCXRDataset(BaseRadiologicalDataset):
             csv_path = os.path.expanduser(csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = MSCXRHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "mimic_base_dir", None)
 
         if (
@@ -94,6 +98,13 @@ class MSCXRDataset(BaseRadiologicalDataset):
                 dtype=dtype,
             ).get_transform()
 
+        if harmonizer_path is None and harmonized_df is None and harmonizer is None:
+            # The CSV is in its own folder, not near the MIMIC files/ folder, so the
+            # user usually passes it. Without it, the error names the file (D-35).
+            csv_path = infer_path(
+                base_image_dir, "MS_CXR_Local_Alignment_v1.1.0.csv", user_path=csv_path or "",
+                required=True, arg="csv_path",
+            )
         self._csv_path = csv_path
         super().__init__(
             base_image_dir=base_image_dir,
@@ -102,6 +113,7 @@ class MSCXRDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -112,7 +124,7 @@ class MSCXRDataset(BaseRadiologicalDataset):
         preset = self._try_resolve_preset_harmonized()
         if preset is not None:
             return preset
-        h = MSCXRHarmonizer(
+        h = self._HARMONIZER_CLS(
             csv_path=self._csv_path,
             mimic_base_dir=self.base_image_dir,
         )

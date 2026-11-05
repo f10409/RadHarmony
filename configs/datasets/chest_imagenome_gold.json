@@ -88,5 +88,15 @@
   },
 
   "hu_window": null,
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: gold_dataset/gold_bbox_coordinate_annotations_1000images.csv and utils/cxr-record-list_view.csv read with pandas, and the Rows and Columns tags of the 1,000 DICOM headers read with pydicom. The CSV has 25,989 boxes. 22 of them are inverted (x1 > x2 or y1 > y2, Q-9), and 6 others have no area inside the image after the clip to the image (for example x1 == x2, or a box past the image edge). So 25,961 boxes stay (V-H1-13, D-07). Every image keeps at least one box.",
+    "chest_imagenome_gold": {
+      "images": 1000,
+      "studies": 1000,
+      "patients": 500,
+      "rows_with_bbox": 1000,
+      "boxes": 25961
+    }
+  },
   "custom_preprocessing": "Per-box findings are carried in the harmonized 'bbox_findings' column via the harmonizer's EXTRA_OUTPUT_COLS (anatomy in bbox_labels, findings in bbox_findings) - NOT aggregated to an image-level cls vector. The dataset sets SUPPORTS_BBOX_FINDINGS=True, so with output_bbox=True all three (bbox, bbox_labels, bbox_findings) are threaded into each sample, index-aligned through augmentation; the app labels each box 'anatomy: findings'. Bbox normalization reads original DICOM dimensions (Rows=H, Columns=W) from the header, cached. MIMIC-derived, PhysioNet data: never commit the harmonized DataFrame, saved CSVs, or images."
 }

@@ -69,7 +69,7 @@
   },
 
   "bboxes": {
-    "_comment": "235 of the 2,019 studies have slice-level bounding boxes (train_bounding_boxes.csv: StudyInstanceUID, x, y, width, height, slice_number). Decision: ship a SECOND dataset class RSNA2022CervicalSpineBboxDataset that is 2-D per-slice (one row per (study, slice) with a bbox), mirroring the ChestXray14 / ChestXray14Bbox precedent. The primary 3-D class does not expose bboxes.",
+    "_comment": "235 of the 2,019 studies have slice-level bounding boxes (train_bounding_boxes.csv: StudyInstanceUID, x, y, width, height, slice_number). A SECOND dataset class, RSNA2022CervicalSpineBboxDataset, gives one row per study with a bbox: the 3-D volume and one 3-D box (6 values) for each source box. The primary 3-D class does not expose bboxes.",
     "supported": true,
     "column": "bbox"
   },
@@ -94,5 +94,49 @@
   },
 
   "hu_window": [-200, 1800],
-  "custom_preprocessing": "Standard 3D CT pipeline. HU window default [-200, 1800] is bone-centric (cervical spine is the target tissue); override with hu_window=(-1000, 1000) for soft-tissue work."
+  "custom_preprocessing": "Standard 3D CT pipeline. HU window default [-200, 1800] is bone-centric (cervical spine is the target tissue); override with hu_window=(-1000, 1000) for soft-tissue work.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources (2026-11-03): the Kaggle data page (2,019 train studies, boxes for a subset, segmentations for a subset), and train.csv, train_bounding_boxes.csv and test.csv read with pandas, with the file lists of train_images/ and segmentations/. One row is one CT study (one volume). The source has no patient ID, so patient_id and study_id are the StudyInstanceUID (one study is one patient). train.csv has only 0 and 1, so no label is uncertain. 87 studies have a file <StudyInstanceUID>.nii in segmentations/, so 87 rows have a mask_path. train_bounding_boxes.csv has 7,217 rows, one box on one slice each, on 235 studies. All 235 studies have patient_overall 1. Every box slice has a .dcm file, and every box is inside 512 x 512, so no box is lost or clipped away (D-07). The bbox key is a subset of the train studies, so this block has no patients_in_two_splits. rsna_2022_cervical_spine_test has no block: test.csv has 3 studies with no labels (D-25), but they are not in the 3 sample folders of test_images/. So no sample loads, and the output flag test cannot run on it. The source has no sex and no age.",
+    "rsna_2022_cervical_spine_train": {
+      "images": 2019,
+      "studies": 2019,
+      "patients": 2019,
+      "positives": {
+        "c1": 146,
+        "c2": 285,
+        "c3": 73,
+        "c4": 108,
+        "c5": 162,
+        "c6": 277,
+        "c7": 393,
+        "patient_overall": 961
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_mask": 87,
+      "rows_with_report": 0
+    },
+    "rsna_2022_cervical_spine_bbox": {
+      "images": 235,
+      "studies": 235,
+      "patients": 235,
+      "positives": {
+        "c1": 46,
+        "c2": 64,
+        "c3": 49,
+        "c4": 64,
+        "c5": 74,
+        "c6": 87,
+        "c7": 81,
+        "patient_overall": 235
+      },
+      "uncertain": {},
+      "rows_with_bbox": 235,
+      "boxes": 7217,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    }
+  }
 }

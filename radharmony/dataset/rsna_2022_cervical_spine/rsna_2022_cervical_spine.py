@@ -4,7 +4,7 @@
 per-study DICOM directory by MONAI's ``ITKReader``.  8 study-level
 binary labels per volume (``patient_overall`` plus per-vertebra
 ``c1``..``c7``).  87 of the 2,019 studies ship with a NIfTI
-segmentation mask under ``segmentations/<StudyUID>.nii``; passing
+segmentation mask under ``segmentations/<StudyUID>.nii``. Passing
 ``output_mask=True`` filters the dataset to that subset.
 
 For per-slice 2-D bounding-box work see
@@ -20,7 +20,7 @@ import pandas as pd
 from radharmony.harmonizer import RSNA2022CervicalSpineHarmonizer
 from radharmony.registry import register_dataset
 from radharmony.utils.infer import infer_path
-from ..base import BaseRadiologicalDataset
+from ..base import BaseRadiologicalDataset, _require_image_folder
 from ..transforms import RadiologyTransform3D
 
 
@@ -29,28 +29,28 @@ class RSNA2022CervicalSpineDataset(BaseRadiologicalDataset):
     """3-D MONAI PersistentDataset for RSNA 2022 Cervical Spine.
 
     Args:
-        base_image_dir: Root of the DICOM tree — typically
+        base_image_dir: Root of the DICOM tree, typically
             ``.../rsna-2022-cervical-spine-fracture-detection/train_images/``.
         csv_path: Path to ``train.csv``.  Auto-inferred (parent of
             ``base_image_dir``) when ``None``.
         segmentation_dir: Directory of NIfTI segmentation masks
             (``<StudyUID>.nii``).  Auto-inferred as ``<parent>/segmentations``
-            when ``None``; required when ``output_mask=True`` (otherwise the
+            when ``None``. Required when ``output_mask=True`` (otherwise the
             mask filter would silently drop everything).
         transform: MONAI Compose transform.  Defaults to the standard 3-D
             pipeline (ITKReader directory load → HU window → percentile scale
             → resize/pad).
         cache_dir: PersistentDataset cache directory.  ``None`` disables caching.
         hu_window: ``(min_HU, max_HU)`` clipping window applied before
-            percentile normalisation.  Default ``(-200, 1800)`` is
-            bone-centric (cervical spine target tissue); pass ``(-1000, 1000)``
+            percentile normalization.  Default ``(-200, 1800)`` is
+            bone-centric (cervical spine target tissue). Pass ``(-1000, 1000)``
             for general soft-tissue work.
         output_cls: Yield the 8-D label vector under key ``cls``.
         output_mask: When ``True``, the dataset is restricted to the 87
             studies that have a matching ``<StudyUID>.nii`` segmentation
             (the framework's ``dropna`` on ``mask_path`` handles the filter).
-        output_report: Not supported; silently ignored with a warning.
-        output_bbox: Not supported; for slice-level bboxes use
+        output_report: Not supported. Gives a warning and no key.
+        output_bbox: Not supported. For slice-level bboxes use
             :class:`RSNA2022CervicalSpineBboxDataset` instead.
     """
 
@@ -78,6 +78,7 @@ class RSNA2022CervicalSpineDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -92,7 +93,7 @@ class RSNA2022CervicalSpineDataset(BaseRadiologicalDataset):
             segmentation_dir = os.path.expanduser(segmentation_dir)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RSNA2022CervicalSpineHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
             segmentation_dir = segmentation_dir or getattr(_h, "segmentation_dir", None)
 
@@ -122,7 +123,7 @@ class RSNA2022CervicalSpineDataset(BaseRadiologicalDataset):
         # Auto-discover CSV and segmentations dir relative to base_image_dir.
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._csv_path = infer_path(
-                base_image_dir, "train.csv", user_path=csv_path or "",
+                base_image_dir, "train.csv", user_path=csv_path or "", required=True, arg="csv_path",
             ) or csv_path
             if segmentation_dir is None and base_image_dir:
                 candidate = os.path.join(os.path.dirname(base_image_dir.rstrip("/\\")), "segmentations")
@@ -151,6 +152,7 @@ class RSNA2022CervicalSpineDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -171,6 +173,7 @@ class RSNA2022CervicalSpineDataset(BaseRadiologicalDataset):
     def verify_images(self, drop_missing: bool = True) -> pd.DataFrame:
         """Check that every ``image_path`` **directory** (per-study DICOM dir) exists."""
         df = self._get_harmonized_df()
+        _require_image_folder(df, self.base_image_dir)  # D-04
 
         def _exists(p):
             fp = os.path.join(self.base_image_dir, p) if self.base_image_dir else p

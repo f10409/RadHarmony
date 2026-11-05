@@ -40,7 +40,7 @@ def show_predictions(probe, probe_ds, montgomery_dir, *, label="tuberculosis", n
     df = probe_ds._get_harmonized_df().dropna(subset=["image_path"]).reset_index(drop=True)
 
     fig, axes = plt.subplots(1, len(show), figsize=(4 * len(show), 5))
-    for ax, i, p in zip(np.atleast_1d(axes), show, probs):
+    for ax, i, p in zip(np.atleast_1d(axes), show, probs, strict=True):
         img_path = os.path.join(montgomery_dir, df.loc[i, "image_path"])
         ax.imshow(Image.open(img_path).convert("L"), cmap="gray")
         ax.axis("off")
@@ -88,7 +88,7 @@ def show_answers(vqa_ds, answerer, *, n=4):
     preds = answerer([s["img"] for s in samples], [s["question"] for s in samples])
 
     fig, axes = plt.subplots(1, len(samples), figsize=(4 * len(samples), 5))
-    for ax, s, pred in zip(np.atleast_1d(axes), samples, preds):
+    for ax, s, pred in zip(np.atleast_1d(axes), samples, preds, strict=True):
         ax.imshow(Image.open(s["img"]).convert("L"), cmap="gray")
         ax.axis("off")
         ax.set_title(
@@ -113,7 +113,7 @@ def show_reports(gen_ds, generator, *, n=3, section="findings"):
         gridspec_kw={"width_ratios": [1, 1.4]},
     )
     axes = np.atleast_2d(axes)
-    for row, (s, hyp) in enumerate(zip(samples, gen_reports)):
+    for row, (s, hyp) in enumerate(zip(samples, gen_reports, strict=True)):
         axes[row, 0].imshow(Image.open(s["img"]).convert("L"), cmap="gray")
         axes[row, 0].axis("off")
         ref = parse_report_section(str(s["report"]), section)

@@ -1,44 +1,28 @@
 """Harmonizer for the ROCO (Radiology Objects in COntext) dataset.
 
-ROCO is a large-scale multimodal captioning dataset sourced from PubMed Central.
-Each entry pairs a radiology (or non-radiology) image with its figure caption,
-plus UMLS keywords, CUIs, and semantic types.
+ROCO is a large multimodal captioning set from PubMed Central. An entry has a radiology or
+non-radiology image, its figure caption, and UMLS keywords, CUIs and semantic types.
+Source: https://github.com/razorx89/roco-dataset
 
-**Source:** https://github.com/razorx89/roco-dataset
+Layout after ``scripts/fetch.py``::
 
-**Layout after running ``scripts/fetch.py``:**
+    <base_dir>/data/{train,validation,test}/{radiology,non-radiology}/
+      captions.txt   # ROCO_XXXXX<TAB><caption>
+      keywords.txt   # ROCO_XXXXX<TAB><TAB><kw1><TAB><kw2>...  (first field blank)
+      cuis.txt
+      semtypes.txt
+      images/ROCO_XXXXX.jpg
 
-    <base_dir>/
-      data/
-        train/
-          radiology/
-            captions.txt
-            keywords.txt
-            cuis.txt
-            semtypes.txt
-            images/
-              ROCO_XXXXX.jpg
-          non-radiology/   (same structure)
-        validation/  (same)
-        test/        (same)
+Columns (VQA schema): patient_id, study_id, question_id, image_path, question, answer.
+``question`` is always empty, because this is a captioning set. ``answer`` is the caption.
+Extra columns: ``keywords`` (tab-joined), ``split`` and ``subset`` ("radiology" or
+"non-radiology").
 
-**captions.txt format:**  ``ROCO_XXXXX\\t<caption text>``
-
-**keywords.txt format:**  ``ROCO_XXXXX\\t\\t<kw1>\\t<kw2>\\t...``  (first field blank)
-
-**Harmonized columns (required VQA schema):**
-  patient_id, study_id, question_id, image_path, question, answer
-
-``question`` is always the empty string (this is a captioning dataset).
-``answer`` is the caption text.
-
-**Extra columns:**
-  keywords   — tab-joined keyword string
-  split      — "train" / "validation" / "test"
-  subset     — "radiology" / "non-radiology"
+Details: ``docs/wiki/reference/datasets/vqa-text/roco.md``.
 """
 
 import os
+import warnings
 
 import pandas as pd
 
@@ -50,7 +34,7 @@ _SUBSETS  = ("radiology", "non-radiology")
 
 
 def _parse_tsv(path: str, min_fields: int = 2) -> list[tuple]:
-    """Read a ROCO tab-separated file, return list of (id, rest_of_fields)."""
+    """Read a ROCO tab-separated file and return the list of split lines (the id is first)."""
     rows = []
     if not os.path.isfile(path):
         return rows
@@ -69,16 +53,12 @@ class ROCOHarmonizer(BaseVQAHarmonizer):
     """Harmonize the ROCO dataset.
 
     Args:
-        base_dir: Root of the roco-dataset clone or download tree — the
-            directory that contains the ``data/`` subdirectory.
-        splits: Which splits to include.  Defaults to all three:
-            ``["train", "validation", "test"]``.
-        radiology_only: When ``True`` (default), include only the
-            ``radiology/`` subset; set to ``False`` to also include
-            ``non-radiology/`` images.
-        image_subdir: Name of the image subdirectory inside each split/subset
-            folder (default ``"images"``).  Must match the ``--subdir``
-            argument passed to ``scripts/fetch.py``.
+        base_dir: Root of the roco-dataset clone or download, the folder with ``data/``.
+        splits: The splits to use. The default is all three: ``["train", "validation", "test"]``.
+        radiology_only: If ``True`` (default), use only the ``radiology/`` subset. Use ``False``
+            to add the ``non-radiology/`` images.
+        image_subdir: Name of the image folder in each split and subset folder (default
+            ``"images"``). It must match the ``--subdir`` argument of ``scripts/fetch.py``.
     """
 
     EXTRA_OUTPUT_COLS = ["keywords", "split", "subset"]
@@ -102,6 +82,8 @@ class ROCOHarmonizer(BaseVQAHarmonizer):
 
     def _harmonizer_init_snapshot(self) -> dict:
         snap = super()._harmonizer_init_snapshot()
+        # The constructor sets base_image_dir from base_dir. It is not an argument (V-H2-22).
+        snap.pop("base_image_dir", None)
         if self.base_dir is not None:
             snap["base_dir"] = self.base_dir
         if self.splits != list(_SPLITS):
@@ -112,27 +94,56 @@ class ROCOHarmonizer(BaseVQAHarmonizer):
             snap["image_subdir"] = self.image_subdir
         return snap
 
-    def harmonize(self) -> pd.DataFrame:
+    def filter_table(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Keep the rows of ``splits``, and only the ``radiology`` subset if ``radiology_only`` (D-02).
+
+        ``_read_source`` reads only these folders. This method does the same on a harmonized table.
+
+        Args:
+            df: The source rows or a harmonized table.
+
+        Returns:
+            The kept rows, with a new index.
+
+        Raises:
+            ValueError: If ``radiology_only`` is set and the table has no ``subset`` column.
+        """
+        # A table with no split column is taken as it is.
+        if set(self.splits) != set(_SPLITS) and "split" in df.columns:
+            df = df[df["split"].isin(self.splits)]
+        if self.radiology_only:
+            if "subset" not in df.columns:
+                raise ValueError("ROCO: radiology_only=True needs the subset column, and the table has none.")
+            df = df[df["subset"] == "radiology"]
+        return df.reset_index(drop=True)
+
+    def _read_source(self) -> pd.DataFrame:
+        """Read the caption and keyword files of the chosen splits and subsets, one row per image."""
         if self.base_dir is None:
             raise ValueError("base_dir is required to harmonize from scratch.")
 
         subsets = ("radiology",) if self.radiology_only else _SUBSETS
 
         rows = []
+        missing = []
         for split in self.splits:
             for subset in subsets:
                 folder = os.path.join(self.base_dir, "data", split, subset)
                 if not os.path.isdir(folder):
+                    missing.append(os.path.join("data", split, subset))
                     continue
 
                 cap_path = os.path.join(folder, "captions.txt")
                 kw_path  = os.path.join(folder, "keywords.txt")
+                if not os.path.isfile(cap_path):  # V-H2-45: a broken download lost a split with no message
+                    missing.append(os.path.join("data", split, subset, "captions.txt"))
+                    continue
 
-                # Load keywords: id → joined keyword string
+                # Keywords: id to joined keyword text.
                 kw_map: dict[str, str] = {}
                 for parts in _parse_tsv(kw_path, min_fields=1):
                     roco_id = parts[0].strip()
-                    # keywords start at index 2 (index 1 is always blank)
+                    # The keywords start at index 2. Index 1 is always blank.
                     kws = [p.strip() for p in parts[2:] if p.strip()]
                     kw_map[roco_id] = "\t".join(kws)
 
@@ -159,5 +170,13 @@ class ROCOHarmonizer(BaseVQAHarmonizer):
                         "subset":      subset,
                     })
 
-        self.df = pd.DataFrame(rows).reset_index(drop=True)
-        return self._select_harmonized_columns(self.df)
+        # D-35: no folder with captions.txt is an error. A missing folder or captions.txt is a warning.
+        n_folders = len(self.splits) * len(subsets)
+        if len(missing) == n_folders:
+            raise FileNotFoundError(
+                f"ROCO: no split folder with captions.txt in {self.base_dir}. Looked for: {', '.join(missing)}."
+            )
+        if missing:
+            warnings.warn(f"ROCO: these folders or files are missing, so they give no rows: {', '.join(missing)}.",
+                          UserWarning, stacklevel=3)  # stacklevel 3 is the caller of harmonize()
+        return pd.DataFrame(rows)

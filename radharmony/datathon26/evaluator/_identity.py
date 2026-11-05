@@ -2,10 +2,10 @@
 
 The datathon26 datasets already carry the model outputs (embedding vectors or
 generated report text) in the sample's ``"img"`` key. These pass-throughs let
-the *unmodified* RadHarmony evaluators consume those outputs: the classification
-evaluators call ``image_encoder(imgs)`` once (:class:`IdentityEncoder` returns
-the embeddings), and the generative evaluator calls ``generator(imgs, contexts)``
-(:func:`identity_generator` returns the predicted reports).
+the unmodified RadHarmony evaluators use those outputs. A classification
+evaluator calls ``image_encoder(imgs)``, and :class:`IdentityEncoder` returns
+the embeddings. A generative evaluator calls ``generator(imgs, contexts)``, and
+:func:`identity_generator` returns the predicted reports.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ class IdentityEncoder(torch.nn.Module):
 def identity_generator(imgs, contexts=None):
     """Return the pre-computed predicted reports unchanged.
 
-    Two-argument signature so ``GenerativeEvaluator._run_generator`` binds it as
-    a context-accepting generator; ``contexts`` is ignored.
+    It takes 2 arguments, so ``GenerativeEvaluator._run_generator`` gives it the
+    ``contexts`` (the indications or questions). It does not use them.
     """
     return list(imgs)

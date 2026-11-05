@@ -110,3 +110,12 @@ Outputs:
 > Note: this script mixes the 3-rater consensus test split into the
 > cross-validation pool, so numbers are **not** directly comparable to the
 > official VinDr-CXR paper protocol.
+
+## TAIX-Ray embedding caches: `eval_linear_probe_external.py`, `analyze_failures.py`
+
+These 2 scripts read `labels` and `labels_names` from the TAIX-Ray `embedding_cache` files
+(`taix.train.pkl`, `taix.test.pkl`). The files that exist now have these keys. Since 2026-11-02, the
+evaluators write new cache files with the features only: `feats`, `image_paths` and `encoder`. Each run
+reads the labels from the dataset (design decision D-41). So if you build a cache file again, these
+scripts stop with a `KeyError`. Then read the labels from the TAIX-Ray dataset, in the order of
+`image_paths`.

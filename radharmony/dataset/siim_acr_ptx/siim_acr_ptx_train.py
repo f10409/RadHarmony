@@ -1,4 +1,4 @@
-"""MONAI dataset for the SIIM-ACR Pneumothorax dataset — train split."""
+"""MONAI dataset for the SIIM-ACR Pneumothorax dataset: train split."""
 
 import pandas as pd
 
@@ -11,10 +11,13 @@ from .siim_acr_ptx import SIIMACRPTXDataset
 class SIIMACRPTXTrainDataset(SIIMACRPTXDataset):
     """Train split of :class:`SIIMACRPTXDataset`.
 
-    Identical to the base class; uses :class:`SIIMACRPTXTrainHarmonizer`
+    Identical to the base class. Uses :class:`SIIMACRPTXTrainHarmonizer`
     for correct save/load round-trips via ``load_from_saved()``.
     All constructor arguments are the same as :class:`SIIMACRPTXDataset`.
+    ``harmonizer_path=`` also loads a file of :class:`SIIMACRPTXHarmonizer`.
     """
+
+    _HARMONIZER_CLS = SIIMACRPTXTrainHarmonizer
 
     def _get_harmonized_df(self) -> pd.DataFrame:
         preset = self._try_resolve_preset_harmonized()

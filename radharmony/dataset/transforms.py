@@ -16,171 +16,352 @@ Typical usage::
 
 from __future__ import annotations
 
+import ast
+import json
+import math
+
+import pandas as pd
 import torch
 import monai as mn
+from monai.utils import ensure_tuple
 
 from radharmony.dataset.base import (
     _apply_voi_lut,
-    _convert_monochrome1_to_2,
     _fix_missing_highbit,
 )
 
 
 # ---------------------------------------------------------------------------
-# Bbox → mask helper
+# Box helpers (D-28)
 # ---------------------------------------------------------------------------
+# The box in a sample must match the image in that sample. Resize, pad, flip
+# and transpose move the box with exact math on its corners. A resize keeps the
+# fractions as they are, because it stretches the whole image. Only the affine
+# and elastic warps use a mask round trip. Each box gets its own mask channel.
+# The warp moves the masks with the image. Then the boxes are read back from
+# the masks.
+
+_BOX_LIST_KEYS = ("bbox_labels", "bbox_findings")
 
 
-class _MaskToBbox:
-    """Convert an augmented ``"bbox_mask"`` back to normalized bbox coordinates.
+def _parse_list(raw) -> list:
+    """Return a per-box value (boxes, labels or findings) as a list.
 
-    When the mask has **multiple channels** (one per bbox, written by
-    ``_BboxToMask``), each channel is converted independently and the
-    result is a list of ``[dim0_min, dim0_max, dim1_min, dim1_max]``
-    lists.  A single-channel mask produces a single flat list (backwards
-    compatible).  Channels that are all-zero (bbox augmented out of
-    frame) are dropped.
+    A JSON string is parsed. A Python list text, as ``to_csv`` writes it (for
+    example ``"['a', 'b']"``), is parsed with ``ast.literal_eval`` (V-D-33). A
+    missing value (None, NaN, ``pd.NA``, "nan", "") gives [].
+    """
+    if raw is None or (not hasattr(raw, "__len__") and pd.isna(raw)):
+        return []
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text in ("", "nan", "None"):
+            return []
+        try:
+            return list(json.loads(text))
+        except ValueError as e:
+            try:
+                value = ast.literal_eval(text)  # reads only literals, never runs code
+            except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+                value = None
+            if isinstance(value, (list, tuple)):
+                return list(value)
+            raise ValueError(
+                f"cannot read the box, label or finding value {text[:80]!r} as JSON "
+                f"or as a Python list: {e}"
+            ) from e
+    if hasattr(raw, "tolist"):
+        raw = raw.tolist()
+    return list(raw)
+
+
+def _parse_boxes(raw, ndim: int) -> list[list[float]]:
+    """Return the box value of a sample as a list of boxes.
+
+    Args:
+        raw: a JSON string, one flat box, a list of boxes, a tensor or an
+            array. A missing value (None, NaN, "nan", "") means no box.
+        ndim: number of spatial dimensions (2 or 3).
+
+    Returns:
+        A list of boxes. Each box is a list of ``2 * ndim`` floats.
+
+    Raises:
+        ValueError: a box does not have ``2 * ndim`` values, or a value is
+            not finite.
+    """
+    boxes = _parse_list(raw)
+    if boxes and not isinstance(boxes[0], (list, tuple)) and getattr(boxes[0], "ndim", 0) == 0:
+        boxes = [boxes]  # one flat box, for example 6 numpy floats (RAD-ChestCT)
+    out = [[float(v) for v in _parse_list(b)] for b in boxes]
+    for b in out:
+        if len(b) != 2 * ndim:
+            raise ValueError(f"a {ndim}-D box needs {2 * ndim} values, got {b}")
+        if not all(math.isfinite(v) for v in b):
+            raise ValueError(f"a box value is not finite (D-07): {b}")
+    return out
+
+
+def _sample_boxes(d: dict) -> list[list[float]]:
+    """Return the boxes of a sample dict as a list (see :func:`_parse_boxes`).
+
+    The number of spatial dimensions comes from ``d["img"]``. So a box step
+    also works in a pipeline with no :class:`_ParseBboxD`, for example a JSON
+    string box in a custom pipeline.
+    """
+    return _parse_boxes(d.get("bbox"), d["img"].ndim - 1)
+
+
+def _flip_box(box: list[float], axes) -> list[float]:
+    """Return *box* flipped along each spatial axis in *axes*."""
+    out = list(box)
+    for a in axes:
+        lo, hi = out[2 * a], out[2 * a + 1]
+        out[2 * a], out[2 * a + 1] = 1.0 - hi, 1.0 - lo
+    return out
+
+
+def _keep_boxes(data: dict, keep: list[int]) -> None:
+    """Keep only the per-box labels and findings at the indices in *keep*."""
+    for key in _BOX_LIST_KEYS:
+        if key in data:
+            values = _parse_list(data[key])
+            data[key] = [values[i] for i in keep if i < len(values)]
+
+
+def _paint_box(channel: torch.Tensor, box: list[float]) -> None:
+    """Fill one box into a ``(*spatial)`` mask channel (changed in place).
+
+    Each edge goes to the nearest pixel edge, so a round trip moves an edge by
+    0.5 pixel or less. Values outside [0, 1] are clipped. A box always covers
+    at least 1 pixel on each axis.
+    """
+    index = []
+    for i, n in enumerate(channel.shape):
+        lo = min(max(box[2 * i], 0.0), 1.0)
+        hi = min(max(box[2 * i + 1], 0.0), 1.0)
+        start = min(math.floor(lo * n + 0.5), n - 1)
+        stop = max(math.floor(hi * n + 0.5), start + 1)
+        index.append(slice(start, stop))
+    channel[tuple(index)] = 1
+
+
+def _paint_mask(boxes: list[list[float]], spatial: tuple) -> torch.Tensor:
+    """Return a float32 mask of shape ``(N, *spatial)`` with box ``c`` in channel ``c``."""
+    mask = torch.zeros(len(boxes), *spatial, dtype=torch.float32)
+    for c, box in enumerate(boxes):
+        _paint_box(mask[c], box)
+    return mask
+
+
+def _channel_to_box(channel: torch.Tensor) -> list[float] | None:
+    """Return the box of the nonzero pixels of one mask channel, or None."""
+    nonzero = torch.nonzero(channel, as_tuple=False)
+    if nonzero.numel() == 0:
+        return None
+    box: list[float] = []
+    for i, n in enumerate(channel.shape):
+        # The upper edge is the far side of the last pixel: (index + 1) / n.
+        box += [nonzero[:, i].min().item() / n, (nonzero[:, i].max().item() + 1) / n]
+    return box
+
+
+class _ParseBboxD(mn.transforms.Transform):
+    """Turn ``bbox``, ``bbox_labels`` and ``bbox_findings`` into plain lists.
+
+    It runs first, so every later box step gets a list of boxes. No-op when
+    ``"bbox"`` is absent.
     """
 
-    @staticmethod
-    def _channel_to_bbox(chan, spatial):
-        """Extract normalized bbox coords from one (H, W) or (D, H, W) mask."""
-        nonzero = torch.nonzero(chan, as_tuple=False)
-        if nonzero.numel() == 0:
-            return None
-        coords: list[float] = []
-        for i, dim_size in enumerate(spatial):
-            coords.append(nonzero[:, i].min().item() / dim_size)
-            coords.append(nonzero[:, i].max().item() / dim_size)
-        return coords
-
-    def __call__(self, data: dict) -> dict:
-        if "bbox_mask" not in data:
-            return data
-        mask = data["bbox_mask"]  # (C, *spatial)
-        n_channels = mask.shape[0]
-        spatial = mask.shape[1:]
-
-        # Parse JSON-string per-box lists (some harmonizers store as JSON).
-        # bbox_findings is an optional parallel list (e.g. Chest ImaGenome).
-        import json
-
-        def _parse_list(key):
-            raw = data.get(key)
-            if isinstance(raw, str):
-                try:
-                    data[key] = json.loads(raw)
-                except (ValueError, TypeError):
-                    data[key] = []
-
-        _parse_list("bbox_labels")
-        _parse_list("bbox_findings")
-        has_labels = "bbox_labels" in data and data["bbox_labels"]
-        has_findings = "bbox_findings" in data and data["bbox_findings"]
-
-        if n_channels == 1:
-            # Single bbox — return flat list (backwards compatible)
-            coords = self._channel_to_bbox(mask[0], spatial)
-            data["bbox"] = coords if coords else [0.0] * (2 * len(spatial))
-        else:
-            # Multi-bbox — return list of lists, drop empty channels.  Keep any
-            # parallel per-box lists (labels, findings) index-aligned with the
-            # boxes that survive augmentation.
-            boxes = []
-            kept_labels = []
-            kept_findings = []
-            for c in range(n_channels):
-                coords = self._channel_to_bbox(mask[c], spatial)
-                if coords is not None:
-                    boxes.append(coords)
-                    if has_labels and c < len(data["bbox_labels"]):
-                        kept_labels.append(data["bbox_labels"][c])
-                    if has_findings and c < len(data["bbox_findings"]):
-                        kept_findings.append(data["bbox_findings"][c])
-            data["bbox"] = boxes if boxes else [[0.0] * (2 * len(spatial))]
-            if has_labels:
-                data["bbox_labels"] = kept_labels
-            if has_findings:
-                data["bbox_findings"] = kept_findings
-
-        return data
-
-
-class _BboxToMask:
-    """Convert normalized bbox(es) to a binary spatial mask.
-
-    Accepts either a single flat bbox::
-
-        [dim0_min, dim0_max, dim1_min, dim1_max, ...]   (all in [0, 1])
-
-    or a list of such bboxes (multi-bbox per image)::
-
-        [[y_min, y_max, x_min, x_max], [y_min, y_max, x_min, x_max], ...]
-
-    For a single bbox, produces a ``(1, *spatial)`` mask.  For multiple
-    bboxes, produces a ``(N, *spatial)`` mask with one channel per bbox
-    so that ``_MaskToBbox`` can recover individual boxes after augmentation.
-    """
-
-    @staticmethod
-    def _paint_one_bbox(mask, coords, spatial):
-        """Fill a single normalized bbox into *mask* (mutated in-place)."""
-        ndim = len(spatial)
-        if len(coords) < 2 * ndim:
-            return
-        slices: list = [slice(None)]  # channel axis
-        for i, dim_size in enumerate(spatial):
-            lo = int(coords[2 * i] * dim_size)
-            hi = int(coords[2 * i + 1] * dim_size + 0.5)
-            hi = max(lo + 1, min(hi, dim_size))  # at least 1 voxel, clamp
-            slices.append(slice(lo, hi))
-        mask[tuple(slices)] = 1
+    def __init__(self, ndim: int):
+        self.ndim = ndim
 
     def __call__(self, data: dict) -> dict:
         if "bbox" not in data:
             return data
-        img = data["img"]
-        bbox = data["bbox"]
-        spatial = img.shape[1:]  # drop channel dim
+        d = dict(data)
+        d["bbox"] = _parse_boxes(d["bbox"], self.ndim)
+        for key in _BOX_LIST_KEYS:
+            if key in d:
+                d[key] = _parse_list(d[key])
+        return d
 
-        # JSON strings (from harmonizers that store bbox as a JSON column) must
-        # be parsed to a list before any coordinate logic runs.
-        if isinstance(bbox, str):
-            import json
-            try:
-                bbox = json.loads(bbox)
-            except (ValueError, TypeError):
-                return data
 
-        # Detect multi-bbox (list of lists) vs single bbox (flat list/tensor)
-        is_multi = (
-            isinstance(bbox, (list, tuple))
-            and bbox
-            and isinstance(bbox[0], (list, tuple))
-        )
+class _SpatialPadBboxD(mn.transforms.SpatialPadd):
+    """``SpatialPadd`` that also moves the box with the pad of ``"img"``."""
 
-        if is_multi:
-            # One channel per bbox so individual boxes survive augmentation
-            mask = torch.zeros(len(bbox), *spatial, dtype=img.dtype)
-            for c, single in enumerate(bbox):
-                try:
-                    coords = [float(v) for v in single]
-                    if coords and all(0.0 <= v <= 1.0 for v in coords):
-                        one_ch = mask[c : c + 1]
-                        self._paint_one_bbox(one_ch, coords, spatial)
-                except (TypeError, ValueError):
-                    continue
-        else:
-            mask = torch.zeros(1, *spatial, dtype=img.dtype)
-            try:
-                coords = [float(v) for v in bbox]
-                if coords and all(0.0 <= v <= 1.0 for v in coords):
-                    self._paint_one_bbox(mask, coords, spatial)
-            except (TypeError, ValueError):
-                pass
+    def __call__(self, data, lazy=None):
+        shape = tuple(data["img"].shape[1:]) if "img" in data else None
+        d = super().__call__(data, lazy)
+        if shape is None or "bbox" not in d:
+            return d
+        width = self.padder.compute_pad_width(shape)[1:]  # skip the channel axis
+        boxes = []
+        for box in _sample_boxes(d):
+            out = []
+            for i, (n, (before, after)) in enumerate(zip(shape, width, strict=True)):
+                total = n + before + after
+                out += [(box[2 * i] * n + before) / total, (box[2 * i + 1] * n + before) / total]
+            boxes.append(out)
+        d["bbox"] = boxes
+        return d
 
-        data["bbox_mask"] = mask
-        return data
+
+class _SpacingBboxD(mn.transforms.SpacingD):
+    """``SpacingD`` that also moves the box with the resample of ``"img"`` (D-28).
+
+    The output of a resample covers a different area than the input, because
+    MONAI keeps the first voxel center and rounds the output size. So the box
+    fractions change. Each box corner goes through the voxel map of the two
+    affines. The new box is clipped to [0, 1]. A box on the strip that the
+    resample cuts off has no area then. The step drops it with its label and
+    finding (D-07).
+
+    Args:
+        box_axes: the image axis of each box pair at this step. ``(2, 1, 0)``
+            when a ``Transposed([0, 3, 2, 1])`` comes after this step.
+        Other arguments go to ``SpacingD``.
+    """
+
+    def __init__(self, *args, box_axes=(0, 1, 2), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.box_axes = tuple(box_axes)
+
+    def __call__(self, data, lazy=None):
+        img = data.get("img")
+        if "bbox" not in data or not hasattr(img, "affine"):
+            return super().__call__(data, lazy)
+        import numpy as np
+
+        shape, a_in = img.shape[1:], np.asarray(img.affine, dtype=np.float64)
+        d = super().__call__(data, lazy)
+        out = d["img"]
+        shape_out = out.shape[1:]
+        m = np.linalg.solve(np.asarray(out.affine, dtype=np.float64), a_in)  # input voxel -> output voxel
+        boxes, keep = [], []
+        for c, box in enumerate(_sample_boxes(d)):
+            # Box edges as voxel-center coordinates (edge - 0.5), in image axis order.
+            lo, hi = [0.0] * 3, [0.0] * 3
+            for k, ax in enumerate(self.box_axes):
+                lo[ax], hi[ax] = box[2 * k] * shape[ax] - 0.5, box[2 * k + 1] * shape[ax] - 0.5
+            corners = np.array(np.meshgrid(*zip(lo, hi, strict=True), indexing="ij")).reshape(3, -1)
+            mapped = m[:3, :3] @ corners + m[:3, 3:]
+            new = []
+            for ax in self.box_axes:
+                n = shape_out[ax]
+                new += [min(max((mapped[ax].min() + 0.5) / n, 0.0), 1.0),
+                        min(max((mapped[ax].max() + 0.5) / n, 0.0), 1.0)]
+            if all(new[2 * k] < new[2 * k + 1] for k in range(3)):
+                boxes.append(new)
+                keep.append(c)
+        d["bbox"] = boxes
+        _keep_boxes(d, keep)
+        return d
+
+
+class _RandFlipBboxD(mn.transforms.RandFlipd):
+    """``RandFlipd`` that also flips the box when it flips the image."""
+
+    def __call__(self, data, lazy=None):
+        d = super().__call__(data, lazy)
+        if self._do_transform and "bbox" in d and "img" in self.keys:
+            ndim = d["img"].ndim - 1
+            axis = self.flipper.spatial_axis
+            axes = range(ndim) if axis is None else [a % ndim for a in ensure_tuple(axis)]
+            d["bbox"] = [_flip_box(b, axes) for b in _sample_boxes(d)]
+        return d
+
+
+class _TransposeBboxD(mn.transforms.Transposed):
+    """``Transposed`` that also swaps the box axes when it transposes the image."""
+
+    def __call__(self, data):
+        d = super().__call__(data)
+        if "bbox" in d and "img" in self.keys:
+            indices = self.transform.indices
+            if indices is None or indices[0] != 0:
+                raise ValueError(
+                    "with_transpose() must keep the channel axis first to move the box"
+                )
+            axes = [i - 1 for i in indices[1:]]  # new spatial axis k <- old axis axes[k]
+            d["bbox"] = [
+                [v for a in axes for v in (b[2 * a], b[2 * a + 1])] for b in _sample_boxes(d)
+            ]
+        return d
+
+
+class _BboxToMask(mn.transforms.Transform):
+    """Paint each box into its own channel of ``"bbox_mask"``.
+
+    The mask has the spatial size of ``"img"`` and one channel for each box.
+    It runs just before an affine or elastic warp. An image with no box gets
+    one empty channel, so the warp always finds ``"bbox_mask"``. No-op when
+    ``"bbox"`` is absent.
+    """
+
+    def __call__(self, data: dict) -> dict:
+        if "bbox" not in data:
+            return data
+        d = dict(data)
+        d["bbox"] = boxes = _sample_boxes(d)
+        spatial = tuple(d["img"].shape[1:])
+        d["bbox_mask"] = (_paint_mask(boxes, spatial) if boxes
+                          else torch.zeros(1, *spatial, dtype=torch.float32))
+        return d
+
+
+class _MaskToBbox(mn.transforms.Transform):
+    """Read the boxes back from ``"bbox_mask"`` after an affine or elastic warp.
+
+    A channel that the warp did not change keeps its exact box. A channel that
+    is empty after the warp (the box left the image) drops its box, label and
+    finding. When no box is left, ``"bbox"`` is an empty list. It removes
+    ``"bbox_mask"``.
+    """
+
+    def __call__(self, data: dict) -> dict:
+        if "bbox_mask" not in data:
+            return data
+        d = dict(data)
+        mask = d.pop("bbox_mask")
+        boxes, keep = [], []
+        for c, box in enumerate(d["bbox"]):
+            painted = torch.zeros(mask.shape[1:], dtype=torch.float32)
+            _paint_box(painted, box)
+            channel = torch.as_tensor(mask[c]) > 0.5
+            if torch.equal(channel, painted > 0.5):
+                new = box  # the warp did not run (or did not move this box)
+            else:
+                new = _channel_to_box(channel)
+            if new is not None:
+                boxes.append(new)
+                keep.append(c)
+        d["bbox"] = boxes
+        _keep_boxes(d, keep)
+        return d
+
+
+class _BboxToTensorD(mn.transforms.Transform):
+    """Give the boxes as a float32 tensor of shape ``(N, 2 * ndim)``.
+
+    ``N`` is 0 when the image has no box. With ``paint_mask=True`` it also gives
+    ``"bbox_mask"``: one channel for each box, on the grid of ``"img"``.
+    """
+
+    def __init__(self, ndim: int, paint_mask: bool = False, mask_dtype=torch.float32):
+        self.ndim = ndim
+        self.paint_mask = paint_mask
+        self.mask_dtype = mask_dtype
+
+    def __call__(self, data: dict) -> dict:
+        if "bbox" not in data:
+            return data
+        d = dict(data)
+        boxes = _parse_boxes(d["bbox"], self.ndim)
+        d["bbox"] = torch.tensor(boxes, dtype=torch.float32).reshape(-1, 2 * self.ndim)
+        if self.paint_mask:
+            d["bbox_mask"] = _paint_mask(boxes, tuple(d["img"].shape[1:])).to(self.mask_dtype)
+        return d
 
 
 # ---------------------------------------------------------------------------
@@ -208,15 +389,15 @@ def _perm_flip_between_codes(src_code: str, tgt_code: str):
     return sigma, flip_signs
 
 
-class _ReorientBbox:
+class _ReorientBbox(mn.transforms.Transform):  # a MONAI Transform, so the cache goes past it (D-15)
     """Permute bbox coord pairs to stay aligned after OrientationD(axcodes)+TransposeD([0,3,2,1]).
 
     Must run AFTER EnsureChannelFirstD (affine populated) and BEFORE OrientationD.
     Uses SimpleITK to read the source orientation code from the image direction
-    cosines — no nibabel dependency.  No-op when ``"bbox"`` is absent.
+    cosines, so it does not need nibabel. Does nothing when ``"bbox"`` is absent.
 
     Args:
-        axcodes: Target orientation string (e.g. ``"RAS"``, ``"LPS"``, ``"IPL"``).
+        axcodes: Target orientation string (for example ``"RAS"``, ``"LPS"``, ``"IPL"``).
                  Must match the sibling ``OrientationD`` exactly.
 
     Math:
@@ -230,10 +411,10 @@ class _ReorientBbox:
         ``i`` ← old pair ``sigma[i]``, with ``[lo, hi] → [1-hi, 1-lo]`` when
         ``flip_signs[i] < 0``.
 
-        (``src_code`` here comes from the helper below, which builds direction
-        cosines for the SITK image used by ``_SITKOrientD``; that string is
-        the *reversed* of the MONAI-standard axcodes for the affine, which is
-        why the formula uses ``sigma`` directly rather than ``2 - sigma[2-i]``.)
+        (``src_code`` comes from the helper below. The helper builds direction
+        cosines for the SITK image that ``_SITKOrientD`` uses. That string is
+        the *reverse* of the MONAI-standard axcodes for the affine. This is
+        why the formula uses ``sigma`` directly and not ``2 - sigma[2-i]``.)
     """
 
     def __init__(self, axcodes: str = "RAS"):
@@ -264,44 +445,33 @@ class _ReorientBbox:
         if img is None or not hasattr(img, "affine"):
             return data
 
-        try:
-            import numpy as np
+        # No try/except: an error must show. Else the image turns and the box keeps its old axes (R-code-18).
+        affine = img.affine.numpy() if hasattr(img.affine, "numpy") else img.affine
+        src_code = self._src_orientation_code(affine)
+        sigma, flip_signs = _perm_flip_between_codes(src_code, self.axcodes)
 
-            affine = img.affine.numpy() if hasattr(img.affine, "numpy") else img.affine
-            src_code = self._src_orientation_code(affine)
-            sigma, flip_signs = _perm_flip_between_codes(src_code, self.axcodes)
+        # Final MONAI dim i ← harmonizer pair sigma[i], with the flip from
+        # flip_signs[i] (see class docstring for the derivation).
+        coord_perm = list(sigma)
+        flips      = list(flip_signs)
 
-            # Final MONAI dim i ← harmonizer pair sigma[i], with the flip from
-            # flip_signs[i] (see class docstring for the derivation).
-            coord_perm = list(sigma)
-            flips      = list(flip_signs)
+        def _xfm(b):
+            out = []
+            for i in range(3):
+                j = coord_perm[i]
+                lo, hi = float(b[j * 2]), float(b[j * 2 + 1])
+                if flips[i] < 0:
+                    lo, hi = 1.0 - hi, 1.0 - lo
+                out += [lo, hi]
+            return out
 
-            def _xfm(b):
-                out = []
-                for i in range(3):
-                    j = coord_perm[i]
-                    lo, hi = float(b[j * 2]), float(b[j * 2 + 1])
-                    if flips[i] < 0:
-                        lo, hi = 1.0 - hi, 1.0 - lo
-                    out += [lo, hi]
-                return out
-
-            bbox = data["bbox"]
-            is_multi = (
-                isinstance(bbox, (list, tuple))
-                and len(bbox) > 0
-                and isinstance(bbox[0], (list, tuple))
-            )
-            data["bbox"] = (
-                [_xfm(list(b)) for b in bbox] if is_multi else _xfm(list(bbox))
-            )
-        except Exception:
-            pass
+        # A list of boxes, also for one flat box. No box gives [] (D-28, V-D-41).
+        data["bbox"] = [_xfm(b) for b in _sample_boxes(data)]
 
         return data
 
 
-class _SITKOrientD:
+class _SITKOrientD(mn.transforms.Transform):  # a MONAI Transform, so the cache goes past it (D-15)
     """Reorient 3-D MetaTensors to a canonical orientation using SimpleITK.
 
     Drop-in replacement for ``mn.transforms.OrientationD`` that uses
@@ -311,13 +481,13 @@ class _SITKOrientD:
 
     Axis-reversal convention (MONAI spatial dim j = ITK axis 2-j):
     - ``tensor[0].numpy()`` shape ``(D, H, W)`` is passed directly to
-      ``sitk.GetImageFromArray``, which treats it as ``(z, y, x)`` — correct.
-    - After reorientation, ``sitk.GetArrayFromImage`` returns ``(sz, sy, sx)``
-      which maps back to MONAI ``(dim0, dim1, dim2)`` — also correct.
+      ``sitk.GetImageFromArray``, which treats it as ``(z, y, x)``. This is correct.
+    - After reorientation, ``sitk.GetArrayFromImage`` returns ``(sz, sy, sx)``,
+      which maps back to MONAI ``(dim0, dim1, dim2)``. This is also correct.
 
     Args:
         keys: Data dict keys to reorient.
-        axcodes: Target 3-letter orientation string (e.g. ``"RAS"``, ``"LPS"``).
+        axcodes: Target 3-letter orientation string (for example ``"RAS"``, ``"LPS"``).
     """
 
     def __init__(self, keys: list[str], axcodes: str = "RAS"):
@@ -405,16 +575,70 @@ class _SITKOrientD:
 # ---------------------------------------------------------------------------
 
 
-def _base_load_2d(img_keys: list[str], base_transpose: bool = True) -> list:
-    """Return the load + normalise steps shared by all 2-D pipelines."""
+def _binary_mask(x):
+    """Map each mask value above 0 to 1 (D-14). Mask files often hold 0 and 255."""
+    return (x > 0).to(x.dtype) if isinstance(x, torch.Tensor) else (x > 0).astype(x.dtype)
+
+
+# Module-level functions, not lambdas: a "spawn" or "forkserver" DataLoader worker must pickle them.
+def _drop_dicom_axis(x):
+    """Make (C, H, W, 1) from a 2-D DICOM into (C, H, W). Other images pass through."""
+    return x[..., 0] if x.ndim == 4 else x
+
+
+def _shift_up(x):
+    """Add 1, so that the warp border value 0 is -1 after ``_shift_down``."""
+    return x + 1
+
+
+def _shift_down(x):
+    """Subtract 1 after the warp."""
+    return x - 1
+
+
+class _SetChannelsD(mn.transforms.Transform):
+    """Give ``img`` the channel count of the dataset (D-42).
+
+    It drops an alpha channel. With 1 channel, RGB becomes gray with the weights
+    of PIL ``convert("L")``. With 3 channels, it repeats a gray image 3 times.
+
+    Args:
+        channels: 1 (gray modality) or 3 (color figures).
+    """
+
+    def __init__(self, channels: int = 1):
+        if channels not in (1, 3):
+            raise ValueError(f"channels must be 1 or 3, not {channels!r} (D-42).")
+        self.channels = channels  # public, so the cache key has it (D-15)
+
+    def __call__(self, data: dict) -> dict:
+        d = dict(data)
+        x = d["img"]
+        c = x.shape[0]
+        if c in (2, 4):  # gray + alpha, RGB + alpha
+            x, c = x[: c - 1], c - 1
+        if c == 3 and self.channels == 1:
+            same = (x[0] == x[1]).all() and (x[1] == x[2]).all()  # a gray image saved as RGB
+            x = x[0:1] if same else 0.299 * x[0:1] + 0.587 * x[1:2] + 0.114 * x[2:3]
+        elif c == 1 and self.channels == 3:
+            x = x.repeat(3, 1, 1) if isinstance(x, torch.Tensor) else x.repeat(3, axis=0)
+        elif c != self.channels:
+            raise ValueError(f"An image with {c} channels cannot become {self.channels} channels (D-42).")
+        d["img"] = x
+        return d
+
+
+def _base_load_2d(img_keys: list[str], base_transpose: bool = True, channels: int = 1) -> list:
+    """Return the load and normalize steps shared by all 2-D pipelines.
+
+    ``channels`` is the channel count of ``img`` (D-42): 1 for a gray modality, 3 for color figures.
+    """
     t = [
         mn.transforms.LoadImageD(keys=img_keys, reader="ITKReader"),
         mn.transforms.EnsureChannelFirstD(keys=img_keys),
-        # ITKReader loads 2-D DICOMs as (H, W, 1); after EnsureChannelFirst → (C, H, W, 1).
+        # ITKReader loads 2-D DICOMs as (H, W, 1). After EnsureChannelFirst they are (C, H, W, 1).
         # Non-DICOM 2-D images (JPEG, PNG) load as (C, H, W).
-        mn.transforms.Lambdad(
-            keys=img_keys, func=lambda x: x[..., 0] if x.ndim == 4 else x
-        ),
+        mn.transforms.Lambdad(keys=img_keys, func=_drop_dicom_axis),
     ]
     if base_transpose:
         # ITK axis correction: not needed when loading numpy arrays directly.
@@ -422,7 +646,8 @@ def _base_load_2d(img_keys: list[str], base_transpose: bool = True) -> list:
     t += [
         mn.transforms.Lambdad(keys=["img"], func=_fix_missing_highbit),
         mn.transforms.Lambdad(keys=["img"], func=_apply_voi_lut),
-        # mn.transforms.Lambdad(keys=["img"], func=_convert_monochrome1_to_2),
+        # No MONOCHROME1 inversion step: GDCM already inverts it when it reads the file (V-P-1).
+        _SetChannelsD(channels),
         mn.transforms.ScaleIntensityRangePercentilesD(
             keys=["img"], lower=0.5, upper=99.5, b_min=-1, b_max=1, clip=True
         ),
@@ -437,17 +662,18 @@ def _base_load_3d(
     pixdim: tuple[float, float, float] | None = None,
     axcodes: str = "IPL",
 ) -> list:
-    """Return the load + normalise steps shared by all 3-D pipelines.
+    """Return the load and normalize steps shared by all 3-D pipelines.
 
     When ``pixdim`` is set, SpacingD resamples to that target voxel spacing
-    (mm) using the MetaTensor affine populated by ITKReader from DICOM
-    PixelSpacing + SliceThickness.  Critical for anisotropic MRI — without
-    it, e.g. 0.5 x 0.5 x 4 mm lumbar-spine series get flattened by the
-    longest-axis ResizeD into a ~7-slice pancake.
+    (mm). It uses the MetaTensor affine from ITKReader: PixelSpacing in the
+    plane, and the slice positions along z (not SliceThickness). This is
+    important for anisotropic MRI. Without it, the longest-axis ResizeD
+    flattens a 0.5 x 0.5 x 4 mm lumbar-spine series into about 7 slices.
+    The box moves with the resample (``_SpacingBboxD``, D-28).
 
-    ``axcodes`` controls the canonical orientation target for ``OrientationD``
-    and the matching ``_ReorientBbox`` bbox-coordinate fix.  Must match
-    across both transforms (default ``"RAS"``).
+    ``axcodes`` sets the orientation target of ``_SITKOrientD`` and of the
+    matching box step ``_ReorientBbox``. Both use the same value (default
+    ``"IPL"``, D-12).
     """
     t = [
         mn.transforms.LoadImageD(keys=img_keys, reader="ITKReader"),
@@ -457,29 +683,31 @@ def _base_load_3d(
         # Reorient bbox coords BEFORE OrientationD so the coordinate pairs
         # stay aligned with the reoriented image (see _ReorientBbox docstring).
         t.append(_ReorientBbox(axcodes=axcodes))
-        # Normalise scanner axis order to a canonical orientation so that all
-        # studies load with the same axis semantics regardless of patient
-        # position or acquisition convention.
+        # Set the scanner axis order to one canonical orientation. Then all
+        # studies load with the same axis meaning, for any patient position
+        # or acquisition convention.
         t.append(_SITKOrientD(keys=img_keys, axcodes=axcodes))
     if pixdim is not None:
         # Bilinear for intensity, nearest for masks (keeps labels discrete).
         spacing_modes = tuple("bilinear" if k == "img" else "nearest" for k in img_keys)
         t.append(
-            mn.transforms.SpacingD(
+            _SpacingBboxD(
                 keys=img_keys,
                 pixdim=pixdim,
                 mode=spacing_modes,
+                # Box pair k is image axis 2 - k until the transpose below.
+                box_axes=(2, 1, 0) if base_transpose else (0, 1, 2),
             )
         )
     if base_transpose:
         # ITK axis correction: not needed when loading numpy arrays directly.
         #
         # ⚠ DO NOT REMOVE without reading docs/proposals/orientation_normalization.md
-        # AND running tests/test_bbox_axis_alignment.py.  This is NOT just
-        # cosmetic — bbox harmonizers (see commit d1d0535 for the lumbar spine
-        # one) author bbox coordinates in the POST-transpose (D, H, W) axis
-        # order.  _ReorientBbox (above) pre-adjusts the bbox coords so they
-        # remain correct after this transpose.
+        # AND running tests/test_bbox_axis_alignment.py. This step is NOT only
+        # cosmetic. The bbox harmonizers write bbox coordinates in the
+        # POST-transpose (D, H, W) axis order (see commit d1d0535 for the lumbar
+        # spine one). _ReorientBbox (above) changes the bbox coords first, so
+        # they stay correct after this transpose.
         t.append(mn.transforms.Transposed(keys=img_keys, indices=[0, 3, 2, 1]))
     if hu_window is not None:
         t.append(
@@ -508,9 +736,11 @@ def _base_load_3d(
 class _RadiologyTransformBase:
     """Internal base class shared by the 2-D and 3-D builders.
 
-    Do not instantiate directly — use :class:`RadiologyTransform2D` or
+    Do not instantiate it directly. Use :class:`RadiologyTransform2D` or
     :class:`RadiologyTransform3D`.
     """
+
+    _NDIM = 2  # number of spatial dimensions (the 3-D builder sets 3)
 
     def __init__(
         self,
@@ -521,11 +751,37 @@ class _RadiologyTransformBase:
         dtype=torch.bfloat16,
     ):
         self.img_size = img_size
-        self.output_keys: set[str] = output_keys or {"img", "cls"}
+        # A copy, so that the with_* methods do not change the set of the caller.
+        self.output_keys: set[str] = set(output_keys or {"img", "cls"})
         self.pad = pad
         self.base_transpose = base_transpose
         self.dtype = dtype
         self._aug: list = []  # augmentation steps accumulated by with_* methods
+
+    def _spatial_keys(self) -> list[str]:
+        """Return the image keys that a spatial augmentation changes."""
+        return ["img"] + (["mask"] if "mask" in self.output_keys else [])
+
+    def _append_warp(self, warp_cls, **kwargs) -> None:
+        """Append a random affine or elastic warp of the image, its mask and its box.
+
+        The box moves with a mask round trip (D-28). ``grid_sample`` fills the
+        empty border with 0 only, so the image is shifted by +1 before the warp
+        and by -1 after it. Then the background value -1 stays -1.
+        """
+        keys = self._spatial_keys()
+        modes = ["bilinear"] + ["nearest"] * (len(keys) - 1)
+        steps = [mn.transforms.Lambdad(keys=["img"], func=_shift_up)]
+        if "bbox" in self.output_keys:
+            keys, modes = keys + ["bbox_mask"], modes + ["nearest"]
+            steps.append(_BboxToMask())
+        steps.append(
+            warp_cls(keys=keys, mode=modes, padding_mode="zeros", **kwargs)
+        )
+        if "bbox" in self.output_keys:
+            steps.append(_MaskToBbox())
+        steps.append(mn.transforms.Lambdad(keys=["img"], func=_shift_down))
+        self._aug.append(mn.transforms.Compose(steps))
 
     # ------------------------------------------------------------------
     # Common augmentations (work for both 2-D and 3-D)
@@ -536,19 +792,14 @@ class _RadiologyTransformBase:
         spatial_axis: int | tuple[int, ...] = 0,
         prob: float = 0.5,
     ) -> "_RadiologyTransformBase":
-        """Random flip along one or more spatial axes.
+        """Random flip along one or more spatial axes. The box flips with the image.
 
         Args:
             spatial_axis: Axis/axes to flip (0 = up-down, 1 = left-right).
             prob: Probability of applying the flip.
         """
-        keys = (
-            ["img"]
-            + (["mask"] if "mask" in self.output_keys else [])
-            + (["bbox_mask"] if "bbox_mask" in self.output_keys else [])
-        )
         self._aug.append(
-            mn.transforms.RandFlipD(keys=keys, prob=prob, spatial_axis=spatial_axis)
+            _RandFlipBboxD(keys=self._spatial_keys(), prob=prob, spatial_axis=spatial_axis)
         )
         return self
 
@@ -562,52 +813,32 @@ class _RadiologyTransformBase:
     ) -> "_RadiologyTransformBase":
         """Random affine transform (translate, rotate, scale, shear) in a single step.
 
-        Unlike :meth:`with_rotation` / :meth:`with_zoom` which apply each
-        spatial warp separately, this samples all four components jointly from
-        one affine matrix, which is more efficient and avoids compounding
-        interpolation errors.
+        :meth:`with_rotation` / :meth:`with_zoom` apply each spatial warp
+        separately. This step samples all four components together in one
+        affine matrix. It is faster, and the interpolation errors do not add up.
+
+        The new box is the box around the warped box (mask round trip). The
+        step drops a box that leaves the image, with its label.
 
         Args:
             translate_range: Maximum translation in pixels per spatial axis
-                (x, y) for 2-D; (x, y, z) for 3-D.
+                (x, y) for 2-D, and (x, y, z) for 3-D.
             rotate_range: Maximum rotation in **radians** per rotation plane.
-                Pass a single value for 2-D; three values for 3-D.
-                Approximately: 0.175 rad ≈ 10°, 0.35 rad ≈ 20°.
-            scale_range: Scale perturbation per axis as a fraction; 0.1 means
+                Pass a single value for 2-D, and three values for 3-D.
+                About: 0.175 rad ≈ 10°, 0.35 rad ≈ 20°.
+            scale_range: Scale change per axis as a fraction. 0.1 means
                 the zoom factor is sampled from ``[0.9, 1.1]``.
             shear_range: Maximum shear per shear plane. Pass a single value
-                for 2-D; up to six values for 3-D.
+                for 2-D, and up to six values for 3-D.
             prob: Probability of applying the affine transform.
         """
-        has_mask = "mask" in self.output_keys
-        has_bbox_mask = "bbox_mask" in self.output_keys
-        keys = (
-            ["img"]
-            + (["mask"] if has_mask else [])
-            + (["bbox_mask"] if has_bbox_mask else [])
-        )
-        modes = (
-            ["bilinear"]
-            + (["nearest"] if has_mask else [])
-            + (["nearest"] if has_bbox_mask else [])
-        )
-        self._aug.append(
-            mn.transforms.Compose(
-                [
-                    mn.transforms.Lambdad(keys=["img"], func=lambda x: x + 1),
-                    mn.transforms.RandAffineD(
-                        keys=keys,
-                        translate_range=translate_range,
-                        rotate_range=rotate_range,
-                        scale_range=scale_range,
-                        shear_range=shear_range,
-                        prob=prob,
-                        mode=modes,
-                        padding_mode="zeros",
-                    ),
-                    mn.transforms.Lambdad(keys=["img"], func=lambda x: x - 1),
-                ]
-            )
+        self._append_warp(
+            mn.transforms.RandAffineD,
+            translate_range=translate_range,
+            rotate_range=rotate_range,
+            scale_range=scale_range,
+            shear_range=shear_range,
+            prob=prob,
         )
         return self
 
@@ -684,86 +915,47 @@ class _RadiologyTransformBase:
     ) -> "_RadiologyTransformBase":
         """Random elastic deformation (grid-based, 2-D).
 
+        The box moves as in :meth:`with_affine`.
+
         Args:
             magnitude_range: Magnitude range of the deformation offsets (pixels).
             spacing: Distance in pixels between deformation grid control points.
                 Larger values → smoother deformation.
             prob: Probability of applying the deformation.
         """
-        # grid_sample only supports "zeros"/"border"/"reflection", not arbitrary
-        # constants. Shift by +1 so the true background value (-1) maps to 0,
-        # apply the deformation, then shift back.
-        has_mask = "mask" in self.output_keys
-        has_bbox_mask = "bbox_mask" in self.output_keys
-        keys = (
-            ["img"]
-            + (["mask"] if has_mask else [])
-            + (["bbox_mask"] if has_bbox_mask else [])
-        )
-        modes = (
-            ["bilinear"]
-            + (["nearest"] if has_mask else [])
-            + (["nearest"] if has_bbox_mask else [])
-        )
-        self._aug.append(
-            mn.transforms.Compose(
-                [
-                    mn.transforms.Lambdad(keys=["img"], func=lambda x: x + 1),
-                    mn.transforms.Rand2DElasticD(
-                        keys=keys,
-                        spacing=(spacing, spacing),
-                        magnitude_range=magnitude_range,
-                        prob=prob,
-                        mode=modes,
-                        padding_mode="zeros",
-                    ),
-                    mn.transforms.Lambdad(keys=["img"], func=lambda x: x - 1),
-                ]
-            )
+        self._append_warp(
+            mn.transforms.Rand2DElasticD,
+            spacing=(spacing, spacing),
+            magnitude_range=magnitude_range,
+            prob=prob,
         )
         return self
 
     def with_bbox_as_mask(self, keep_mask: bool = False) -> "_RadiologyTransformBase":
-        """Convert the bbox to a binary spatial mask stored under ``"bbox_mask"``.
+        """Choose if the sample also gives the box as a mask under ``"bbox_mask"``.
 
-        The mask is created after the image is resized (so coordinates map to
-        the correct pixel grid) but **before** padding (so the mask is padded
-        with zeros consistently with the image).  All subsequent spatial
-        augmentations that include ``"bbox_mask"`` in their keys will keep the
-        mask aligned with the image.  After augmentation, ``"bbox_mask"`` is
-        converted back to normalized bbox coordinates in ``"bbox"``.
-
-        Can coexist with a real segmentation mask under ``"mask"``.  Requires
-        ``"bbox"`` in *output_keys*.  Automatically adds ``"bbox_mask"`` to
-        *output_keys*.
+        The box moves with every resize, pad, flip, transpose and warp, also
+        without this call (D-28). Old code that calls it still works.
 
         Args:
-            keep_mask: If ``False`` (default), ``"bbox_mask"`` is dropped once
-                the updated ``"bbox"`` coordinates have been extracted.  Set to
-                ``True`` to keep it in the output alongside ``"bbox"``.
+            keep_mask: If ``True``, the sample also has ``"bbox_mask"``: one
+                channel for each box, on the grid of ``"img"``, painted from
+                the final boxes. If ``False`` (default), it does not.
 
         Example::
 
-            # Drop bbox_mask after back-conversion (default)
-            transform = (
-                RadiologyTransform3D(img_size=112, output_keys={"img", "cls", "bbox"})
-                .with_bbox_as_mask()
-                .with_flip(spatial_axis=0)
-                .get_transform()
-            )
-            # sample → {"img", "cls", "bbox"}
-
-            # Keep bbox_mask in output
             transform = (
                 RadiologyTransform3D(img_size=112, output_keys={"img", "cls", "bbox"})
                 .with_bbox_as_mask(keep_mask=True)
+                .with_flip(spatial_axis=0)
                 .get_transform()
             )
             # sample → {"img", "cls", "bbox", "bbox_mask"}
         """
-        self._bbox_as_mask = True
-        self._bbox_mask_keep = keep_mask
-        self.output_keys.add("bbox_mask")
+        if keep_mask:
+            self.output_keys.add("bbox_mask")
+        else:
+            self.output_keys.discard("bbox_mask")
         return self
 
     def with_transpose(
@@ -775,18 +967,17 @@ class _RadiologyTransformBase:
 
         Applies :class:`monai.transforms.Transposed` with the given *indices*
         after the default preprocessing transpose that corrects axis order on
-        load.  Use this when your dataset requires a different orientation than
-        the default (e.g. ``[0, 3, 2, 1]`` for 3-D or ``[0, 2, 1]`` for 2-D).
+        load. Use this when your dataset needs a different orientation than
+        the default (for example ``[0, 3, 2, 1]`` for 3-D or ``[0, 2, 1]`` for 2-D).
 
         Args:
             indices: Permutation of axes to pass to ``Transposed``.
                 For a 3-D volume with shape ``(C, D, H, W)`` the channel axis
-                is ``0``; spatial axes are ``1``, ``2``, ``3``.
+                is ``0``, and the spatial axes are ``1``, ``2``, ``3``.
             keys: Keys to transpose.  Defaults to ``["img"]`` (plus ``"mask"``
-                and ``"bbox_mask"`` when present in *output_keys*).  Pass an
-                explicit list to restrict the transpose to specific keys —
-                e.g. ``keys=["img"]`` when the bbox mask is already in the
-                correct orientation and should not be transposed.
+                when present in *output_keys*).  Pass an explicit list to
+                restrict the transpose to specific keys.  The box moves only
+                when ``"img"`` is in *keys*.
 
         Example::
 
@@ -797,13 +988,9 @@ class _RadiologyTransformBase:
                 .get_transform()
             )
         """
-        if keys is None:
-            keys = (
-                ["img"]
-                + (["mask"] if "mask" in self.output_keys else [])
-                + (["bbox_mask"] if "bbox_mask" in self.output_keys else [])
-            )
-        self._aug.append(mn.transforms.Transposed(keys=keys, indices=indices))
+        # "bbox_mask" does not exist during the augmentation steps (old code passed it).
+        keys = [k for k in (keys or self._spatial_keys()) if k != "bbox_mask"]
+        self._aug.append(_TransposeBboxD(keys=keys, indices=indices))
         return self
 
     def add_transform(self, t) -> "_RadiologyTransformBase":
@@ -814,6 +1001,9 @@ class _RadiologyTransformBase:
 
         Args:
             t: Any MONAI transform (or ``Callable[[dict], dict]``).
+
+        A custom step does not move the box. Use the ``with_*`` methods for
+        spatial steps when the sample has a box.
 
         Example::
 
@@ -836,17 +1026,92 @@ class _RadiologyTransformBase:
     def _build_preprocessing(self) -> list:
         raise NotImplementedError
 
+    def _resize_and_pad(self, img_mode: str) -> list:
+        """Return the steps that resize the longest edge to ``img_size`` and pad.
+
+        The pad of ``"img"`` also moves the box. The resize needs no box step,
+        because a box is a fraction of the image size.
+        """
+        size = (self.img_size,) * self._NDIM
+        t = [
+            mn.transforms.ResizeD(
+                keys=["img"],
+                spatial_size=self.img_size,
+                size_mode="longest",
+                mode=img_mode,
+            )
+        ]
+        if self.pad:
+            t.append(
+                _SpatialPadBboxD(
+                    keys=["img"],
+                    spatial_size=size,
+                    mode="constant",
+                    constant_values=-1,
+                )
+            )
+        if "mask" in self.output_keys:
+            t.append(
+                mn.transforms.ResizeD(
+                    keys=["mask"],
+                    spatial_size=self.img_size,
+                    size_mode="longest",
+                    mode="nearest",
+                )
+            )
+            if self.pad:
+                t.append(
+                    mn.transforms.SpatialPadD(
+                        keys=["mask"],
+                        spatial_size=size,
+                        mode="constant",
+                        constant_values=0,
+                    )
+                )
+        return t
+
     def _build_postprocessing(self) -> list:
-        raise NotImplementedError
+        # dtype is for the image (and bbox_mask, 0 and 1 only). The labels stay float32, because bfloat16
+        # rounds a mask id 257 to 256 and a label 37.3 to 37.25 (V-B-16).
+        label_keys = [k for k in ["cls", "reg", "mask"] if k in self.output_keys]
+        select_keys = [
+            k
+            for k in [
+                "img",
+                "cls",
+                "reg",
+                "mask",
+                "report",
+                "bbox",
+                "bbox_labels",
+                "bbox_findings",
+                "bbox_mask",
+            ]
+            if k in self.output_keys
+        ]
+        steps = [
+            # The box stays float32 for any dtype. bfloat16 keeps 8 bits. So an
+            # edge can move by 0.2% of the image size (0.4 px at 224).
+            _BboxToTensorD(
+                self._NDIM,
+                paint_mask="bbox_mask" in self.output_keys,
+                mask_dtype=self.dtype,
+            ),
+        ]
+        if label_keys:
+            steps.append(mn.transforms.ToTensorD(keys=label_keys, dtype=torch.float32, track_meta=False))
+        if "img" in self.output_keys:
+            steps.append(mn.transforms.ToTensorD(keys=["img"], dtype=self.dtype, track_meta=False))
+        return steps + [mn.transforms.SelectItemsD(keys=select_keys)]
 
     def get_transform(self) -> mn.transforms.Compose:
         """Assemble and return the final composed transform.
 
         The pipeline order is:
 
-        1. **Preprocessing** — load, normalise, resize, optional pad (deterministic)
-        2. **Augmentations** — all transforms added via ``with_*`` / ``add_transform``
-        3. **Postprocessing** — convert to tensor, select output keys
+        1. **Preprocessing**: load, normalize, resize, optional pad (deterministic)
+        2. **Augmentations**: all transforms added via ``with_*`` / ``add_transform``
+        3. **Postprocessing**: convert to tensor, select output keys
 
         Returns:
             A :class:`monai.transforms.Compose` object ready to pass to a
@@ -864,20 +1129,26 @@ class _RadiologyTransformBase:
 class RadiologyTransform2D(_RadiologyTransformBase):
     """Fluent transform builder for 2-D radiological images (X-ray, mammogram …).
 
-    Builds a deterministic preprocessing pipeline (load → normalise → resize →
-    pad) identical to the one used internally by the built-in dataset classes,
-    then lets you layer augmentations on top via the ``with_*`` methods.
+    Builds a deterministic preprocessing pipeline (load → normalize → resize →
+    pad). It is the same pipeline that the built-in dataset classes use.
+    Then you can add augmentations on top with the ``with_*`` methods.
 
     Args:
-        img_size: Target spatial size; the longest edge is resized to this
-            value.  When ``pad=True`` (default) the image is then zero-padded
-            to ``(img_size, img_size)``; when ``pad=False`` the aspect ratio
-            is preserved and the output may not be square.
+        img_size: Target spatial size. The longest edge is resized to this
+            value. When ``pad=True`` (default) the image is then padded
+            with -1 (black, D-37) to ``(img_size, img_size)``. A mask is
+            padded with 0. When ``pad=False`` the aspect ratio is preserved
+            and the output may not be square.
         output_keys: Set of keys to keep in each sample dict.  Must be a
-            subset of ``{"img", "cls", "mask", "report", "bbox"}``.
+            subset of ``{"img", "cls", "reg", "mask", "report", "bbox",
+            "bbox_labels", "bbox_findings", "bbox_mask"}``.
             Defaults to ``{"img", "cls"}``.
         pad: Whether to pad the resized image to a square.  Set to ``False``
             to keep the original aspect ratio.
+        channels: The channel count of ``img`` (D-42). 1 (default) for a gray
+            modality: an RGB or RGBA file becomes gray. 3 for color figures.
+        dtype: The dtype of ``img`` (default bfloat16). ``cls``, ``reg`` and
+            ``mask`` are always float32 (V-B-16).
 
     Example::
 
@@ -889,7 +1160,7 @@ class RadiologyTransform2D(_RadiologyTransformBase):
             .get_transform()
         )
 
-        # Preserve aspect ratio — no padding
+        # Keep the aspect ratio, with no padding
         transform = (
             RadiologyTransform2D(img_size=224, pad=False)
             .with_intensity_jitter(shift=0.05)
@@ -904,89 +1175,17 @@ class RadiologyTransform2D(_RadiologyTransformBase):
         pad: bool = True,
         base_transpose: bool = True,
         dtype=torch.bfloat16,
+        channels: int = 1,
     ):
         super().__init__(img_size, output_keys, pad, base_transpose, dtype)
+        self.channels = channels
 
     def _build_preprocessing(self) -> list:
-        bbox_as_mask = getattr(self, "_bbox_as_mask", False)
-        img_keys = ["img"] + (["mask"] if "mask" in self.output_keys else [])
-        t = _base_load_2d(img_keys, base_transpose=self.base_transpose)
-        # Convert bbox → bbox_mask at original image size before any resizing,
-        # so ResizeD (nearest) handles the spatial scaling consistently with
-        # how segmentation masks are treated.
-        if bbox_as_mask:
-            t.append(_BboxToMask())
-        t.append(
-            mn.transforms.ResizeD(
-                keys=["img"],
-                spatial_size=self.img_size,
-                size_mode="longest",
-                mode="bilinear",
-            )
-        )
-        if self.pad:
-            t.append(
-                mn.transforms.SpatialPadD(
-                    keys=["img"],
-                    spatial_size=(self.img_size, self.img_size),
-                    mode="constant",
-                    constant_values=-1,
-                )
-            )
-        for mask_key in (["mask"] if "mask" in self.output_keys else []) + (
-            ["bbox_mask"] if bbox_as_mask else []
-        ):
-            t.append(
-                mn.transforms.ResizeD(
-                    keys=[mask_key],
-                    spatial_size=self.img_size,
-                    size_mode="longest",
-                    mode="nearest",
-                )
-            )
-            if self.pad:
-                t.append(
-                    mn.transforms.SpatialPadD(
-                        keys=[mask_key],
-                        spatial_size=(self.img_size, self.img_size),
-                        mode="constant",
-                        constant_values=0,
-                    )
-                )
-        return t
-
-    def _build_postprocessing(self) -> list:
-        t = []
-        if getattr(self, "_bbox_as_mask", False):
-            t.append(_MaskToBbox())
-        keep_bbox_mask = getattr(self, "_bbox_mask_keep", True)
-        out_keys = (
-            self.output_keys if keep_bbox_mask else self.output_keys - {"bbox_mask"}
-        )
-        tensor_keys = [
-            k for k in ["img", "cls", "reg", "mask", "bbox", "bbox_mask"] if k in out_keys
-        ]
-        select_keys = [
-            k
-            for k in [
-                "img",
-                "cls",
-                "reg",
-                "mask",
-                "report",
-                "bbox",
-                "bbox_labels",
-                "bbox_findings",
-                "bbox_mask",
-            ]
-            if k in out_keys
-        ]
-        t += [
-            mn.transforms.ToTensorD(
-                keys=tensor_keys, dtype=self.dtype, track_meta=False
-            ),
-            mn.transforms.SelectItemsD(keys=select_keys),
-        ]
+        t = [_ParseBboxD(self._NDIM)]
+        t += _base_load_2d(self._spatial_keys(), base_transpose=self.base_transpose, channels=self.channels)
+        if "mask" in self.output_keys:
+            t.append(mn.transforms.Lambdad(keys=["mask"], func=_binary_mask))
+        t += self._resize_and_pad("bilinear")
         return t
 
 
@@ -999,19 +1198,21 @@ class RadiologyTransform3D(_RadiologyTransformBase):
     """Fluent transform builder for 3-D radiological volumes (CT, MRI …).
 
     Args:
-        img_size: Isotropic target size; volumes are resized so the longest
-            spatial dimension equals ``img_size``.  When ``pad=True`` (default)
-            the volume is then zero-padded to
-            ``(img_size, img_size, img_size)``; when ``pad=False`` the output
-            may not be a cube.
+        img_size: Isotropic target size. Volumes are resized so the longest
+            spatial dimension equals ``img_size``. When ``pad=True`` (default)
+            the volume is then padded with -1 (black, D-37) to
+            ``(img_size, img_size, img_size)``. A mask is padded with 0. When
+            ``pad=False`` the output may not be a cube.
         output_keys: Set of keys to keep.  Defaults to ``{"img", "cls"}``.
         hu_window: Optional ``(min_HU, max_HU)`` clipping window applied
-            before percentile normalisation (useful for CT).
+            before percentile normalization (useful for CT).
         pad: Whether to pad the resized volume to a cube.  Set to ``False``
             to preserve the original aspect ratio.
         pixdim: Optional ``(x, y, z)`` target voxel spacing in mm.  When set,
             SpacingD resamples each volume to this spacing before Resize/Pad.
             Use :meth:`with_spacing` for the fluent-API equivalent.
+        dtype: The dtype of ``img`` (default bfloat16). ``cls``, ``reg`` and
+            ``mask`` are always float32 (V-B-16).
 
     Example::
 
@@ -1024,12 +1225,14 @@ class RadiologyTransform3D(_RadiologyTransformBase):
             .get_transform()
         )
 
-        # No padding — keeps aspect ratio
+        # No padding, so it keeps the aspect ratio
         transform = (
             RadiologyTransform3D(img_size=112, pad=False)
             .get_transform()
         )
     """
+
+    _NDIM = 3
 
     def __init__(
         self,
@@ -1053,19 +1256,20 @@ class RadiologyTransform3D(_RadiologyTransformBase):
     ) -> "RadiologyTransform3D":
         """Resample to a target voxel spacing (mm) before Resize/Pad.
 
-        Critical for anisotropic MRI acquisitions (e.g. lumbar spine at
-        0.5 x 0.5 x 4 mm): without this, ``ResizeD(size_mode="longest")``
-        collapses the through-plane axis into a few slices, leaving the
-        coronal/sagittal views visually squeezed.  ITKReader populates the
-        MetaTensor affine from DICOM PixelSpacing + SliceThickness, so no
-        extra plumbing is needed on DICOM series.
+        This is critical for anisotropic MRI acquisitions (for example lumbar
+        spine at 0.5 x 0.5 x 4 mm). Without it, ``ResizeD(size_mode="longest")``
+        collapses the through-plane axis into a few slices. Then the
+        coronal/sagittal views look squeezed. ITKReader makes the
+        MetaTensor affine from the DICOM headers (PixelSpacing, and the slice
+        positions along z), so DICOM series need no extra step. The box moves
+        with the resample (D-28).
 
         Args:
-            pixdim: Target spacing in mm per spatial axis.  ``(1, 1, 1)``
-                gives 1 mm isotropic; ``(2, 2, 2)`` is a coarser target
-                useful when memory is tight.  Anisotropic targets
-                (e.g. ``(1.5, 1.5, 0.5)``) can be used to preserve
-                through-plane detail at the cost of in-plane resolution.
+            pixdim: Target spacing in mm per spatial axis. ``(1, 1, 1)``
+                gives 1 mm isotropic. ``(2, 2, 2)`` is a coarser target,
+                useful when memory is low. An anisotropic target (for
+                example ``(1.5, 1.5, 0.5)``) keeps through-plane detail,
+                but loses in-plane resolution.
         """
         self.pixdim = tuple(float(x) for x in pixdim)
         return self
@@ -1100,127 +1304,29 @@ class RadiologyTransform3D(_RadiologyTransformBase):
     ) -> "RadiologyTransform3D":
         """Random elastic deformation (3-D grid-based).
 
+        The box moves as in :meth:`with_affine`.
+
         Args:
             sigma_range: Smoothing sigma for the deformation field.
             magnitude_range: Magnitude range of the deformation.
             prob: Probability of applying the deformation.
         """
-        # Same +1/-1 shift workaround as the 2-D variant (see above).
-        has_mask = "mask" in self.output_keys
-        has_bbox_mask = "bbox_mask" in self.output_keys
-        keys = (
-            ["img"]
-            + (["mask"] if has_mask else [])
-            + (["bbox_mask"] if has_bbox_mask else [])
-        )
-        modes = (
-            ["bilinear"]
-            + (["nearest"] if has_mask else [])
-            + (["nearest"] if has_bbox_mask else [])
-        )
-        self._aug.append(
-            mn.transforms.Compose(
-                [
-                    mn.transforms.Lambdad(keys=["img"], func=lambda x: x + 1),
-                    mn.transforms.Rand3DElasticD(
-                        keys=keys,
-                        sigma_range=sigma_range,
-                        magnitude_range=magnitude_range,
-                        prob=prob,
-                        mode=modes,
-                        padding_mode="zeros",
-                    ),
-                    mn.transforms.Lambdad(keys=["img"], func=lambda x: x - 1),
-                ]
-            )
+        self._append_warp(
+            mn.transforms.Rand3DElasticD,
+            sigma_range=sigma_range,
+            magnitude_range=magnitude_range,
+            prob=prob,
         )
         return self
 
     def _build_preprocessing(self) -> list:
-        bbox_as_mask = getattr(self, "_bbox_as_mask", False)
-        img_keys = ["img"] + (["mask"] if "mask" in self.output_keys else [])
-        t = _base_load_3d(
-            img_keys,
+        t = [_ParseBboxD(self._NDIM)]
+        t += _base_load_3d(
+            self._spatial_keys(),
             self.hu_window,
             base_transpose=self.base_transpose,
             pixdim=self.pixdim,
             axcodes=self.axcodes,
         )
-        size3 = (self.img_size, self.img_size, self.img_size)
-        # Convert bbox → bbox_mask at original image size before any resizing,
-        # so ResizeD (nearest) handles the spatial scaling consistently with
-        # how segmentation masks are treated.
-        if bbox_as_mask:
-            t.append(_BboxToMask())
-        t.append(
-            mn.transforms.ResizeD(
-                keys=["img"],
-                spatial_size=self.img_size,
-                size_mode="longest",
-                mode="trilinear",
-            )
-        )
-        if self.pad:
-            t.append(
-                mn.transforms.SpatialPadD(
-                    keys=["img"],
-                    spatial_size=size3,
-                    mode="constant",
-                    constant_values=-1,
-                )
-            )
-        for mask_key in (["mask"] if "mask" in self.output_keys else []) + (
-            ["bbox_mask"] if bbox_as_mask else []
-        ):
-            t.append(
-                mn.transforms.ResizeD(
-                    keys=[mask_key],
-                    spatial_size=self.img_size,
-                    size_mode="longest",
-                    mode="nearest",
-                )
-            )
-            if self.pad:
-                t.append(
-                    mn.transforms.SpatialPadD(
-                        keys=[mask_key],
-                        spatial_size=size3,
-                        mode="constant",
-                        constant_values=0,
-                    )
-                )
-        return t
-
-    def _build_postprocessing(self) -> list:
-        t = []
-        if getattr(self, "_bbox_as_mask", False):
-            t.append(_MaskToBbox())
-        keep_bbox_mask = getattr(self, "_bbox_mask_keep", True)
-        out_keys = (
-            self.output_keys if keep_bbox_mask else self.output_keys - {"bbox_mask"}
-        )
-        tensor_keys = [
-            k for k in ["img", "cls", "reg", "mask", "bbox", "bbox_mask"] if k in out_keys
-        ]
-        select_keys = [
-            k
-            for k in [
-                "img",
-                "cls",
-                "reg",
-                "mask",
-                "report",
-                "bbox",
-                "bbox_labels",
-                "bbox_findings",
-                "bbox_mask",
-            ]
-            if k in out_keys
-        ]
-        t += [
-            mn.transforms.ToTensorD(
-                keys=tensor_keys, dtype=self.dtype, track_meta=False
-            ),
-            mn.transforms.SelectItemsD(keys=select_keys),
-        ]
+        t += self._resize_and_pad("trilinear")
         return t

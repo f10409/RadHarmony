@@ -25,7 +25,7 @@ class PadChestDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Root directory containing ``0/``, ``1/``, …,
-            ``54/`` subdirectories (e.g. ``/mnt/.../PadChest/images/``).
+            ``54/`` subdirectories (for example ``/data/PadChest/images/``).
         csv_path: Path to
             ``PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz``.
             Auto-inferred from ``base_image_dir``'s ancestors when ``None``.
@@ -37,7 +37,7 @@ class PadChestDataset(BaseRadiologicalDataset):
             but the annotators flagged ~3,151 images with the meta-labels
             ``exclude`` or ``suboptimal_study``.  When ``True`` (default),
             those rows are dropped during harmonization.  Pass ``False`` to
-            keep them — useful when training on the full noisy distribution.
+            keep them: useful when training on the full noisy distribution.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "report"})
@@ -247,6 +247,7 @@ class PadChestDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -256,7 +257,7 @@ class PadChestDataset(BaseRadiologicalDataset):
     ):
         self._drop_uncertain = drop_uncertain
         if harmonizer_path is not None and base_image_dir is None:
-            _h = PadChestHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -276,6 +277,8 @@ class PadChestDataset(BaseRadiologicalDataset):
                     "PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv.gz",
                     "PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv",
                     user_path=csv_path or "",
+                    required=True,
+                    arg="csv_path",
                 )
                 or csv_path
             )
@@ -301,6 +304,7 @@ class PadChestDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,

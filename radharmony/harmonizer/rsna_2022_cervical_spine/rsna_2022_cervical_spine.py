@@ -1,26 +1,15 @@
 """Harmonizer for the RSNA 2022 Cervical Spine Fracture Detection Challenge.
 
-2,019 cervical-spine CT scans with 8 binary labels per study (one
-``patient_overall`` flag plus per-vertebra fracture flags ``C1``–``C7``).
-Each study is a directory of per-slice DICOMs:
+2,019 cervical spine CT scans. Each study has 8 binary labels: ``patient_overall`` and a
+fracture flag for each vertebra ``C1`` to ``C7``. A study is a folder of per-slice DICOM
+files, ``<StudyInstanceUID>/<slice_number>.dcm`` (no series folder). MONAI's ``ITKReader``
+builds the 3-D volume from the folder.
 
-    <base_image_dir>/                                 # train_images/
-      <StudyInstanceUID>/
-        <slice_number>.dcm                            # e.g. 100.dcm
-        ...
+87 studies have a whole-volume NIfTI mask, ``segmentations/<StudyInstanceUID>.nii``.
+``mask_path`` is NaN for the other studies.
 
-Note the directory layout is **flat** (one level of nesting), unlike the
-RSNA PE Detection release which adds an intermediate ``<SeriesInstanceUID>/``.
-MONAI's ``ITKReader`` reads the directory and assembles a 3-D volume.
-
-A subset of 87 studies (out of 2,019) ship with whole-volume segmentation
-masks as NIfTI files under ``segmentations/<StudyInstanceUID>.nii``.
-``mask_path`` is populated for those studies and left ``NaN`` for the
-rest; downstream code that requests ``output_mask=True`` naturally
-restricts the dataset to the mask-having subset via the framework's
-``dropna`` on ``*_path`` columns.
-
-See: <https://www.kaggle.com/competitions/rsna-2022-cervical-spine-fracture-detection>.
+Source: <https://www.kaggle.com/competitions/rsna-2022-cervical-spine-fracture-detection>.
+Details: ``docs/wiki/reference/datasets/ct-mri-other/rsna_2022_cervical_spine.md``.
 """
 
 import os
@@ -33,25 +22,20 @@ from ..base import BaseHarmonizer
 class RSNA2022CervicalSpineHarmonizer(BaseHarmonizer):
     """Harmonize RSNA 2022 Cervical Spine into the standard RadHarmony format.
 
-    Emits one row per ``StudyInstanceUID`` (= one CT volume), with
-    ``image_path`` pointing at the per-study DICOM directory relative to
-    ``base_image_dir``.
+    It gives one row per ``StudyInstanceUID`` (one CT volume). ``image_path`` is the study
+    folder, relative to ``base_image_dir``.
 
     Args:
         csv_path: Path to ``train.csv``.
-        base_image_dir: Root of the DICOM tree (typically ``train_images/``).
-            Retained on the instance for ``save()`` / ``load_from_saved()``
-            round-trips.
-        segmentation_dir: Optional directory containing
-            ``<StudyInstanceUID>.nii`` segmentation files (typically
-            ``segmentations/`` next to ``train_images/``).  When ``None``,
-            ``mask_path`` is left empty for every study.
+        base_image_dir: Root of the DICOM tree, usually ``train_images/``. ``save()`` and
+            ``load_from_saved()`` keep it.
+        segmentation_dir: Folder with the ``<StudyInstanceUID>.nii`` masks, usually
+            ``segmentations/`` next to ``train_images/``. If ``None``, ``mask_path`` is
+            empty for all studies.
     """
 
     LABEL_COLS = [
-        # 8 study-level binary labels (uppercase 'C1'..'C7' in the CSV; the
-        # base harmonizer rename is .lower() → 'c1'..'c7').  Sorted by their
-        # post-rename name so harmonize()'s sort is a no-op.
+        # The base class lowers the names ("C1" becomes "c1"). This order is the sorted order.
         "C1",
         "C2",
         "C3",
@@ -97,20 +81,18 @@ class RSNA2022CervicalSpineHarmonizer(BaseHarmonizer):
         return snap
 
     def _build_patient_id(self) -> None:
-        # No distinct patient column — one study per patient in this release.
+        # The release has no patient column.
         self.df["patient_id"] = self.df["StudyInstanceUID"].astype(str)
 
     def _build_study_id(self) -> None:
         self.df["study_id"] = self.df["StudyInstanceUID"].astype(str)
 
     def _build_image_path(self) -> None:
-        # Per-study DICOM directory.  Single level of nesting (no SeriesUID).
-        # MONAI's ITKReader assembles a 3-D volume from all .dcm files inside.
+        # A study folder, not one file.
         self.df["image_path"] = self.df["StudyInstanceUID"].astype(str)
 
     def _build_mask_path(self) -> None:
-        # Absolute path to segmentations/<StudyUID>.nii when present;
-        # NaN otherwise.  Only ~87 of 2,019 studies have segmentations.
+        # Only 87 of 2,019 studies have a mask.
         if not self.segmentation_dir:
             return
 
@@ -118,17 +100,22 @@ class RSNA2022CervicalSpineHarmonizer(BaseHarmonizer):
             p = os.path.join(self.segmentation_dir, f"{study_uid}.nii")
             return p if os.path.isfile(p) else None
 
-        self.df["mask_path"] = self.df["study_id"].map(_resolve)
+        # str, also when no study of a filtered table has a mask (D-02: same dtype as the full table).
+        self.df["mask_path"] = self.df["study_id"].map(_resolve).astype("str")
 
     def verify_images(self, base_image_dir: str = None, drop_missing: bool = True) -> pd.DataFrame:
-        """Check that every ``image_path`` **directory** exists on disk.
+        """Check that each ``image_path`` folder exists on disk.
 
-        Overrides the base implementation because ``image_path`` is a DICOM
-        study *directory*, not a single file, so ``os.path.isfile`` would
-        always return ``False``.
+        The base method checks files. Here ``image_path`` is a study folder.
         """
         df = self.harmonized_df
-        root = base_image_dir or self.base_image_dir
+        root = base_image_dir or getattr(self, "base_image_dir", None)
+        # The folder rule of the base verify_images (D-04, V-H3-22).
+        if not root and not df["image_path"].astype(str).map(os.path.isabs).all():
+            raise ValueError(
+                "image_path is relative to base_image_dir (D-04). Pass "
+                "verify_images(base_image_dir=...), or every row looks missing."
+            )
 
         from tqdm import tqdm
 

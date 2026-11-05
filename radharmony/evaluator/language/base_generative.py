@@ -1,29 +1,29 @@
-"""Shared base for generative (image → text) evaluators.
+"""Shared base for generative (image to text) evaluators.
 
-Report generation and VQA are the *same* underlying task — a vision-language
-model produces free text conditioned on an image plus an optional text
-prompt, scored against a reference — so they share the whole generation loop,
-bootstrap machinery, and persistence. Only three things differ, and those are
-the abstract hooks:
+:class:`~radharmony.evaluator.language.vqa.VQAEvaluator` uses it. A
+vision-language model writes free text for an image and an optional text prompt.
+The text is scored against a reference. The base holds the generation loop, the
+bootstrap and the saved files. A subclass fills 3 hooks:
 
-- :meth:`_prepare_batch` — pull ``(images, contexts, references, ids)`` out of
-  a dataset batch. ``contexts`` is the per-sample text input handed to the
-  model (the *question* for VQA; the *indication* — or ``None`` — for report
-  generation). ``references`` is the ground truth to score against (the
-  *answer* string for VQA; the parsed report section for report generation).
-- :meth:`_score` — turn ``(references, hypotheses)`` into metric rows
-  (lexical F1 / accuracy for VQA; the RadEval clinical suite for reports).
-- :meth:`_records_dataframe` — the ``(inputs, reference, hypothesis)`` table
-  written to ``generations.csv`` / the Stage-A parquet.
+- :meth:`_prepare_batch`: return ``(images, contexts, references, ids)`` for a
+  batch. ``contexts`` is the text input of each sample (the question for VQA).
+  ``references`` is the ground truth to score against (the answer for VQA).
+- :meth:`_score`: turn ``(references, hypotheses)`` into metric rows.
+- :meth:`_records_dataframe`: the ``(inputs, reference, hypothesis)`` table for
+  ``generations.csv`` and the Stage A parquet.
 
-The generator contract is unified: ``generator(imgs, contexts) -> list[str]``.
-A legacy single-argument ``generator(imgs)`` is still supported — the base
-detects the accepted arity and calls accordingly.
+The generator contract is ``generator(imgs, contexts) -> list[str]``. A
+generator with one argument, ``generator(imgs)``, also works: the base checks
+how many arguments the generator takes.
 
-Split semantics: generation has no training phase, so the base is put in the
-base class's single-``dataset`` (k-fold) mode purely to satisfy its contract;
-folds are never iterated. Variance comes from this class's own ``n_bootstrap``
-over the scored ``(reference, hypothesis)`` pairs.
+:class:`~radharmony.evaluator.language.report_generation.ReportGenerationEvaluator`
+does not use this base. It keeps its own loop, with the bootstrap by patient
+(D-32), the image ids (D-46) and the cleaning of the generated text (D-50).
+
+Split semantics: generation has no training phase. The base uses the single
+``dataset`` (k-fold) mode of :class:`BaseEvaluator` only to satisfy its
+contract. Folds are never used. Variance comes from this class's own
+``n_bootstrap`` over the scored ``(reference, hypothesis)`` pairs.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ from ..base import BaseEvaluator
 
 
 class GenerativeEvaluator(BaseEvaluator):
-    """Base for image→text generative evaluators (report generation, VQA)."""
+    """Base for image-to-text generative evaluators (VQA)."""
 
     _progress_desc = "generating"
 
@@ -101,6 +101,8 @@ class GenerativeEvaluator(BaseEvaluator):
                 self._gen_accepts_context = True
             except TypeError:
                 self._gen_accepts_context = False
+            except ValueError:  # no signature (for example, a C function): give it the contexts
+                self._gen_accepts_context = True
         if self._gen_accepts_context:
             return self.generator(imgs, contexts)
         return self.generator(imgs)  # legacy single-arg generator
@@ -127,7 +129,7 @@ class GenerativeEvaluator(BaseEvaluator):
                         f"generator returned {len(preds)} outputs for a batch "
                         f"of {len(b_ref)} references."
                     )
-                for cid, ctx, ref, hyp in zip(b_id, b_ctx, b_ref, preds):
+                for cid, ctx, ref, hyp in zip(b_id, b_ctx, b_ref, preds, strict=True):
                     if not str(ref).strip() or not str(hyp).strip():
                         continue  # unusable reference or empty generation
                     ids.append(cid)

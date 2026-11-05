@@ -1,0 +1,509 @@
+{
+ "check": "ste",
+ "problems": {
+  "5d5bb3efc819": {
+   "rule": "STE-01",
+   "file": "CLAUDE.md",
+   "text": "28 words: **Before editing: stop and ask.** Tell the user which base file changes, what the change i",
+   "count": 1
+  },
+  "5fc864b14fc0": {
+   "rule": "STE-01",
+   "file": "CLAUDE.md",
+   "text": "31 words: When reviewing or merging a PR: if it touches base code and has no such section, flag it a",
+   "count": 1
+  },
+  "56dd2bec2c6f": {
+   "rule": "STE-02",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "em dash: **Structural exceptions** \u2014 some datasets have images split across multiple sibling subdirs",
+   "count": 1
+  },
+  "7d017ccf1c58": {
+   "rule": "STE-02",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "em dash: (Train has no exception \u2014 its CODE is the flat image directory.)",
+   "count": 1
+  },
+  "94e91e07fef0": {
+   "rule": "STE-02",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "em dash: CODE is the **deepest common ancestor directory** shared by all images in the dataset \u2014 not",
+   "count": 1
+  },
+  "d07f5cf7ec77": {
+   "rule": "STE-02",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "em dash: CODE (test split \u2014 JSON differs per split, image tree shared)",
+   "count": 1
+  },
+  "171685c0d4b7": {
+   "rule": "STE-03",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "semicolon: **ChestX-ray14**: CODE is the CXR14 root; images are split across its CODE \u2026 CODE sibling",
+   "count": 1
+  },
+  "3ba9b2c8e21d": {
+   "rule": "STE-03",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "semicolon: **MIMIC-CXR (DICOM) and MIMIC-CXR-JPG**: CODE is the CODE directory; images are grouped u",
+   "count": 1
+  },
+  "b764a4f55d94": {
+   "rule": "STE-03",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "semicolon: **RSNA Bone Age (val)**: CODE is CODE ; images are split across its CODE and CODE sibling",
+   "count": 1
+  },
+  "b7d893e403fc": {
+   "rule": "STE-03",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "semicolon: **PadChest**: CODE is the CODE directory; images are split across its CODE , CODE , \u2026, CO",
+   "count": 1
+  },
+  "687158cb3ed1": {
+   "rule": "STE-06",
+   "file": "docs/wiki/reference/datasets/index.md",
+   "text": "'e.g.' (use: for example): CODE values are relative to it and may include subdirectory components (e",
+   "count": 1
+  },
+  "0e5eade8aad7": {
+   "rule": "STE-01",
+   "file": "radharmony/harmonizer/chexinstruct_vqa/chexinstruct_vqa.py",
+   "text": "35 words: CheXinstruct (Stanford-AIMI/CheXagent) aggregates ~28 source datasets via per-source \"proc",
+   "count": 1
+  },
+  "ebeaf7046c82": {
+   "rule": "STE-01",
+   "file": "radharmony/harmonizer/chexinstruct_vqa/chexinstruct_vqa.py",
+   "text": "26 words: This harmonizer reads a *compiled* JSON produced by running Stanford's own (unmodified) CO",
+   "count": 1
+  },
+  "f591359dee53": {
+   "rule": "STE-03",
+   "file": "radharmony/harmonizer/chexinstruct_vqa/chexinstruct_vqa.py",
+   "text": "semicolon: It does not embed or adapt Stanford's code (CC BY-NC-ND 4.0); it only consumes data those",
+   "count": 1
+  },
+  "5328b120fac5": {
+   "rule": "STE-06",
+   "file": "radharmony/harmonizer/chexinstruct_vqa/chexinstruct_vqa.py",
+   "text": "'e.g.' (use: for example): question_types: Optional subset of :attr: CODE to keep (e.g.",
+   "count": 1
+  },
+  "6a31710e49ce": {
+   "rule": "STE-06",
+   "file": "radharmony/harmonizer/chexinstruct_vqa/chexinstruct_vqa.py",
+   "text": "'e.g.' (use: for example): data_sources: Optional subset of :attr: CODE to keep (e.g.",
+   "count": 1
+  },
+  "f57e5bfd8f80": {
+   "rule": "STE-01",
+   "file": "scripts/eval_medpmc_tagger_on_rocov2.py",
+   "text": "30 words: X-Ray Computed Tomography Computed tomography imaging - action Plain x-ray Radiographic im",
+   "count": 1
+  },
+  "34a7b4f36015": {
+   "rule": "STE-01",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "28 words: Collect each base __init__'s own parameters (not the MRO walk) so we know which names are ",
+   "count": 1
+  },
+  "37b48b53aaf3": {
+   "rule": "STE-01",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "26 words: --- layout consistency: inherited/shared args must live under a \"### Shared arguments (inh",
+   "count": 1
+  },
+  "618861b00f06": {
+   "rule": "STE-01",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "26 words: Scoped to dataset pages ONLY -- a bare \"Notes\" heading is canonical on evaluator/backbone ",
+   "count": 1
+  },
+  "effe7ca41c89": {
+   "rule": "STE-01",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "46 words: Group by heading depth so symbol-matching sees the section's *combined* arg set; otherwise",
+   "count": 1
+  },
+  "526593c0935d": {
+   "rule": "STE-03",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "semicolon: VQA datasets are a separate hierarchy; base_image_dir stays specific.",
+   "count": 1
+  },
+  "59af8c36e4ed": {
+   "rule": "STE-03",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "semicolon: base_image_dir stays in the class-specific table by convention; dtype is subclass-added b",
+   "count": 1
+  },
+  "e0716b0b69a1": {
+   "rule": "STE-03",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "semicolon: Group by heading depth so symbol-matching sees the section's *combined* arg set; otherwis",
+   "count": 1
+  },
+  "4a49e66f8511": {
+   "rule": "STE-06",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "'e.g.' (use: for example): Requiring \"Type\" skips look-alike explanatory tables (e.g.",
+   "count": 1
+  },
+  "58ae2755c91f": {
+   "rule": "STE-06",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "'e.g.' (use: for example): documenting a defaulted arg as Required=Yes is a common convention (e.g. ",
+   "count": 1
+  },
+  "685f18381234": {
+   "rule": "STE-06",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "'e.g.' (use: for example): Sibling sub-headings (e.g. rsna_2022 uses ### for both \"Constructor argum",
+   "count": 1
+  },
+  "8e7323f761ae": {
+   "rule": "STE-06",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "'etc.' (use: (give the full list)): transforms, backbone factories, etc. have no shared-arg conventi",
+   "count": 1
+  },
+  "9492203a0bcf": {
+   "rule": "STE-06",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "'e.g.' (use: for example): A constructor section is one heading and all deeper (###) subtables under",
+   "count": 1
+  },
+  "cba3be27ca39": {
+   "rule": "STE-06",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "'e.g.' (use: for example): Tolerant of quote style, backticks, and trailing parenthetical notes (e.g",
+   "count": 1
+  },
+  "d3b8a86370c4": {
+   "rule": "STE-06",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "'e.g.' (use: for example): Group by heading depth so symbol-matching sees the section's *combined* a",
+   "count": 1
+  },
+  "2856fadc1c50": {
+   "rule": "STE-01",
+   "file": "tests/test_age_units.py",
+   "text": "32 words: The bug this guards: RadHarmony unified the age column NAME across datasets but not its VA",
+   "count": 1
+  },
+  "7e3401def331": {
+   "rule": "STE-10",
+   "file": "tests/test_age_units.py",
+   "text": "'normalisation' (use: normalization): Age unit normalisation: conversions, and that every harmonizer",
+   "count": 1
+  },
+  "a5344a73bc2b": {
+   "rule": "STE-01",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "30 words: Origin story: in commit CODE (2026-04-22) the lumbar spine harmonizer started emitting bbo",
+   "count": 1
+  },
+  "c89f8a6a8b4d": {
+   "rule": "STE-01",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "38 words: In April 2026 a refactor that removed the CODE (in service of adding CODE for cross-scanne",
+   "count": 1
+  },
+  "f5eea019d23d": {
+   "rule": "STE-01",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "48 words: If the load pipeline shuffles axes in a way that mis-paints bboxes (e.g. the Transposed([0",
+   "count": 1
+  },
+  "2d050745d12d": {
+   "rule": "STE-02",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "em dash: First 6-column slice = (z_min, z_max, y_min, y_max, x_min, x_max). z (axis 0) midpoints \u2014 s",
+   "count": 1
+  },
+  "9a8cc682cdf3": {
+   "rule": "STE-02",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "em dash: In April 2026 a refactor that removed the CODE (in service of adding CODE for cross-scanner",
+   "count": 1
+  },
+  "c3e7a0aad77b": {
+   "rule": "STE-02",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "em dash: Origin story: in commit CODE (2026-04-22) the lumbar spine harmonizer started emitting bbox",
+   "count": 1
+  },
+  "fe71f1723432": {
+   "rule": "STE-02",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "em dash: x (axis 2) midpoints \u2014 should also cluster near 0.5 (midline sagittal)",
+   "count": 1
+  },
+  "0c90edf2ac66": {
+   "rule": "STE-06",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "'i.e.' (use: that is): Origin story: in commit CODE (2026-04-22) the lumbar spine harmonizer started",
+   "count": 1
+  },
+  "de04835fe7b7": {
+   "rule": "STE-06",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "'e.g.' (use: for example): If the load pipeline shuffles axes in a way that mis-paints bboxes (e.g. ",
+   "count": 1
+  },
+  "ce138e27eb50": {
+   "rule": "STE-01",
+   "file": "tests/test_chestxdet10.py",
+   "text": "47 words: The released annotations have four properties that fail silently rather than loudly, so ea",
+   "count": 1
+  },
+  "5948c435f071": {
+   "rule": "STE-02",
+   "file": "tests/test_chestxdet10.py",
+   "text": "em dash: ChestX-Det10 harmonizer tests \u2014 no real data.",
+   "count": 1
+  },
+  "b79dfb1bd117": {
+   "rule": "STE-10",
+   "file": "tests/test_chestxdet10.py",
+   "text": "'normalised' (use: normalized): The released annotations have four properties that fail silently rat",
+   "count": 1
+  },
+  "eec61626e1e4": {
+   "rule": "STE-10",
+   "file": "tests/test_chestxdet10.py",
+   "text": "'normalised' (use: normalized): Released boxes are pixel [x1,y1,x2,y2]; RadHarmony wants normalised ",
+   "count": 1
+  },
+  "f255bd5752ea": {
+   "rule": "STE-02",
+   "file": "tests/test_chexpert_demographics.py",
+   "text": "em dash: CheXpert demographics wiring \u2014 the columns exist on disk and must reach the output.",
+   "count": 1
+  },
+  "a1d2235747b3": {
+   "rule": "STE-02",
+   "file": "tests/test_chexphoto.py",
+   "text": "em dash: AP_PA is legitimately null on lateral views \u2014 96 such rows in real valid.csv.",
+   "count": 1
+  },
+  "c742167c4653": {
+   "rule": "STE-01",
+   "file": "tests/test_configs.py",
+   "text": "32 words: Every CODE must parse, carry the required keys, declare a known modality, point at a regis",
+   "count": 1
+  },
+  "a5028a7bd1ab": {
+   "rule": "STE-02",
+   "file": "tests/test_configs.py",
+   "text": "em dash: Dataset config-file validation \u2014 no data dependency.",
+   "count": 1
+  },
+  "81556fc0cb99": {
+   "rule": "STE-01",
+   "file": "tests/test_dataset.py",
+   "text": "36 words: Builds a tiny synthetic harmonizer/dataset (mirroring the real subclasses) over throwaway ",
+   "count": 1
+  },
+  "239fe61e6eca": {
+   "rule": "STE-02",
+   "file": "tests/test_dataset.py",
+   "text": "em dash: Dataset + loader tests for the core 2-D pipeline \u2014 no real data.",
+   "count": 1
+  },
+  "52b676d2bc20": {
+   "rule": "STE-02",
+   "file": "tests/test_dataset.py",
+   "text": "em dash: 6 patients, 3 images each \u2014 split must keep a patient wholly on one side.",
+   "count": 1
+  },
+  "2ef19a25081d": {
+   "rule": "STE-01",
+   "file": "tests/test_emory_cxr.py",
+   "text": "41 words: Each test pins a failure mode that is silent in production: a join that evaluates to nothi",
+   "count": 1
+  },
+  "e24c684b5d63": {
+   "rule": "STE-01",
+   "file": "tests/test_emory_cxr.py",
+   "text": "30 words: Left un-normalised, pandas raises on the merge; the older failure mode ( CODE against the ",
+   "count": 1
+  },
+  "2329f51acc2f": {
+   "rule": "STE-02",
+   "file": "tests/test_emory_cxr.py",
+   "text": "em dash: They cannot be joined to any manifest, so dropping them is correct \u2014 keeping them would put",
+   "count": 1
+  },
+  "6ff21f7949af": {
+   "rule": "STE-02",
+   "file": "tests/test_emory_cxr.py",
+   "text": "em dash: Filling NaN with 0 would invent negatives no radiologist wrote \u2014 CODE has no explicit negat",
+   "count": 1
+  },
+  "93c5d2759b8c": {
+   "rule": "STE-02",
+   "file": "tests/test_emory_cxr.py",
+   "text": "em dash: Synthetic fixtures only \u2014 these run without the dataset mounted.",
+   "count": 1
+  },
+  "0826a2cca38e": {
+   "rule": "STE-03",
+   "file": "tests/test_emory_cxr.py",
+   "text": "semicolon: Left un-normalised, pandas raises on the merge; the older failure mode ( CODE against the",
+   "count": 1
+  },
+  "1fc05578475e": {
+   "rule": "STE-03",
+   "file": "tests/test_emory_cxr.py",
+   "text": "semicolon: The trailing multi-line quoted field is what defeats the fast path in the real file; a le",
+   "count": 1
+  },
+  "2e0fecf4a6dd": {
+   "rule": "STE-10",
+   "file": "tests/test_emory_cxr.py",
+   "text": "'normalisation' (use: normalization): ORIGINAL_PNG carries a different intensity normalisation.",
+   "count": 1
+  },
+  "dc2c7270476d": {
+   "rule": "STE-03",
+   "file": "tests/test_harmonizer_id_filter.py",
+   "text": "semicolon: 3 patients, 4 studies, 6 images; one extra study in the report list only.",
+   "count": 1
+  },
+  "9647e4a2a0fe": {
+   "rule": "STE-02",
+   "file": "tests/test_internal_overlay.py",
+   "text": "em dash: Overlay registration tests \u2014 INTERNAL repo only.",
+   "count": 1
+  },
+  "ef38ae137a53": {
+   "rule": "STE-02",
+   "file": "tests/test_internal_overlay.py",
+   "text": "em dash: None currently \u2014 emory_cxr / ms_cxr / ms_cxr_t were promoted into the public ``radharmony``",
+   "count": 1
+  },
+  "256a75ae22b6": {
+   "rule": "STE-06",
+   "file": "tests/test_internal_overlay.py",
+   "text": "'e.g.' (use: for example): Auto-skips where CODE isn't installed (e.g. the public framework), so it'",
+   "count": 1
+  },
+  "919524b00f49": {
+   "rule": "STE-01",
+   "file": "tests/test_node21.py",
+   "text": "27 words: The synthetic tests below do NOT skip: they pin the traps that would otherwise fail silent",
+   "count": 1
+  },
+  "8051351ec234": {
+   "rule": "STE-02",
+   "file": "tests/test_node21.py",
+   "text": "em dash: The synthetic tests below do NOT skip: they pin the traps that would otherwise fail silentl",
+   "count": 1
+  },
+  "34ccf39f3d49": {
+   "rule": "STE-03",
+   "file": "tests/test_node21.py",
+   "text": "semicolon: 5,224 CSV rows describe 4,882 images; rows must not be counted as images.",
+   "count": 1
+  },
+  "67056a974110": {
+   "rule": "STE-03",
+   "file": "tests/test_node21.py",
+   "text": "semicolon: Importing the dataset package is what runs @register_dataset; without it the registry is ",
+   "count": 1
+  },
+  "28c53c1865ec": {
+   "rule": "STE-01",
+   "file": "tests/test_padchest_gr.py",
+   "text": "27 words: The synthetic tests do NOT skip: they pin the traps that fail silently -- the CODE box ord",
+   "count": 1
+  },
+  "24113235240b": {
+   "rule": "STE-03",
+   "file": "tests/test_padchest_gr.py",
+   "text": "semicolon: reports: list of (ImageID, [findings]); meta overrides per-image master fields.",
+   "count": 1
+  },
+  "4553771f1c65": {
+   "rule": "STE-03",
+   "file": "tests/test_padchest_gr.py",
+   "text": "semicolon: The master table is one row per finding; per-image fields must agree.",
+   "count": 1
+  },
+  "7308892c6f72": {
+   "rule": "STE-02",
+   "file": "tests/test_registry.py",
+   "text": "em dash: Registry integrity tests \u2014 no data dependency.",
+   "count": 1
+  },
+  "9ea92234c1b0": {
+   "rule": "STE-01",
+   "file": "tests/test_rexgradient_labels.py",
+   "text": "28 words: A first version of this test compared the valid split's per-IMAGE rate (0.433) against the",
+   "count": 1
+  },
+  "b37cba605f0c": {
+   "rule": "STE-02",
+   "file": "tests/test_rexgradient_labels.py",
+   "text": "em dash: Unparseable values must be NaN, never silently 0 \u2014 blank is not absent.",
+   "count": 1
+  },
+  "1cb53d89ea6e": {
+   "rule": "STE-03",
+   "file": "tests/test_rexgradient_labels.py",
+   "text": "semicolon: The GPT-OSS table stores the COMPLEMENT as Abnormal; we must expose no_finding.",
+   "count": 1
+  },
+  "d10b55d210b2": {
+   "rule": "STE-03",
+   "file": "tests/test_rexgradient_labels.py",
+   "text": "semicolon: The code was right; the test was comparing two different quantities.",
+   "count": 1
+  },
+  "614ea505ceef": {
+   "rule": "STE-02",
+   "file": "tests/test_transforms.py",
+   "text": "em dash: cls dropped \u2014 not in output_keys",
+   "count": 1
+  },
+  "e97c50e82c47": {
+   "rule": "STE-02",
+   "file": "tests/test_transforms.py",
+   "text": "em dash: Transform-pipeline tests \u2014 no real data, synthetic image/volume in tmp_path.",
+   "count": 1
+  },
+  "0494e30b7e0a": {
+   "rule": "STE-10",
+   "file": "tests/test_transforms.py",
+   "text": "'behaviour' (use: behavior): A 60x40 grayscale PNG (non-square, so resize/pad behaviour is observabl",
+   "count": 1
+  },
+  "363c1b9bb3c4": {
+   "rule": "STE-10",
+   "file": "tests/test_transforms.py",
+   "text": "'normalise' (use: normalize): Exercises the deterministic preprocessing of RadiologyTransform2D / 3D",
+   "count": 1
+  },
+  "eed151a16e0a": {
+   "rule": "STE-01",
+   "file": "tests/test_vqa_base.py",
+   "text": "27 words: No NAS / qa.zip dependency \u2014 fixtures build a tiny in-memory harmonized DataFrame plus on-",
+   "count": 1
+  },
+  "64e5e3f99bbf": {
+   "rule": "STE-02",
+   "file": "tests/test_vqa_base.py",
+   "text": "em dash: No NAS / qa.zip dependency \u2014 fixtures build a tiny in-memory harmonized DataFrame plus on-d",
+   "count": 1
+  },
+  "029735cd2d49": {
+   "rule": "STE-03",
+   "file": "tests/test_vqa_base.py",
+   "text": "semicolon: df can't round-trip via init args; load_from_saved relies on the stored harmonized_df ins",
+   "count": 1
+  }
+ }
+}

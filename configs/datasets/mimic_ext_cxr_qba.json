@@ -1,0 +1,23 @@
+{
+  "_comment": "MIMIC-Ext-CXR-QBA. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "MIMIC-Ext-CXR-QBA",
+  "registry_key": "mimic_ext_cxr_qba",
+  "modality": "2D",
+  "image_format": "DICOM",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source (2026-11-04): question_metadata.parquet, question_image_metadata.parquet and patient_metadata.parquet of the export exports/A_frontal/metadata/q1M, read with pandas. The README gives 1M questions for q1M, and the files have 1,000,000. The table has one row per question, so rows is the question count (D-03). As the harmonizer does, the pandas code keeps one image for each question (the first image_id after a sort) and takes the split of each patient from patient_metadata.parquet. Then the 3 splits have 979,811 (train), 7,620 (validate) and 12,569 (test) questions. Each study then has one image, so images equals studies. No patient is in 2 splits. The train key is not here: one harmonize() of train opens 203,825 studies in qa.zip and took 1,796 s (30 minutes) on 2026-11-04. That run gave the same counts as pandas: 979,811 rows, 203,825 images, 203,825 studies and 62,200 patients.",
+    "patients_in_two_splits": 0,
+    "mimic_ext_cxr_qba_validate": {
+      "images": 1641,
+      "studies": 1641,
+      "patients": 481,
+      "rows": 7620
+    },
+    "mimic_ext_cxr_qba_test": {
+      "images": 2850,
+      "studies": 2850,
+      "patients": 287,
+      "rows": 12569
+    }
+  }
+}

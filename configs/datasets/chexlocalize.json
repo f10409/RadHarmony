@@ -60,7 +60,7 @@
     "uncertain_handling": {
       "_comment": "No NaN/-1 values present in this split; settings below are defensive defaults and are not expected to trigger.",
       "nan_action": "to_zero",
-      "negative_one_action": "to_nan",
+      "negative_one_action": "keep",
       "drop_uncertain_rows": false
     }
   },
@@ -111,5 +111,62 @@
   },
 
   "hu_window": null,
-  "custom_preprocessing": "Segmentation masks require decoding COCO RLE via pycocotools and unioning per-pathology masks into one binary mask per image; see 'masks' section."
+  "custom_preprocessing": "Segmentation masks require decoding COCO RLE via pycocotools and unioning per-pathology masks into one binary mask per image; see 'masks' section.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: CheXpert/test_labels.csv and CheXpert/val_labels.csv (one row per image), and CheXlocalize/gt_segmentations_{test,val}.json, read with pandas and json. rows_with_mask counts the images whose key (patient_study_view) is in the mask file, plus the labeled negatives: the images with 0 for all 10 masked findings in the label CSV (D-33, Q-10). Test: 499 + 168. Val: 187 + 47. The val split is the CheXpert valid set. No patient is in both. Only val_labels.csv has the columns Sex and Age, so only the val split has sex and age_years.",
+    "patients_in_two_splits": 0,
+    "chexlocalize": {
+      "images": 668,
+      "studies": 500,
+      "patients": 500,
+      "positives": {
+        "atelectasis": 178,
+        "cardiomegaly": 175,
+        "consolidation": 35,
+        "edema": 85,
+        "enlarged_cardiomediastinum": 298,
+        "fracture": 6,
+        "lung_lesion": 14,
+        "lung_opacity": 310,
+        "no_finding": 109,
+        "pleural_effusion": 120,
+        "pleural_other": 8,
+        "pneumonia": 14,
+        "pneumothorax": 10,
+        "support_devices": 315
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 667,
+      "rows_with_report": 0
+    },
+    "chexlocalize_val": {
+      "images": 234,
+      "studies": 200,
+      "patients": 200,
+      "positives": {
+        "atelectasis": 80,
+        "cardiomegaly": 68,
+        "consolidation": 33,
+        "edema": 45,
+        "enlarged_cardiomediastinum": 109,
+        "fracture": 0,
+        "lung_lesion": 1,
+        "lung_opacity": 126,
+        "no_finding": 38,
+        "pleural_effusion": 67,
+        "pleural_other": 1,
+        "pneumonia": 8,
+        "pneumothorax": 8,
+        "support_devices": 107
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 234,
+      "rows_with_report": 0,
+      "sex": {"F": 106, "M": 128},
+      "age_years": [18, 90]
+    }
+  }
 }

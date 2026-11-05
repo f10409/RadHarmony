@@ -11,7 +11,12 @@ Threshold selection via ``threshold_strategy``:
 
 - ``"youden"`` (default): argmax(TPR - FPR) on the ROC curve.
 - ``"f1"``: argmax F1 on the PR curve.
-- ``"fixed:<float>"``: numeric threshold, e.g. ``"fixed:0.5"``.
+- ``"fixed:<float>"``: numeric threshold, for example ``"fixed:0.5"``.
+
+The probes pick the threshold on validation data with :func:`pick_threshold`
+and pass it to :func:`compute_metrics` (D-29). Without a threshold,
+:func:`compute_metrics` picks it on the labels that it scores. On test labels,
+that threshold is an oracle, and the threshold metrics are too high.
 """
 
 from __future__ import annotations
@@ -55,13 +60,15 @@ def _pick_threshold(y_true: np.ndarray, y_score: np.ndarray, strategy: str) -> f
 
     if strategy == "youden":
         fpr, tpr, thr = roc_curve(y_true, y_score)
-        # roc_curve prepends an "inf" threshold at index 0; skip it if present
-        j = tpr - fpr
-        return float(thr[int(np.argmax(j))])
+        # roc_curve puts an "inf" threshold at index 0 (no positive prediction).
+        # Skip it: for a score that runs against the label, every TPR - FPR is
+        # <= 0, and argmax would pick inf.
+        j = (tpr - fpr)[1:]
+        return float(thr[1:][int(np.argmax(j))])
 
     if strategy == "f1":
         prec, rec, thr = precision_recall_curve(y_true, y_score)
-        # thr has length len(prec)-1 — align by dropping the last prec/rec
+        # thr has length len(prec)-1, so drop the last prec/rec to align.
         f1 = 2 * prec[:-1] * rec[:-1] / (prec[:-1] + rec[:-1] + 1e-12)
         if len(thr) == 0:
             return 0.5
@@ -73,25 +80,65 @@ def _pick_threshold(y_true: np.ndarray, y_score: np.ndarray, strategy: str) -> f
     )
 
 
+def pick_threshold(y_true, y_score, strategy: str = "youden") -> float:
+    """Pick a threshold on labeled scores of validation data (D-29).
+
+    Args:
+        y_true: 0/1 labels. Other values (NaN) are dropped. ``None`` means
+            that there is no validation data.
+        y_score: scores of the same rows.
+        strategy: ``"youden"``, ``"f1"`` or ``"fixed:<float>"``.
+
+    Returns:
+        The threshold. ``"fixed:<float>"`` gives its number, also with no data.
+        NaN when there is no data, or fewer than 2 positives or 2 negatives.
+    """
+    if strategy.startswith("fixed:"):
+        return float(strategy.split(":", 1)[1])
+    if strategy not in ("youden", "f1"):
+        raise ValueError(
+            f"Unknown threshold_strategy: {strategy!r}. "
+            f"Expected 'youden', 'f1', or 'fixed:<float>'."
+        )
+    if y_true is None:
+        return np.nan
+    y = np.asarray(y_true, dtype=np.float64).ravel()
+    s = np.asarray(y_score, dtype=np.float64).ravel()
+    keep = np.isin(y, (0.0, 1.0)) & np.isfinite(s)
+    y, s = y[keep].astype(int), s[keep]
+    if (y == 1).sum() < 2 or (y == 0).sum() < 2:
+        return np.nan
+    return _pick_threshold(y, s, strategy)
+
+
 def compute_metrics(
     y_true: np.ndarray,
     y_score: np.ndarray,
     threshold_strategy: str = "youden",
+    threshold: float | None = None,
 ) -> dict:
     """Compute the full metric panel for one binary-label column.
+
+    Args:
+        y_true: labels. Rows that are not 0 or 1 are dropped.
+        y_score: scores of the same rows.
+        threshold_strategy: how to pick the threshold when ``threshold`` is None.
+        threshold: a threshold from validation data (D-29). With ``None``, the
+            threshold is picked on ``y_true``: use that only for validation
+            labels. NaN gives NaN for the threshold metrics.
 
     Returns NaN-filled dict if the label is degenerate (<2 positives or <2 negatives).
     """
     y_true = np.asarray(y_true).ravel()
     y_score = np.asarray(y_score).ravel()
 
-    # Multi-label datasets (e.g. Emory gpt-oss-120b labels) routinely have NaN
-    # for ungraded conditions per row. Mask them out per-label before scoring.
-    # Two failure modes: (a) NaN survives all the way → roc_auc_score raises
-    # "Input y_true contains NaN"; (b) NaN gets int-cast somewhere upstream →
-    # turns into integer garbage like -2147483648, which then trips sklearn's
-    # multi-class detector ("multi_class must be in ('ovo','ovr')"). Reject
-    # anything that isn't exactly 0 or 1 (or 0.0/1.0).
+    # Multi-label datasets (for example Emory gpt-oss-120b labels) often have
+    # NaN for ungraded conditions. Mask them out per label before scoring.
+    # Without the mask, NaN can fail in 2 ways. (a) It reaches roc_auc_score,
+    # which raises "Input y_true contains NaN". (b) An upstream int cast turns
+    # it into garbage like -2147483648, which trips the sklearn multi-class
+    # detector ("multi_class must be in ('ovo','ovr')"). Reject
+    # anything that is not exactly 0 or 1 (or 0.0/1.0).
     y_true_f = y_true.astype(np.float64, copy=False)
     finite = ~np.isnan(y_true_f) & np.isin(y_true_f, [0.0, 1.0])
     y_true = y_true_f[finite].astype(int)
@@ -105,7 +152,12 @@ def compute_metrics(
     auroc = roc_auc_score(y_true, y_score)
     auprc = average_precision_score(y_true, y_score)
 
-    thr = _pick_threshold(y_true, y_score, threshold_strategy)
+    if threshold is None:
+        thr = _pick_threshold(y_true, y_score, threshold_strategy)
+    else:
+        thr = float(threshold)
+    if np.isnan(thr):
+        return {**_nan_metrics(), "auroc": float(auroc), "auprc": float(auprc)}
     y_pred = (y_score >= thr).astype(int)
 
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
@@ -113,11 +165,9 @@ def compute_metrics(
     tnr = tn / (tn + fp) if (tn + fp) > 0 else np.nan
     ppv = tp / (tp + fp) if (tp + fp) > 0 else np.nan
     npv = tn / (tn + fn) if (tn + fn) > 0 else np.nan
-    f1 = (
-        2 * ppv * tpr / (ppv + tpr)
-        if (ppv is not np.nan and tpr is not np.nan and (ppv + tpr) > 0)
-        else np.nan
-    )
+    # 2TP / (2TP + FP + FN) equals 2 * PPV * TPR / (PPV + TPR). It also gives 0
+    # (as in sklearn) when TP = 0. The denominator is never 0 because n_pos >= 2.
+    f1 = 2 * tp / (2 * tp + fp + fn)
 
     return {
         "auroc": float(auroc),
@@ -163,7 +213,7 @@ def macro_average(df: pd.DataFrame) -> pd.DataFrame:
         if not isinstance(key, tuple):
             key = (key,)
         row: dict = {"label": "macro_average"}
-        row.update(dict(zip(group_cols, key)))
+        row.update(dict(zip(group_cols, key, strict=False)))
         for m in metric_cols:
             row[m] = float(np.nanmean(sub[m].to_numpy()))
         macro_rows.append(row)

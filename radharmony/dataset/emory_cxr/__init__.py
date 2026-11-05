@@ -1,3 +1,3 @@
-from .emory_cxr import EmoryCXRDataset
+from .emory_cxr import EmoryCXRDataset, EmoryCXRDicomDataset
 
-__all__ = ["EmoryCXRDataset"]
+__all__ = ["EmoryCXRDataset", "EmoryCXRDicomDataset"]

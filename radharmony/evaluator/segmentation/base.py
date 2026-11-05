@@ -3,8 +3,8 @@
 Adds frozen-encoder dense-feature plumbing on top of :class:`BaseEvaluator`.
 Expects:
 
-- An ``image_encoder`` that returns dense patch features ``Tensor[B, D, H', W']``
-  — every RadHarmony backbone supports this when built via
+- An ``image_encoder`` that returns dense patch features ``Tensor[B, D, H', W']``.
+  Every RadHarmony backbone supports this when built via
   ``make_<backbone>(output_keys={"img", "mask"})``.
 - A dataset configured with ``output_mask=True`` so each batch includes
   a ``"mask"`` tensor aligned to the encoder's input image size.
@@ -12,6 +12,7 @@ Expects:
 
 from __future__ import annotations
 
+import warnings
 from contextlib import nullcontext
 
 import torch
@@ -57,6 +58,10 @@ class BaseSegEvaluator(BaseEvaluator):
             bootstrap_seed=bootstrap_seed,
             threshold_strategy=threshold_strategy,
         )
+        if threshold_strategy != "youden":
+            # The head gives each pixel its highest class, so no threshold is used.
+            warnings.warn("threshold_strategy is not used by the segmentation evaluators: each pixel gets "
+                          "the class with the highest score.", UserWarning, stacklevel=3)
         self.image_encoder = image_encoder
         self.num_classes = num_classes
         self.device = device
@@ -76,11 +81,11 @@ class BaseSegEvaluator(BaseEvaluator):
         return "cuda" if self.device.startswith("cuda") else "cpu"
 
     def _autocast_cm(self):
-        """Autocast context manager honoring ``self.autocast_dtype``.
+        """Return an autocast context with ``self.autocast_dtype``.
 
-        Bridges the common dtype mismatch where a dataset emits bfloat16
-        tensors (``BaseRadiologicalDataset.dtype`` default) but encoder
-        weights are fp32 — autocast handles per-op casts transparently.
+        The dataset gives bfloat16 tensors (the default ``dtype`` of
+        ``BaseRadiologicalDataset``), but the encoder weights are fp32.
+        Autocast casts each op, so this works.
         """
         if self.autocast_dtype is None:
             return nullcontext()
@@ -105,7 +110,7 @@ class BaseSegEvaluator(BaseEvaluator):
 
         Asserts the encoder produces a 4-D dense map. Returns the feature
         channel count and the spatial size of the ground-truth mask
-        (assumed square — matches every recipe under ``backbones/``).
+        (assumed square, as in every recipe under ``backbones/``).
         """
         self._freeze_encoder()
         batch = next(iter(sample_loader))
@@ -114,14 +119,14 @@ class BaseSegEvaluator(BaseEvaluator):
             feats = self.image_encoder(imgs)
         if feats.ndim != 4:
             raise ValueError(
-                f"Segmentation encoder must return Tensor[B, D, H, W]; "
-                f"got shape {tuple(feats.shape)}. Build the encoder via "
+                f"Segmentation encoder must return Tensor[B, D, H, W]. "
+                f"It gave shape {tuple(feats.shape)}. Build the encoder via "
                 f"make_<backbone>(output_keys={{'img', 'mask'}})."
             )
         if "mask" not in batch:
             raise KeyError(
-                "Dataset did not emit a 'mask' key — pass output_mask=True "
-                "when constructing the dataset."
+                "The dataset gave no 'mask' key. Pass output_mask=True "
+                "to the dataset class."
             )
         mask_size = int(batch["mask"].shape[-1])
         return int(feats.shape[1]), mask_size

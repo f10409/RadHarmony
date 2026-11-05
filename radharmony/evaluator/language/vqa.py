@@ -89,7 +89,7 @@ class VQAEvaluator(GenerativeEvaluator):
         return batch["img"], questions, answers, questions
 
     def _score(self, refs: list[str], hyps: list[str]) -> list[dict]:
-        pairs = list(zip(refs, hyps))
+        pairs = list(zip(refs, hyps, strict=True))
         closed = [(r, h) for r, h in pairs if self.is_closed(r)]
         openq = [(r, h) for r, h in pairs if not self.is_closed(r)]
 
@@ -117,7 +117,7 @@ class VQAEvaluator(GenerativeEvaluator):
         return pd.DataFrame(
             [
                 (q, r, h, bool(self.is_closed(r)))
-                for q, r, h in zip(self._ids, self._refs, self._hyps)
+                for q, r, h in zip(self._ids, self._refs, self._hyps, strict=True)
             ],
             columns=["question", "reference", "hypothesis", "closed"],
         )

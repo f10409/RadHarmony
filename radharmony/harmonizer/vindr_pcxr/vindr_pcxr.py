@@ -1,54 +1,48 @@
-"""Harmonizer for the VinDr-PCXR Pediatric Chest X-ray dataset.
+"""Harmonizer for the VinDr-PCXR pediatric chest X-ray dataset.
 
-A large-scale pediatric CXR dataset annotated by experienced radiologists
-with image-level labels and bounding boxes for 15 thoracic conditions.
+A pediatric CXR set with 15 image labels, and boxes of 36 findings, annotated by
+radiologists. Source (PhysioNet, credentialed access): https://physionet.org/content/vindr-pcxr/
+Cite: Pham HH, et al. VinDr-PCXR: An open, large-scale pediatric chest X-ray dataset for
+interpretation of common thoracic diseases. *PhysioNet* 2022.
 
-**Source (PhysioNet — requires credentialed access):**
-  https://physionet.org/content/vindr-pcxr/
-
-**Cite:**
-  Pham HH, et al. VinDr-PCXR: An open, large-scale pediatric chest X-ray
-  dataset for interpretation of common thoracic diseases. *PhysioNet*. 2022.
-
-**Layout after download:**
+Layout::
 
     <base_dir>/
-      train/
-        <image_id>.dicom
-        ...
-      test/
-        <image_id>.dicom
-        ...
-      image_labels_train.csv
-      image_labels_test.csv
-      annotations_train.csv    ← bounding boxes (train split)
-      annotations_test.csv     ← bounding boxes (test split)
+      train/<image_id>.dicom
+      test/<image_id>.dicom
+      image_labels_{train,test}.csv
+      annotations_{train,test}.csv    # boxes
 
-**One row per image** (~9,125 total: 7,728 train + 1,397 test).
+The table has one row for each image (about 9,125: 7,728 train and 1,397 test). The 15 labels
+are binary and belong to the image.
 
-**Labels:** 15 binary conditions (image-level), one annotation per image.
+A box is in ``annotations_{split}.csv`` as pixels ``x_min, y_min, x_max, y_max``. The harmonizer
+converts it to ``[y_min, y_max, x_min, x_max]`` with values from 0 to 1, with the image size
+from the DICOM header. The boxes of an image go to JSON lists. ``bbox_labels`` has the class
+names in snake case, for example ``bronchial_thickening`` (D-07). A boxed image with an
+unreadable DICOM file gets no box, and a warning gives the count.
 
-**Bounding boxes:** stored in ``annotations_{split}.csv`` with pixel-space
-``x_min, y_min, x_max, y_max`` coordinates. Normalized to the RadHarmony
-convention ``[y_min, y_max, x_min, x_max]`` (values in [0, 1]) using DICOM
-image dimensions read at harmonize time. Multiple boxes per image are
-aggregated into JSON lists.
+The DICOM headers have no PatientID and no StudyInstanceUID, so ``patient_id`` and ``study_id``
+are the ``image_id``. ``sex`` and ``age_years`` come from the DICOM tags ``PatientSex`` and
+``PatientAge``. The release has neither in a CSV (D-06).
 
-**DICOM note:** DICOM headers in this dataset do not contain PatientID or
-StudyInstanceUID. ``patient_id`` and ``study_id`` are both set to
-``image_id``.
+Details: ``docs/wiki/reference/datasets/cxr-boxes-masks/vindr_pcxr.md``.
 """
 
 import json
+import math
 import os
+import warnings
 
 import pandas as pd
 import pydicom
 
+from .._bbox import box_label, clip_boxes
+from .._dicom_tags import add_patient_tags
 from ..base import BaseHarmonizer
 
 
-# Image-level label columns (original CSV names → snake_case)
+# Label columns of the image: CSV name and snake_case name.
 _LABEL_MAP = {
     "No finding":            "no_finding",
     "Bronchitis":            "bronchitis",
@@ -80,8 +74,7 @@ class VinDrPCXRHarmonizer(BaseHarmonizer):
     """Harmonize the VinDr-PCXR Pediatric Chest X-ray dataset.
 
     Args:
-        base_dir: Dataset root — the directory containing ``train/``,
-            ``test/``, and the four CSV files.
+        base_dir: Dataset root, with ``train/``, ``test/`` and the four CSV files.
     """
 
     LABEL_COLS = _LABEL_COLS
@@ -98,6 +91,14 @@ class VinDrPCXRHarmonizer(BaseHarmonizer):
 
     EXTRA_OUTPUT_COLS = ["split", "image_width", "image_height"]
 
+    # DICOM tags, read by _build_patient_tags() (D-06, D-26, V-H3-31). A young child has an age in M or D ("006M").
+    AGE_SOURCE_COL = "PatientAge"
+    AGE_SOURCE_UNIT = "dicom_as"
+    SEX_SOURCE_COL = "PatientSex"
+
+    # The official splits to read. A split class keeps one of them.
+    SPLITS = ("train", "test")
+
     def __init__(self, base_dir: str):
         self.base_dir = os.path.expanduser(base_dir)
         super().__init__(csv_path=None)
@@ -108,9 +109,18 @@ class VinDrPCXRHarmonizer(BaseHarmonizer):
         snap.pop("csv_path", None)
         return snap
 
-    def harmonize(self, *args, **kwargs) -> pd.DataFrame:
+    def verify_images(self, base_image_dir: str = None, drop_missing: bool = True) -> pd.DataFrame:
+        """Check the image files. The folder defaults to ``base_dir`` (D-04, V-H3-36)."""
+        return super().verify_images(base_image_dir or self.base_dir, drop_missing)
+
+    def _read_source(self) -> pd.DataFrame:
+        """Read the label and box CSVs of each split in ``SPLITS``. Return one row for each image.
+
+        The rows have the IDs, the image path, the labels, the image size and the boxes. The
+        image size comes from the DICOM header.
+        """
         rows = []
-        for split in ("train", "test"):
+        for split in self.SPLITS:
             labels_csv = os.path.join(self.base_dir, f"image_labels_{split}.csv")
             annot_csv  = os.path.join(self.base_dir, f"annotations_{split}.csv")
             img_dir    = os.path.join(self.base_dir, split)
@@ -123,21 +133,31 @@ class VinDrPCXRHarmonizer(BaseHarmonizer):
             labels_df = pd.read_csv(labels_csv)
             annot_df  = pd.read_csv(annot_csv) if os.path.isfile(annot_csv) else pd.DataFrame()
 
-            # Build a bbox lookup: image_id → list of [y_min, y_max, x_min, x_max] (normalized)
+            # Box lookup: image_id to a list of [y_min, y_max, x_min, x_max] (fractions).
             bbox_map: dict[str, list] = {}
             blabel_map: dict[str, list] = {}
-            # dims cache shared between bbox pass and label pass (avoid double reads)
+            # The size cache serves the box pass and the label pass, so no file is read twice.
             dims: dict[str, tuple[int, int]] = {}
 
             if not annot_df.empty:
-                annotated_ids = annot_df["image_id"].unique()
-                for img_id in annotated_ids:
+                # A "No finding" row has no coordinates, so only these images lose a box.
+                coords = annot_df[["x_min", "y_min", "x_max", "y_max"]].astype(float)
+                boxed_ids = set(annot_df.loc[coords.notna().all(axis=1), "image_id"])
+                unread = []  # missing or unreadable DICOM files of boxed images (R-code-19)
+                for img_id in annot_df["image_id"].unique():
                     dcm_path = os.path.join(img_dir, f"{img_id}.dicom")
-                    if os.path.isfile(dcm_path):
-                        try:
-                            dims[img_id] = _read_dicom_dims(dcm_path)
-                        except Exception:
-                            pass
+                    try:
+                        dims[img_id] = _read_dicom_dims(dcm_path)
+                    except Exception:
+                        if img_id in boxed_ids:
+                            unread.append(dcm_path)
+                if unread:
+                    warnings.warn(
+                        f"VinDr-PCXR {split}: {len(unread)} images with boxes have no readable DICOM "
+                        f"file, so they get no box (first: {unread[0]}).",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
                 for img_id, group in annot_df.groupby("image_id"):
                     if img_id not in dims:
@@ -146,15 +166,17 @@ class VinDrPCXRHarmonizer(BaseHarmonizer):
                     norm_boxes = []
                     labels_list = []
                     for _, row in group.iterrows():
-                        y_min = float(row["y_min"]) / h
-                        y_max = float(row["y_max"]) / h
-                        x_min = float(row["x_min"]) / w
-                        x_max = float(row["x_max"]) / w
-                        norm_boxes.append([
-                            max(0.0, y_min), min(1.0, y_max),
-                            max(0.0, x_min), min(1.0, x_max),
-                        ])
-                        labels_list.append(str(row["class_name"]))
+                        # A "No finding" row has empty coordinates: it has no box.
+                        y0, y1, x0, x1 = (
+                            float(row[c]) for c in ("y_min", "y_max", "x_min", "x_max")
+                        )
+                        if not all(math.isfinite(v) for v in (y0, y1, x0, x1)):
+                            continue
+                        y_min, y_max = y0 / h, y1 / h
+                        x_min, x_max = x0 / w, x1 / w
+                        # _build_bbox() clips the box to [0, 1] (D-07).
+                        norm_boxes.append([y_min, y_max, x_min, x_max])
+                        labels_list.append(box_label(row["class_name"]))
                     bbox_map[img_id]   = norm_boxes
                     blabel_map[img_id] = labels_list
 
@@ -170,11 +192,10 @@ class VinDrPCXRHarmonizer(BaseHarmonizer):
                     "split":        split,
                 }
 
-                # Binary labels
                 for orig_col, snake_col in _LABEL_MAP.items():
                     row[snake_col] = int(lrow.get(orig_col, 0))
 
-                # Image dimensions — reuse cached dims from bbox pass; read fresh otherwise
+                # Image size: use the cache of the box pass, or read the file.
                 if img_id in dims:
                     row["image_height"], row["image_width"] = dims[img_id]
                 elif os.path.isfile(dcm_abs):
@@ -190,7 +211,6 @@ class VinDrPCXRHarmonizer(BaseHarmonizer):
                     row["image_height"] = None
                     row["image_width"]  = None
 
-                # Bounding boxes
                 if img_id in bbox_map:
                     row["bbox"]        = json.dumps(bbox_map[img_id])
                     row["bbox_labels"] = json.dumps(blabel_map[img_id])
@@ -200,8 +220,31 @@ class VinDrPCXRHarmonizer(BaseHarmonizer):
 
                 rows.append(row)
 
-        self.df = pd.DataFrame(rows)
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
+        return pd.DataFrame(rows)
 
-        return self._select_harmonized_columns(self.df)
+    # _read_source() builds these columns.
+    def _build_patient_id(self) -> None:
+        pass
+
+    def _build_study_id(self) -> None:
+        pass
+
+    def _build_image_path(self) -> None:
+        """``_read_source()`` sets ``image_path``. Read the DICOM sex and age tags here.
+
+        This step runs after the id filter, so only the kept rows are read.
+        """
+        self._build_patient_tags()
+
+    def _build_bbox(self) -> None:
+        """``_read_source()`` makes the boxes. Clip them here (D-07)."""
+        clip_boxes(self.df, "VinDr-PCXR")  # D-07
+
+    def _build_patient_tags(self) -> None:
+        """Read ``PatientSex`` and ``PatientAge`` from the DICOM headers (D-06).
+
+        A table with no row (an id filter) gets the 2 columns too. A source with no row has no
+        columns, so it is skipped.
+        """
+        if "image_path" in self.df.columns:
+            self.df = add_patient_tags(self.df, self.base_dir)

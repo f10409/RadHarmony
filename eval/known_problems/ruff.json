@@ -1,0 +1,47 @@
+{
+ "check": "ruff",
+ "problems": {
+  "76a54b950577": {
+   "rule": "B023",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "Function definition does not bind loop variable `cells`",
+   "count": 2
+  },
+  "a70b071a47cf": {
+   "rule": "B023",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "Function definition does not bind loop variable `ci`",
+   "count": 1
+  },
+  "abbd4e0dd797": {
+   "rule": "B034",
+   "file": "scripts/evalkit/wiki_audit.py",
+   "text": "`re.split` should pass `maxsplit` and `flags` as keyword arguments to avoid confusion due to unintui",
+   "count": 1
+  },
+  "0463ad72dfc1": {
+   "rule": "F401",
+   "file": "tests/test_bbox_axis_alignment.py",
+   "text": "`torch` imported but unused",
+   "count": 1
+  },
+  "e801bd7e0f7c": {
+   "rule": "B007",
+   "file": "tests/test_padchest_gr.py",
+   "text": "Loop control variable `y0` not used within loop body",
+   "count": 1
+  },
+  "e9f3fb2ad8c6": {
+   "rule": "B007",
+   "file": "tests/test_padchest_gr.py",
+   "text": "Loop control variable `y1` not used within loop body",
+   "count": 1
+  },
+  "af259338aa90": {
+   "rule": "B905",
+   "file": "tests/test_padchest_gr.py",
+   "text": "`zip()` without an explicit `strict=` parameter",
+   "count": 1
+  }
+ }
+}

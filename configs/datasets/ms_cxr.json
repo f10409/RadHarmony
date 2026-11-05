@@ -1,0 +1,80 @@
+{
+  "_comment": "MS-CXR. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "MS-CXR",
+  "registry_key": "ms_cxr",
+  "modality": "2D",
+  "image_format": "JPG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source: MS_CXR_Local_Alignment_v1.1.0.csv read with pandas (1,448 boxes on 1,047 images). The split column gives train 1,020, val 212 and test 216 boxes. Every image is in one split, and no patient is in two splits. The patient and study IDs come from the path (files/p10/p<patient>/s<study>/<dicom>.jpg). positives counts the images with at least one box of that category. Every image has a box.",
+    "patients_in_two_splits": 0,
+    "ms_cxr_train": {
+      "images": 737,
+      "studies": 737,
+      "patients": 595,
+      "positives": {
+        "atelectasis": 44,
+        "cardiomegaly": 232,
+        "consolidation": 87,
+        "edema": 32,
+        "lung_opacity": 57,
+        "pleural_effusion": 67,
+        "pneumonia": 117,
+        "pneumothorax": 164
+      },
+      "uncertain": {},
+      "rows_with_bbox": 737,
+      "boxes": 1020,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "harmonizer_args": {
+        "mimic_base_dir": "base_image_dir"
+      }
+    },
+    "ms_cxr_val": {
+      "images": 155,
+      "studies": 155,
+      "patients": 128,
+      "positives": {
+        "atelectasis": 9,
+        "cardiomegaly": 48,
+        "consolidation": 15,
+        "edema": 6,
+        "lung_opacity": 13,
+        "pleural_effusion": 15,
+        "pneumonia": 23,
+        "pneumothorax": 34
+      },
+      "uncertain": {},
+      "rows_with_bbox": 155,
+      "boxes": 212,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "harmonizer_args": {
+        "mimic_base_dir": "base_image_dir"
+      }
+    },
+    "ms_cxr_test": {
+      "images": 155,
+      "studies": 155,
+      "patients": 128,
+      "positives": {
+        "atelectasis": 8,
+        "cardiomegaly": 53,
+        "consolidation": 15,
+        "edema": 8,
+        "lung_opacity": 12,
+        "pleural_effusion": 14,
+        "pneumonia": 25,
+        "pneumothorax": 35
+      },
+      "uncertain": {},
+      "rows_with_bbox": 155,
+      "boxes": 216,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "harmonizer_args": {
+        "mimic_base_dir": "base_image_dir"
+      }
+    }
+  }
+}
