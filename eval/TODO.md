@@ -602,3 +602,16 @@ other phases of the plan come after that. "Needs your yes" means that the agent 
     `_base_load_2d` (base code, needs your yes) and in `radharmony/preprocessor/cxr.py`.
   - MONAI 1.6.1 warns "NvImgCodecPydicomReader ... did not register" on each `LoadImageD` when nvImageCodec
     is missing. Test: `tests/test_output_flags.py::test_a_transform_that_drops_a_requested_key_warns_at_once`.
+- [ ] **Agent simulation of users** (Frank Li, 2026-11-05). A pipeline of agents that use the package as users
+  do, from the docs only. It finds problems that the tests do not cover, because the tests use only the
+  arguments that we chose.
+  - Each agent gets a user task and the public docs, for example "load VinDr-CXR with masks and boxes, then
+    run a linear probe with RAD-DINO". It writes and runs its own code, and reports each error, wrong output
+    or unclear doc step.
+  - A second part tests the combinations of arguments of each dataset class, evaluator and backbone recipe.
+    Example: `output_mask=True` with `output_bbox=True`, each split mode and each `transform`. The values
+    come from the signatures and the argument tables. Each combination must run, or raise a clear error.
+  - Open choices:
+    - Which tasks, and which combinations (all of them, or a sample of pairs).
+    - Which data: fake data in CI, real data in the full run.
+    - How a finding goes to `/fix`.

@@ -183,7 +183,7 @@ dev = [
 
 [tool.ruff]
 line-length = 120
-extend-exclude = ["radharmony/evaluator/backbones/_template.py", "scripts/legacy", "notebooks"]
+extend-exclude = ["radharmony/evaluator/backbones/_template.py", "scripts/legacy", "notebooks", "model/dinov3_pretrain/*.ipynb"]
 
 [tool.ruff.lint]
 # Rules that find bugs. Style is not checked here.
