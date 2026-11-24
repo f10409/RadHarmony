@@ -116,6 +116,10 @@ The wiki is at [f10409.github.io/RadHarmony](https://f10409.github.io/RadHarmony
   service. See [Datathon26 module](https://f10409.github.io/RadHarmony/reference/datathon26.html).
 - App: a Gradio web page shows the samples of a dataset, with the boxes and masks on the image. See
   [Use the app](https://f10409.github.io/RadHarmony/how-to/use-the-app.html).
+- RH-DINO: a chest X-ray image encoder. It is DINOv3 after more pretraining on six public chest X-ray
+  datasets, loaded with RadHarmony (the case study of the paper). [`model/rh_dino/`](model/rh_dino/) has
+  the evaluation code and notebooks. The weights are not public yet. They go to Hugging Face when the paper
+  is published.
 
 ## Contributors
 
