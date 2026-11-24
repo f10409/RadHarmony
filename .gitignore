@@ -44,9 +44,6 @@ docs/local/
 .vscode
 progress.md
 
-Custom_LeJEPA/
-
-
 wandb
 
 eval_results
@@ -74,9 +71,6 @@ model/modules/navit_reference_wrapper.py
 model/modules/navit_wrapper.py
 model/launch_scripts/*navit*
 reports/
-
-# Caches and results of the model/ scripts (RADHARMONY_OUTPUT_DIR default). They can hold internal results.
-model/outputs/
 
 # Has a hard-coded reportbench API key: never commit it
 datathon26/preextract_embeddings.py
