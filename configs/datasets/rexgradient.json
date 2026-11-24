@@ -1,5 +1,5 @@
 {
-  "_comment": "ReXGradient-160K — 273,004 chest X-rays from 160,000 studies / 109,487 patients across 79 U.S. medical sites, distributed via HuggingFace by rajpurkarlab. Three splits: train (140K studies / 238,968 images / 95,716 patients), validation (10K / 17,007 / 6,964), public test (10K / 17,029 / 6,807). Images are PNG (downsampled to 25%). Reports come pre-segmented into Indication / Comparison / Findings / Impression. No structured pathology labels. Bounding boxes exist for ~398 interstitial-pattern examples (skipped in this integration). Per-study CSVs ship alongside per-image JSONs; the JSONs are the source of truth because they expand to one entry per image (the CSV is one row per study).",
+  "_comment": "ReXGradient-160K — 273,004 chest X-rays from 160,000 studies / 109,487 patients across 79 U.S. medical sites, distributed via HuggingFace by rajpurkarlab. Three splits: train (140K studies / 238,968 images / 95,716 patients), validation (10K / 17,007 / 6,964), public test (10K / 17,029 / 6,807). Images are PNG (downsampled to 25%). Reports come pre-segmented into Indication / Comparison / Findings / Impression. No structured pathology labels. Bounding boxes exist for 398 interstitial-pattern images, 901 boxes in total (skipped in this integration). Per-study CSVs ship alongside per-image JSONs; the JSONs are the source of truth because they expand to one entry per image (the CSV is one row per study).",
 
   "dataset_name": "ReXGradient-160K",
   "registry_key": "rexgradient",
@@ -71,7 +71,7 @@
   },
 
   "bboxes": {
-    "_comment": "metadata/interstitial_pattern_bbox.json contains ~398 Label-Studio-format boxes (x/y/width/height in original pixel coords, label = 'Reticulonodular' or similar interstitial-pattern subtypes). Out of scope for the v1 integration — adding it later requires normalising by the original ImageShape (post-downsample dims live in the per-image JSON's ImageShape list) and joining on the synthetic '<study_id>_<sop_uid>.png' key used by the bbox file.",
+    "_comment": "metadata/interstitial_pattern_bbox.json contains 901 Label-Studio-format boxes on 398 images (x/y/width/height in original pixel coords, label = 'Reticulonodular' or similar interstitial-pattern subtypes). Out of scope for the v1 integration — adding it later requires normalising by the original ImageShape (post-downsample dims live in the per-image JSON's ImageShape list) and joining on the synthetic '<study_id>_<sop_uid>.png' key used by the bbox file.",
     "supported": false,
     "column": null
   },
@@ -94,5 +94,64 @@
   },
 
   "hu_window": null,
-  "custom_preprocessing": "Use JSON not CSV (CSV is per-study; JSON has the per-image ImagePath list needed to explode rows). Concatenate Indication+Comparison+Findings+Impression with section headers into the 'report' column. Three split-specific subclasses (ReXGradientTrain/Valid/Test) wrap the base class so saved harmonizers round-trip to the right class — mirrors the CheXpert train/valid pattern."
+  "custom_preprocessing": "Use JSON not CSV (CSV is per-study; JSON has the per-image ImagePath list needed to explode rows). Concatenate Indication+Comparison+Findings+Impression with section headers into the 'report' column. Three split-specific subclasses (ReXGradientTrain/Valid/Test) wrap the base class so saved harmonizers round-trip to the right class — mirrors the CheXpert train/valid pattern.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py, without labels_csv_path (the release has no labels, so positives and uncertain are empty). Sources: the ReXGradient-160K README (download/README.md: train 140,000 studies, 238,968 images, 95,716 patients; validation 10,000, 17,007, 6,964; public test 10,000, 17,029, 6,807), and the 3 *_metadata_view_position.json files read with json and pandas on 2026-11-03. All counts match the README. study_id is StudyInstanceUid. No patient is in 2 splits. Every study has a report section that is not empty. PatientSex O, U and null give NaN (D-26). age_years comes from the DICOM age text PatientAge (D, W, M or Y), with the rule of radharmony/harmonizer/_age.py read, not called (D-06).",
+    "patients_in_two_splits": 0,
+    "rexgradient_train": {
+      "images": 238968,
+      "studies": 140000,
+      "patients": 95716,
+      "positives": {},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 238968,
+      "sex": {
+        "F": 118750,
+        "M": 116919
+      },
+      "age_years": [
+        0.0,
+        90.0
+      ]
+    },
+    "rexgradient_valid": {
+      "images": 17007,
+      "studies": 10000,
+      "patients": 6964,
+      "positives": {},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 17007,
+      "sex": {
+        "F": 8551,
+        "M": 8244
+      },
+      "age_years": [
+        0.0,
+        90.0
+      ]
+    },
+    "rexgradient_test": {
+      "images": 17029,
+      "studies": 10000,
+      "patients": 6807,
+      "positives": {},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 17029,
+      "sex": {
+        "F": 8515,
+        "M": 8244
+      },
+      "age_years": [
+        0.0,
+        90.0
+      ]
+    }
+  }
 }

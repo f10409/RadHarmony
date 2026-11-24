@@ -1,0 +1,68 @@
+{
+  "_comment": "CheXpert Plus. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "CheXpert Plus",
+  "registry_key": "chexpert_plus",
+  "modality": "2D",
+  "image_format": "DICOM",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py, with the default drop_uncertain=True. Sources: df_chexpert_plus_240401.csv (223,462 images: train 223,228, valid 234) and the label file impression_fixed.json (one line per image, D-48), read with pandas. A blank label is 0, and an image with any -1 label is dropped. A row with every label blank has no label at all, so it gets NaN in every label (D-05, V-H1-41). uncertain counts these rows, from the raw label file read with pandas. No patient is in both splits. sex and age_years come from the CSV columns sex and age (years). The sex Unknown (203 train rows and 1 valid row, after the drop of uncertain rows) gives NaN (D-26).",
+    "patients_in_two_splits": 0,
+    "chexpert_plus_train": {
+      "images": 143343,
+      "studies": 119809,
+      "patients": 50728,
+      "positives": {
+        "atelectasis": 25121,
+        "cardiomegaly": 20383,
+        "consolidation": 8738,
+        "edema": 36810,
+        "enlarged_cardiomediastinum": 4935,
+        "fracture": 5956,
+        "lung_lesion": 6132,
+        "lung_opacity": 51088,
+        "no_finding": 21173,
+        "pleural_effusion": 57827,
+        "pleural_other": 2478,
+        "pneumonia": 3788,
+        "pneumothorax": 14005,
+        "support_devices": 76577
+      },
+      "uncertain": {
+        "atelectasis": 12, "cardiomegaly": 12, "consolidation": 12, "edema": 12,
+        "enlarged_cardiomediastinum": 12, "fracture": 12, "lung_lesion": 12,
+        "lung_opacity": 12, "no_finding": 12, "pleural_effusion": 12,
+        "pleural_other": 12, "pneumonia": 12, "pneumothorax": 12, "support_devices": 12
+      },
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "sex": {"F": 57800, "M": 85340},
+      "age_years": [0, 89]
+    },
+    "chexpert_plus_valid": {
+      "images": 165,
+      "studies": 142,
+      "patients": 142,
+      "positives": {
+        "atelectasis": 30,
+        "cardiomegaly": 17,
+        "consolidation": 8,
+        "edema": 32,
+        "enlarged_cardiomediastinum": 1,
+        "fracture": 12,
+        "lung_lesion": 10,
+        "lung_opacity": 38,
+        "no_finding": 43,
+        "pleural_effusion": 42,
+        "pleural_other": 0,
+        "pneumonia": 0,
+        "pneumothorax": 17,
+        "support_devices": 80
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "sex": {"F": 73, "M": 91},
+      "age_years": [18, 89]
+    }
+  }
+}

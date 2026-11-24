@@ -1,0 +1,52 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # "edited": check the base-code text again when the PR description changes.
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the shrink check reads the base branch
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e . "pytest>=9.0.3" "ruff==0.17.3"
+
+      # pytest runs in tests.yml. Only new problems fail (eval/known_problems/).
+      - name: Automatic checks (lint, docs)
+        run: .venv/bin/python scripts/evalkit/run_all.py --group lint,docs
+
+      # A "New rule: L-013" line in the PR description lets that new rule add its old problems (D-45).
+      - name: Known-problems lists did not grow
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr_body.md"
+          .venv/bin/python scripts/evalkit/run_all.py --check-shrink "origin/$BASE_REF" --pr-body "$RUNNER_TEMP/pr_body.md"
+
+      - name: Base-code change has approval text
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr_body.md"
+          .venv/bin/python scripts/evalkit/base_guard.py --base "origin/$BASE_REF" --pr-body "$RUNNER_TEMP/pr_body.md"

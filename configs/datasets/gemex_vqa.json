@@ -1,0 +1,16 @@
+{
+  "_comment": "GEMeX-VQA. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "GEMeX-VQA",
+  "registry_key": "gemex_vqa",
+  "modality": "2D",
+  "image_format": "JPG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source (2026-11-04): the 4 JSONL files of the Hugging Face repo BoKelvin/GEMeX-VQA, read with pandas. Each file has 20 questions, so the files have 80 questions. The table has one row per question, so rows is the question count (D-03). The 80 questions are on 11 images (11 studies) of 7 patients. The patient and study IDs are the p and s folders of image_path. The local files are the sample on Hugging Face, not the full benchmark of the paper, so no count is compared with the paper. The dataset has one key and no official split, so patients_in_two_splits is not given. The class has no bbox column (the region boxes stay in visual_locations), so rows_with_bbox and boxes are not given.",
+    "gemex_vqa": {
+      "images": 11,
+      "studies": 11,
+      "patients": 7,
+      "rows": 80
+    }
+  }
+}

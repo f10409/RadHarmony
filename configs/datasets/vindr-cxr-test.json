@@ -69,5 +69,17 @@
     "base_image_dir": "Root of DICOM tree for header reads during bbox normalization"
   },
   "hu_window": null,
-  "custom_preprocessing": null
+  "custom_preprocessing": null,
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. VinDr-CXR test: image_labels_test.csv has one line per image, 3,000 images. Read with pandas and pydicom. There is no patient id, so patients = studies = images. sex and age_years come from the DICOM tags PatientSex and PatientAge (D-06, D-26). PatientSex: O 1,243, empty 503. 733 images have an age tag, and 269 ages are 0 ('000Y' 263, '000D' 6). 0 means unknown in VinDr-CXR, so they give NaN (D-06). 464 images have an age, from 4 to 90. 4 ages are plain numbers with no unit letter (for example 39), so they give NaN. Boxes (added 2026-11-03): annotations_test.csv read with pandas has 4,748 rows. 2,051 'No finding' rows have no coordinates, so 2,697 boxes on 949 images stay. With the Rows and Columns of the DICOM headers, every box is inside the image, so the clip (D-07) drops and moves no box.",
+    "vindr_cxr_test": {
+      "images": 3000,
+      "studies": 3000,
+      "patients": 3000,
+      "sex": {"F": 552, "M": 702},
+      "age_years": [4, 90],
+      "rows_with_bbox": 949,
+      "boxes": 2697
+    }
+  }
 }

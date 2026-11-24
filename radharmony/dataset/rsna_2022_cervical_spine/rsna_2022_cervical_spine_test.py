@@ -13,17 +13,26 @@ from .rsna_2022_cervical_spine import RSNA2022CervicalSpineDataset
 
 @register_dataset("rsna_2022_cervical_spine_test")
 class RSNA2022CervicalSpineTestDataset(RSNA2022CervicalSpineDataset):
-    """Test split of RSNA 2022 Cervical Spine — images only, no labels.
+    """Test split of RSNA 2022 Cervical Spine: images only, no labels.
 
     Reads ``test.csv`` (``row_id``, ``StudyInstanceUID``, ``prediction_type``),
-    deduplicates to one row per study.  No label columns; no segmentation masks.
+    deduplicates to one row per study.  No label columns. No segmentation masks.
+
+    This is a Kaggle code competition (D-25). The public download has only
+    sample test files. The 3 studies of ``test.csv`` are not in the 3 image
+    folders. So the class has 3 rows there, and ``ds[0]`` raises ``RuntimeError``
+    (no image file). The class is for a Kaggle
+    notebook of the competition, where the hidden test set has the same layout.
 
     Args:
-        base_image_dir: Root of the test DICOM tree — typically
+        base_image_dir: Root of the test DICOM tree, typically
             ``<competition_root>/test_images/``.
         csv_path: Path to ``test.csv``.  Auto-inferred when None.
         All other args identical to :class:`RSNA2022CervicalSpineDataset`.
     """
+
+    _HARMONIZER_CLS = RSNA2022CervicalSpineTestHarmonizer  # the saved test harmonizer loads (V-H3-21)
+    SUPPORTED_OUTPUTS: frozenset = frozenset()  # no labels and no masks (D-11)
 
     def __init__(
         self,
@@ -36,6 +45,7 @@ class RSNA2022CervicalSpineTestDataset(RSNA2022CervicalSpineDataset):
         output_cls=False,
         output_mask=False,
         output_report=False,
+        output_reg=False,
         output_bbox=False,
         harmonized_df=None,
         harmonizer=None,
@@ -44,7 +54,7 @@ class RSNA2022CervicalSpineTestDataset(RSNA2022CervicalSpineDataset):
     ):
         for flag, name in [
             (output_cls, "output_cls"), (output_mask, "output_mask"),
-            (output_report, "output_report"), (output_bbox, "output_bbox"),
+            (output_report, "output_report"), (output_bbox, "output_bbox"), (output_reg, "output_reg"),
         ]:
             if flag:
                 warnings.warn(
@@ -60,9 +70,8 @@ class RSNA2022CervicalSpineTestDataset(RSNA2022CervicalSpineDataset):
             and harmonized_df is None
             and harmonizer is None
             and base_image_dir is not None
-            and _test_csv is None
         ):
-            _test_csv = infer_path(base_image_dir, "test.csv", user_path="") or None
+            _test_csv = infer_path(base_image_dir, "test.csv", user_path=csv_path or "", required=True, arg="csv_path")
 
         super().__init__(
             base_image_dir=base_image_dir,

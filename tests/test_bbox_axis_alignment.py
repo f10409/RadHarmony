@@ -10,7 +10,7 @@ ended up painted into the wrong axes and labels appeared on wrong vertebrae.
 
 This test exists so the same regression can't slip past CI again.  It loads
 one known-good lumbar spine sample with ``output_bbox=True`` through the
-real pipeline and asserts that the painted ``bbox_mask`` lands in the slice
+real pipeline. It asserts that the box in the sample lands in the slice
 range we'd expect from the harmonizer's coord convention.
 
 If this test starts failing, you are about to mis-align bboxes.  Read
@@ -59,13 +59,13 @@ def test_bbox_present(lumbar_sample):
     """Sample dict has bbox after the full pipeline."""
     assert "img" in lumbar_sample, "img key missing from sample"
     assert "bbox" in lumbar_sample, (
-        "bbox missing from output — output_bbox plumbing or _MaskToBbox "
-        "round-trip broken"
+        "bbox missing from output: the output_bbox keys or the box steps "
+        "of the transform are broken"
     )
 
 
 def test_bbox_has_content(lumbar_sample):
-    """At least a few bboxes survived the round-trip through bbox_mask."""
+    """At least a few bboxes survived the transform."""
     bb = lumbar_sample["bbox"]
     n = bb.shape[0] if hasattr(bb, "shape") else len(bb)
     assert n >= 3, (
@@ -112,8 +112,8 @@ def test_bbox_axis_layout_matches_harmonizer_convention(lumbar_sample):
         f"bbox z-coord (axis 0) median is {z_med:.3f}, expected near 0.5.  "
         "If z drifted, the load pipeline has shuffled axes — likely the "
         "Transposed([0, 3, 2, 1]) step in _base_load_3d got removed, or an "
-        "OrientationD/Spacing step is reorienting the bbox_mask differently "
-        "from how _BboxToMask painted it.  See "
+        "OrientationD/Spacing step is reorienting the image differently "
+        "from how _ReorientBbox moves the box.  See "
         "docs/PIPELINE_INVARIANTS.md and "
         "docs/proposals/orientation_normalization.md."
     )

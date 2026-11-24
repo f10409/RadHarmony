@@ -1,0 +1,74 @@
+{
+  "_comment": "TAIX-Ray (512 px). Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "TAIX-Ray (512 px)",
+  "registry_key": "taix_ray_512",
+  "modality": "2D",
+  "image_format": "PNG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source: annotation.csv read with pandas (215,381 images, one row per image). The Split column gives train 137,593, val 34,860 and test 42,928 images, and no patient is in two splits. The harmonizer keeps the raw ordinal grades, so positives counts the grade 1 (Questionable, or Borderline Enlarged for heart_size), not every grade of 1 or more. The 512-pixel and the original release have the same annotation.csv content. age_years is the Age column (days) divided by 365.25 (D-06).",
+    "patients_in_two_splits": 0,
+    "taix_ray_512_train": {
+      "images": 137593,
+      "studies": 137593,
+      "patients": 30543,
+      "positives": {
+        "atelectasis_left": 9746,
+        "atelectasis_right": 8874,
+        "heart_size": 19691,
+        "pleural_effusion_left": 19710,
+        "pleural_effusion_right": 15452,
+        "pulmonary_congestion": 15259,
+        "pulmonary_opacities_left": 13111,
+        "pulmonary_opacities_right": 13737
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 46682, "M": 90911},
+      "age_years": [0, 110.64750171115674]
+    },
+    "taix_ray_512_val": {
+      "images": 34860,
+      "studies": 34860,
+      "patients": 7636,
+      "positives": {
+        "atelectasis_left": 2412,
+        "atelectasis_right": 2283,
+        "heart_size": 4876,
+        "pleural_effusion_left": 4926,
+        "pleural_effusion_right": 3975,
+        "pulmonary_congestion": 3846,
+        "pulmonary_opacities_left": 3350,
+        "pulmonary_opacities_right": 3598
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 11169, "M": 23691},
+      "age_years": [0, 98.97056810403834]
+    },
+    "taix_ray_512_test": {
+      "images": 42928,
+      "studies": 42928,
+      "patients": 9545,
+      "positives": {
+        "atelectasis_left": 2956,
+        "atelectasis_right": 2868,
+        "heart_size": 6230,
+        "pleural_effusion_left": 6299,
+        "pleural_effusion_right": 4920,
+        "pulmonary_congestion": 4983,
+        "pulmonary_opacities_left": 3985,
+        "pulmonary_opacities_right": 4251
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 13906, "M": 29022},
+      "age_years": [0, 102.34907597535934]
+    }
+  }
+}

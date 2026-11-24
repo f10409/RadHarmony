@@ -6,6 +6,6 @@ from .rsna_pe_detection import RSNAPEDetectionHarmonizer
 class RSNAPEDetectionTrainHarmonizer(RSNAPEDetectionHarmonizer):
     """Train-split subclass of :class:`RSNAPEDetectionHarmonizer`.
 
-    Identical harmonization logic; distinct class for save/load round-trip
-    identity.
+    It has the same logic as the base class. It is a separate class so that a saved
+    harmonizer loads back into the train class.
     """

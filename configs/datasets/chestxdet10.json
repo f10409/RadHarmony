@@ -1,0 +1,146 @@
+{
+  "_comment": "ChestX-Det10 (Liu, Lin & Yu, Deepwise AI Lab, arXiv:2006.10550) — the first chest x-ray dataset with INSTANCE-LEVEL box annotations. 3,543 images drawn from NIH ChestX-ray14 and annotated by three board-certified radiologists: a two-person committee annotating independently and mutually blind, then a judge who adjudicates and may add boxes. 10 classes. VERIFIED AGAINST THE RELEASE 2026-08-31 — every count below matches paper Tables 1-2 exactly. FOUR TRAPS: (1) train images extract to `train-old/`, NOT `train/`; assuming `train/` yields an empty dataset with no error. (2) Images are NOT resolvable from an NIH ChestX-ray14 copy — ChestX-Det10 renames them (`36199.png` vs NIH `00001075_000.png`), 0 of 3,543 match; the Deepwise zips are the only source. (3) 40 of 3,543 images are RGBA and 3,503 are 8-bit grayscale — a fixed-channel loader breaks on those 40, and if the constant alpha channel reaches percentile intensity scaling it shifts the window on 35 of them by up to 0.165/pixel. (4) 764 images are NEGATIVES with empty syms/boxes by design; dropping them discards the benchmark's only negative controls. Also: multiple diseases may share the same box region (paper section 2), so a box is not uniquely labelled.",
+  "dataset_name": "ChestX-Det10",
+  "registry_key": "chestxdet10",
+  "modality": "2D",
+  "image_format": "PNG",
+  "base_image_dir": "<dataset root containing train-old/ and test_data/, e.g. <DATA_ROOT>/ChestX-Det10/>",
+  "primary_csv": {
+    "_comment": "Annotations are JSON, not CSV: train.json (3,001 records) and test.json (542). Each record is {file_name, syms, boxes}. `syms` and `boxes` are PARALLEL arrays of equal length (verified on all 3,543). Boxes are pixel-space [x1,y1,x2,y2] left-top / right-bottom. Images are all 1024x1024.",
+    "path": "<DATA_ROOT>/ChestX-Det10/train.json or test.json",
+    "filename_variants": [
+      "train.json",
+      "test.json"
+    ]
+  },
+  "patient_id": {
+    "_comment": "NOT AVAILABLE. ChestX-Det10 ships no patient identifier and its filenames do not match NIH, so the NIH patient mapping cannot be recovered. The harmonizer sets patient_id = filename stem, i.e. one image per patient. That is deliberate: it prevents a caller believing a patient-level split is possible when it is not. Do NOT claim patient-disjoint splits on this dataset.",
+    "column": null,
+    "derivation": "filename stem"
+  },
+  "study_id": {
+    "_comment": "Same as patient_id — no study grouping exists.",
+    "column": null,
+    "derivation": "filename stem"
+  },
+  "image_path": {
+    "_comment": "'<split_dir>/<file_name>' where split_dir is `train-old` for train and `test_data` for test. These are the directory names the published zips actually contain.",
+    "column": "file_name",
+    "derivation": "split_dir + '/' + file_name",
+    "prefix_to_strip": null
+  },
+  "labels": {
+    "_comment": "10 classes, IMAGE-LEVEL multi-label derived from the box labels. Note image-level counts differ from the paper's INSTANCE counts because one image may carry several boxes of the same class (e.g. test atelectasis: 51 instances across 48 images). Paper Table 2 instance counts, train/test: Atelectasis 289/51, Calcification 280/67, Consolidation 2091/446, Effusion 1720/372, Emphysema 232/66, Fibrosis 618/120, Fracture 546/115, Mass 129/31, Nodule 789/166, Pneumothorax 169/42.",
+    "columns": [
+      "Atelectasis",
+      "Calcification",
+      "Consolidation",
+      "Effusion",
+      "Emphysema",
+      "Fibrosis",
+      "Fracture",
+      "Mass",
+      "Nodule",
+      "Pneumothorax"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are inside the annotation JSON.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "No uncertainty labels. Absence of a class means no annotated box of that class, which is not the same as a radiologist ruling it out.",
+      "nan_action": "none",
+      "negative_one_action": "none",
+      "drop_uncertain_rows": false
+    }
+  },
+  "view_position": {
+    "_comment": "Not provided.",
+    "column": null,
+    "source": null,
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+  "masks": {
+    "_comment": "No segmentation masks — boxes only.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+  "bboxes": {
+    "_comment": "THE POINT OF THIS DATASET. Released as pixel [x1,y1,x2,y2]; harmonized to RadHarmony's [dim0_min, dim0_max, dim1_min, dim1_max] normalised to [0,1] with dim0 = row. Stored JSON-ENCODED (like MS-CXR), so the boxes stay readable after a CSV save and load. The transform reads a JSON string or a list. A train image has 0 to 36 boxes, and a test image 0 to 14. Train 6,863 boxes, test 1,476.",
+    "supported": true,
+    "column": "boxes"
+  },
+  "reports": {
+    "_comment": "No reports.",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "_comment": null,
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+  "extra_init_params": {
+    "_comment": "split: 'train' | 'test'. keep_negatives: bool = True — keep the 681 train / 83 test images with no findings."
+  },
+  "hu_window": null,
+  "custom_preprocessing": "Harmonizer overrides _read_source to parse JSON rather than CSV. 40 of the 3,543 images are RGBA gray images (R = G = B, alpha 255). The channel step of the base load makes them 1 channel (D-42), so the dataset class has no step of its own for them.",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources (2026-11-03): the paper (Liu, Lin and Yu, arXiv:2006.10550, Tables 1 and 2: train 3,001 images, 2,320 positive, 681 negative, 6,863 boxes; test 542 images, 459 positive, 83 negative, 1,476 boxes), and train.json and test.json read with pandas, with the image sizes read with PIL. All of these counts match the paper. The source has no patient ID, so patient_id and study_id are the file stem (one image is one patient). positives counts the images with 1 or more boxes of the finding. The paper Table 2 counts boxes, so its numbers are larger (for example test atelectasis: 51 boxes on 48 images). No label is uncertain. rows_with_bbox counts the images with 1 or more boxes. Every box stays after the clip to the image (D-07). The source has no sex and no age.",
+    "patients_in_two_splits": 0,
+    "chestxdet10_train": {
+      "images": 3001,
+      "studies": 3001,
+      "patients": 3001,
+      "positives": {
+        "atelectasis": 249,
+        "calcification": 163,
+        "consolidation": 1340,
+        "effusion": 1176,
+        "emphysema": 137,
+        "fibrosis": 417,
+        "fracture": 313,
+        "mass": 112,
+        "nodule": 307,
+        "pneumothorax": 154
+      },
+      "uncertain": {},
+      "rows_with_bbox": 2320,
+      "boxes": 6863,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    },
+    "chestxdet10_test": {
+      "images": 542,
+      "studies": 542,
+      "patients": 542,
+      "positives": {
+        "atelectasis": 48,
+        "calcification": 38,
+        "consolidation": 289,
+        "effusion": 252,
+        "emphysema": 39,
+        "fibrosis": 82,
+        "fracture": 76,
+        "mass": 30,
+        "nodule": 77,
+        "pneumothorax": 35
+      },
+      "uncertain": {},
+      "rows_with_bbox": 459,
+      "boxes": 1476,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    }
+  }
+}

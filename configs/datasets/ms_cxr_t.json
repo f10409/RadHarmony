@@ -1,0 +1,24 @@
+{
+  "_comment": "MS-CXR-T. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "MS-CXR-T",
+  "registry_key": "ms_cxr_t",
+  "modality": "2D",
+  "image_format": "JPG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source (2026-11-03): MS_CXR_T_temporal_image_classification_v1.0.0.csv read with pandas. It has 1,045 rows, one for each image pair (D-03), so rows is 1,045. images counts the distinct current images (dicom_id): 1,036, because 9 current images are in 2 rows each, with 2 different prior images. studies counts study_id (1,035) and patients counts subject_id (800). The release README gives N=1326 for the image classification task, and the CSV has 1,045 pairs. The README does not explain the difference. The class has no label columns (the progression columns are extra columns), so positives and uncertain are empty. The CSV has no sex and no age.",
+    "ms_cxr_t": {
+      "images": 1036,
+      "studies": 1035,
+      "patients": 800,
+      "rows": 1045,
+      "positives": {},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "harmonizer_args": {
+        "mimic_base_dir": "base_image_dir"
+      }
+    }
+  }
+}

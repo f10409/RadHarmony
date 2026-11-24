@@ -1,4 +1,4 @@
-"""MONAI dataset for the SIIM COVID-19 Detection Challenge — train split."""
+"""MONAI dataset for the SIIM COVID-19 Detection Challenge: train split."""
 
 import pandas as pd
 
@@ -11,10 +11,13 @@ from .siim_covid19 import SIIMCOVID19Dataset
 class SIIMCOVID19TrainDataset(SIIMCOVID19Dataset):
     """Train split of :class:`SIIMCOVID19Dataset`.
 
-    Identical to the base class; uses :class:`SIIMCOVID19TrainHarmonizer`
+    Identical to the base class. Uses :class:`SIIMCOVID19TrainHarmonizer`
     for correct save/load round-trips via ``load_from_saved()``.
     All constructor arguments are the same as :class:`SIIMCOVID19Dataset`.
+    ``harmonizer_path=`` also loads a file of :class:`SIIMCOVID19Harmonizer`.
     """
+
+    _HARMONIZER_CLS = SIIMCOVID19TrainHarmonizer
 
     def _get_harmonized_df(self) -> pd.DataFrame:
         preset = self._try_resolve_preset_harmonized()

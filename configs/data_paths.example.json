@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "about": "Example. Copy this file to configs/data_paths.json, and give the real folders of the datasets that you want to check. Keep only those entries. Read it with scripts/dataset_paths.py. Your own copy stays out of git.",
+  "datasets": {
+    "montgomery_cxr": {
+      "status": "ok",
+      "paths": {"base_image_dir": "/path/to/MontgomerySet/CXR_png/"},
+      "note": "`ClinicalReadings/` and `ManualMask/` are next to `CXR_png/`."
+    },
+    "chexpert_train": {
+      "status": "ok",
+      "paths": {
+        "base_image_dir": "/path/to/CheXpert-v1.0/train/",
+        "csv_path": "/path/to/CheXpert-v1.0/train.csv"
+      }
+    }
+  }
+}

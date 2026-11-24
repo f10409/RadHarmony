@@ -1,4 +1,4 @@
-"""MONAI dataset for the SIIM COVID-19 Detection Challenge — test split."""
+"""MONAI dataset for the SIIM COVID-19 Detection Challenge: test split."""
 
 import warnings
 
@@ -11,16 +11,21 @@ from .siim_covid19 import SIIMCOVID19Dataset
 
 @register_dataset("siim_covid19_test")
 class SIIMCOVID19TestDataset(SIIMCOVID19Dataset):
-    """Test split of the SIIM COVID-19 Detection Challenge — images only, no labels.
+    """Test split of the SIIM COVID-19 Detection Challenge: images only, no labels.
 
     Walks the ``test/`` DICOM tree (``study/series/sop.dcm``).
-    ``output_cls`` and ``output_bbox`` are silently suppressed.
+    Every ``output_*`` flag gives a warning and no key.
 
     Args:
-        base_image_dir: Root of the test DICOM tree — typically
+        base_image_dir: Root of the test DICOM tree, typically
             ``<competition_root>/test/``.
         All other args identical to :class:`SIIMCOVID19Dataset`.
     """
+
+    SUPPORTED_OUTPUTS: frozenset = frozenset()
+    _HARMONIZER_CLS = SIIMCOVID19TestHarmonizer
+
+    _TRAIN_FILES_REQUIRED = False  # this class reads only the test files
 
     def __init__(
         self,
@@ -30,17 +35,19 @@ class SIIMCOVID19TestDataset(SIIMCOVID19Dataset):
         output_cls=False,
         output_mask=False,
         output_report=False,
+        output_reg=False,
         output_bbox=False,
         harmonized_df=None,
         harmonizer=None,
         harmonizer_path=None,
         dtype=torch.bfloat16,
     ):
-        for flag, name in [(output_cls, "output_cls"), (output_bbox, "output_bbox")]:
+        for flag, name in [(output_cls, "output_cls"), (output_mask, "output_mask"),
+                           (output_report, "output_report"), (output_bbox, "output_bbox"), (output_reg, "output_reg")]:
             if flag:
                 warnings.warn(
                     f"{name}=True is not supported by SIIMCOVID19TestDataset "
-                    "(test split has no labels); ignoring.",
+                    "(test split has no labels or boxes); ignoring.",
                     stacklevel=2,
                 )
 

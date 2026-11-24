@@ -1,5 +1,5 @@
 {
-  "_comment": "BRAX (Brazilian Chest X-Ray) v1.1.0 — PhysioNet credentialed-access release. ~24,959 studies / ~40,967 images / 19,351 patients from a Brazilian hospital network. 14 CheXpert findings (NLP-derived from Portuguese radiology reports using the original CheXpert labeller). Per the BRAX paper: '1' = positive, '0' = negation, '-1' = uncertainty; blank cells mean the labeller did not extract a mention. Both DICOM and PNG variants ship in the same release under <root>/Anonymized_DICOMs/ and <root>/images/. Reports are NOT distributed in 1.1.0 — only the labels are, so output_report is unsupported. Two registered dataset classes share one harmonizer parameterised by image_format ('dicom' or 'png'). Default uncertain_strategy='raw' preserves the source 1/0/-1/NaN encoding cell-for-cell; opt into the four CheXpert-paper coercions (u_zeros / u_ones / u_ignore / drop) at construction time when training-ready 0/1 tensors are needed.",
+  "_comment": "BRAX (Brazilian Chest X-Ray) v1.1.0 — PhysioNet credentialed-access release. From a Brazilian hospital network. master_spreadsheet_update.csv has 40,967 images, 18,442 patients (PatientID) and 23,276 studies (AccessionNumber), read with pandas on 2026-11-03. The paper gives 19,351 patients and 24,959 studies. 14 CheXpert findings (NLP-derived from Portuguese radiology reports using the original CheXpert labeller). Per the BRAX paper: '1' = positive, '0' = negation, '-1' = uncertainty; blank cells mean the labeller did not extract a mention. Both DICOM and PNG variants ship in the same release under <root>/Anonymized_DICOMs/ and <root>/images/. Reports are NOT distributed in 1.1.0 — only the labels are, so output_report is unsupported. Two registered dataset classes share one harmonizer parameterised by image_format ('dicom' or 'png'). Default uncertain_strategy='raw' preserves the source 1/0/-1/NaN encoding cell-for-cell; opt into the four CheXpert-paper coercions (u_zeros / u_ones / u_ignore / drop) at construction time when training-ready 0/1 tensors are needed.",
 
   "dataset_name": "BRAX",
   "registry_key": "brax",
@@ -66,7 +66,7 @@
   },
 
   "view_position": {
-    "_comment": "ViewPosition column carries DICOM-defined codes: AP, PA, LL, RL, RLD, LLD, RLO, LLO. Both frontal and lateral views are kept; downstream consumers can filter via dataframe slice if frontal-only is desired.",
+    "_comment": "ViewPosition holds PA, L, AP, RL, LT-DECUB, RLO, AP LLD or blank (master_spreadsheet_update.csv, read with pandas on 2026-11-03). Both frontal and lateral views are kept; downstream consumers can filter via dataframe slice if frontal-only is desired.",
     "column": "ViewPosition",
     "source": "csv",
     "separate_csv": {
@@ -109,5 +109,56 @@
   },
 
   "hu_window": null,
-  "custom_preprocessing": "Series ID is extracted from the image path's 'Series_<UID>' segment via regex so multi-series studies stay groupable. Demographic / scanner metadata (PatientSex, PatientAge, Manufacturer, StudyDate) flow through EXTRA_OUTPUT_COLS and are renamed to snake_case. Both views (AP/PA/LL/...) are retained by default. Note: PatientAge is binned into 5-year groups in the de-identified release with an '85 or more' cap — treat as ordinal categorical, not continuous."
+  "custom_preprocessing": "Series ID is extracted from the image path's 'Series_<UID>' segment via regex so multi-series studies stay groupable. Demographic / scanner metadata (PatientSex, PatientAge, Manufacturer, StudyDate) flow through EXTRA_OUTPUT_COLS and are renamed to snake_case. Both views (AP/PA/LL/...) are retained by default. Note: PatientAge is binned into 5-year groups in the de-identified release with an '85 or more' cap — treat as ordinal categorical, not continuous.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py, with the default uncertain_strategy='raw'. Sources: the BRAX paper (Reis et al., Scientific Data 2022: 40,967 images, 19,351 patients and 24,959 studies), and master_spreadsheet_update.csv read with pandas on 2026-11-03. The CSV has the same 40,967 images, but only 18,442 PatientID values and 23,276 AccessionNumber values. The paper does not say why, and the release has no other patient or study ID. 2 AccessionNumber values belong to 2 patients each (D-01). Policy (wiki page): 'raw' keeps 1, 0, -1 and blank. uncertain is the NaN count of each label column, so it counts the blank (not mentioned) cells, not the -1 cells (38 cells: 2 enlarged_cardiomediastinum, 19 lung_lesion, 17 lung_opacity). PatientAge is a 5-year group, so age_years is the low edge, and '85 or more' gives 85 (D-06). Only the key brax has a block: brax_png has the same rows of the same CSV, and the test builds each key with the default image_format='dicom', so a brax_png block checks nothing new.",
+    "brax": {
+      "images": 40967,
+      "studies": 23276,
+      "patients": 18442,
+      "positives": {
+        "atelectasis": 3518,
+        "cardiomegaly": 3984,
+        "consolidation": 3157,
+        "edema": 50,
+        "enlarged_cardiomediastinum": 71,
+        "fracture": 624,
+        "lung_lesion": 1290,
+        "lung_opacity": 4065,
+        "no_finding": 29009,
+        "pleural_effusion": 1822,
+        "pleural_other": 117,
+        "pneumonia": 774,
+        "pneumothorax": 214,
+        "support_devices": 8791
+      },
+      "uncertain": {
+        "atelectasis": 37408,
+        "cardiomegaly": 8983,
+        "consolidation": 37791,
+        "edema": 40917,
+        "enlarged_cardiomediastinum": 14682,
+        "fracture": 23938,
+        "lung_lesion": 39612,
+        "lung_opacity": 36833,
+        "pleural_effusion": 7723,
+        "pleural_other": 40849,
+        "pneumonia": 40147,
+        "pneumothorax": 40564,
+        "support_devices": 32155
+      },
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {
+        "F": 20709,
+        "M": 20258
+      },
+      "age_years": [
+        0,
+        85
+      ]
+    }
+  }
 }

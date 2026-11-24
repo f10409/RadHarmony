@@ -140,16 +140,50 @@ class BaseVQAHarmonizer:
     # ------------------------------------------------------------------
 
     def harmonize(self, **kwargs) -> pd.DataFrame:
-        """Build ``self.df`` with the VQA schema and return the harmonized slice."""
+        """Build ``self.df`` with the VQA schema and return the harmonized slice.
+
+        The steps are: the reset step (D-24), ``_read_source``, ``_build_vqa_columns``,
+        a new index, and the column select. A subclass overrides the 2 hooks, not this
+        method (D-30).
+
+        Args:
+            **kwargs: passed to ``_read_source``, for example ``study_ids=``.
+
+        Returns:
+            The harmonized table.
+        """
+        self._harmonized_df_override = None  # the reset step (D-24)
+        df = self._read_source(**kwargs)
+        df = self._build_vqa_columns(df)
+        self.df = df.reset_index(drop=True)
+        return self._select_harmonized_columns(self.df)
+
+    def _read_source(self, **kwargs) -> pd.DataFrame:
+        """Read the source files, apply the filters, and return the table."""
         raise NotImplementedError
+
+    def _build_vqa_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Make the VQA columns (ids, ``image_path``, ``question``, ``answer``). The default keeps ``df``."""
+        return df
 
     # ------------------------------------------------------------------
     # Verify image existence
     # ------------------------------------------------------------------
 
     def verify_images(self, base_image_dir: str = None, drop_missing: bool = True) -> pd.DataFrame:
+        """Check that every ``image_path`` exists, as ``BaseHarmonizer.verify_images`` does.
+
+        Raises:
+            ValueError: If ``image_path`` is relative and no ``base_image_dir`` is known.
+                Without it, every row looks missing (V-H2-28, D-04).
+        """
         df = self.harmonized_df
         base = base_image_dir if base_image_dir is not None else self.base_image_dir
+        if not base and not df["image_path"].astype(str).map(os.path.isabs).all():
+            raise ValueError(
+                "image_path is relative to base_image_dir (D-04). Pass "
+                "verify_images(base_image_dir=...), or every row looks missing."
+            )
 
         def _exists(p):
             fp = os.path.join(base, p) if base else p

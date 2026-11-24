@@ -1,0 +1,23 @@
+{
+  "_comment": "Montgomery County CXR Set (NLM tuberculosis screening). Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "Montgomery County CXR Set",
+  "registry_key": "montgomery_cxr",
+  "modality": "2D",
+  "image_format": "PNG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources (2026-11-03): NLM-MontgomeryCXRSet-ReadMe.pdf (138 images: 58 TB, 80 normal), and the raw files read with Python: the CXR_png/ file names and the ClinicalReadings/*.txt files. The file name suffix _1 is TB. Each file name is one study. 3 readings say 'same pt as' another image (MCUCXR_0117_1 names MCUCXR_0113_1, MCUCXR_0166_1 and MCUCXR_0170_1 name MCUCXR_0162_1), so 138 images give 135 patients. The ReadMe gives no patient count. 'Patient's Sex' is F (74), M (63) or O (1, MCUCXR_0080_0), and O gives NaN (D-26). 'Patient's Age' is in years, for example 027Y. 137 readings have a report: MCUCXR_0166_1 only says 'NO REPORT (same pt as MCUCXR_0162_1)', which counts as no report (D-33). rows_with_mask is not written: ManualMask/ has a left and a right mask for all 138 images, but the table gets a mask_path column only when harmonize() gets mask_output_dir.",
+    "montgomery_cxr": {
+      "harmonizer_args": {"base_dir": "base_image_dir"},
+      "images": 138,
+      "studies": 138,
+      "patients": 135,
+      "positives": {"tuberculosis": 58},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_report": 137,
+      "sex": {"F": 74, "M": 63},
+      "age_years": [4, 89]
+    }
+  }
+}

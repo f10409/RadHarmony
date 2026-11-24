@@ -1,79 +1,58 @@
 """Path inference utility for dataset CSV auto-discovery."""
 
-import glob as _glob
 import os
 
 
-def infer_path(base_dir: str, *candidates: str, user_path: str = "") -> str:
-    """Resolve a file path near ``base_dir`` with progressive fallback.
+def infer_path(
+    base_dir: str,
+    *candidates: str,
+    user_path: str = "",
+    required: bool = False,
+    arg: str = "",
+) -> str:
+    """Find a source file in exact places near ``base_dir`` (D-35).
 
-    Resolution order:
+    Search order:
 
-    1. ``user_path`` — if given and exists on disk, return it immediately.
-    2. Exact ``base_dir/candidate`` for each candidate.
-    3. Exact ``parent/candidate``, then recursive glob inside each *sibling*
-       of ``base_dir`` (children of parent, excluding ``base_dir`` itself).
-    4. Recursive glob inside each *uncle* of ``base_dir`` (children of
-       grandparent, excluding parent) — only reached if step 3 finds nothing.
+    1. ``user_path``, if given. A ``user_path`` that does not exist raises
+       ``FileNotFoundError``.
+    2. ``base_dir/<candidate>``, for each candidate in order.
+    3. ``parent/<candidate>``, where ``parent`` is the folder above ``base_dir``.
 
-    Steps 3–4 never descend into ``base_dir``, avoiding the image tree.
+    It does not walk folders, because a walk can take a file of another
+    dataset with the same name. A candidate can have a sub folder, for example
+    ``annotations/image_labels_train.csv``.
 
     Args:
-        base_dir: Root image directory (used as the anchor for the search).
-        *candidates: File names or relative paths to look for (in order).
-        user_path: Explicit path supplied by the caller; takes priority if it
-            exists on disk.
+        base_dir: Root image directory (the anchor of the search).
+        *candidates: File names or relative paths to look for, in order.
+        user_path: Explicit path from the caller. It must exist.
+        required: Raise ``FileNotFoundError`` when no candidate is found.
+        arg: The constructor argument that gives this file. The error names it.
 
     Returns:
-        The resolved path string, or ``""`` if nothing was found.
+        The path that was found, or ``""``.
+
+    Raises:
+        FileNotFoundError: ``user_path`` does not exist, or ``required`` is
+            True and no candidate is found.
     """
-    if not base_dir:
-        return user_path if (user_path and os.path.exists(user_path)) else ""
-
-    # 1. User-provided path exists — use it immediately
-    if user_path and os.path.exists(user_path):
+    if user_path:
+        if not os.path.exists(user_path):
+            raise FileNotFoundError(f"{arg or 'The given path'} does not exist: {user_path}")
         return user_path
-
-    # 2. Exact match directly under base_dir
-    for c in candidates:
-        p = os.path.join(base_dir, c)
-        if os.path.exists(p):
-            return p
-
-    def _glob_dirs(dirs, exclude):
-        for d in dirs:
-            if not d.is_dir():
-                continue
-            try:
-                if os.path.samefile(d.path, exclude):
-                    continue
-            except FileNotFoundError:
-                continue
-            for c in candidates:
-                matches = _glob.glob(
-                    os.path.join(d.path, "**", os.path.basename(c)), recursive=True
-                )
-                if matches:
-                    return matches[0]
+    if not base_dir:
+        if required:
+            raise FileNotFoundError(f"{' or '.join(candidates)} needs base_image_dir or {arg or 'a path'}.")
         return ""
 
     parent = os.path.normpath(os.path.join(base_dir.rstrip("/\\"), ".."))
-    grandparent = os.path.normpath(os.path.join(parent, ".."))
-
-    # 3. Exact parent/candidate, then sibling dirs (recursive glob)
-    if os.path.isdir(parent):
+    for folder in (base_dir, parent):
         for c in candidates:
-            p = os.path.join(parent, c)
-            if os.path.exists(p):
-                return p
-        hit = _glob_dirs(os.scandir(parent), exclude=base_dir)
-        if hit:
-            return hit
-
-    # 4. Uncle dirs (recursive glob) — only if step 3 found nothing
-    if os.path.isdir(grandparent):
-        hit = _glob_dirs(os.scandir(grandparent), exclude=parent)
-        if hit:
-            return hit
-
+            path = os.path.normpath(os.path.join(folder, c))  # "a/b/../c" becomes "a/c"
+            if os.path.exists(path):
+                return path
+    if required:
+        hint = f" Pass {arg}=<path>." if arg else ""
+        raise FileNotFoundError(f"{' or '.join(candidates)} is not in {base_dir} or {parent}.{hint}")
     return ""

@@ -6,6 +6,6 @@ from .rsna_2022_cervical_spine import RSNA2022CervicalSpineHarmonizer
 class RSNA2022CervicalSpineTrainHarmonizer(RSNA2022CervicalSpineHarmonizer):
     """Train-split subclass of :class:`RSNA2022CervicalSpineHarmonizer`.
 
-    Identical harmonization logic; distinct class for save/load round-trip
-    identity.
+    It has the same logic as the base class. It is a separate class so that a saved
+    harmonizer loads back into the train class.
     """

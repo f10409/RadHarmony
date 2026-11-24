@@ -8,7 +8,7 @@ import torch
 from radharmony.harmonizer import ChestXray14Harmonizer
 from radharmony.registry import register_dataset
 from radharmony.utils.infer import infer_path
-from ..base import BaseRadiologicalDataset
+from ..base import BaseRadiologicalDataset, _require_image_folder
 from ..transforms import RadiologyTransform2D
 
 
@@ -20,16 +20,20 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
     bounding-box annotations.  For the ~880 images with bounding boxes,
     use :class:`ChestXray14BboxDataset`.
 
+    This class holds the official train and test images together. It is not
+    for benchmarks. Use :class:`ChestXray14TrainDataset` (``chestxray14_train``)
+    and :class:`ChestXray14TestDataset` (``chestxray14_test``).
+
     Images are distributed across ``images_001/images/`` …
     ``images_012/images/`` under ``base_image_dir``
-    (e.g. ``.../NIH_CXR/CXR14/``).
+    (for example ``.../NIH_CXR/CXR14/``).
 
     Labels are NLP-derived from radiology reports (15 classes including
     ``No Finding``).
 
     Args:
         base_image_dir: Root directory containing ``images_*/images/`` folders
-            (e.g. ``.../NIH_CXR/CXR14/``).
+            (for example ``.../NIH_CXR/CXR14/``).
         csv_path: Path to ``Data_Entry_2017.csv``.  Auto-inferred when ``None``.
         bbox_csv_path: Path to ``BBox_List_2017.csv`` (used to exclude bbox images).
             Auto-inferred when ``None``.
@@ -68,6 +72,7 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -75,7 +80,7 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = ChestXray14Harmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -106,7 +111,7 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
             output_report = False
         if output_bbox:
             warnings.warn(
-                "ChestX-ray14 (non-bbox split) does not include bounding boxes. "
+                "This ChestX-ray14 class does not give bounding boxes. "
                 "Use ChestXray14BboxDataset instead. output_bbox will be ignored.",
                 UserWarning,
                 stacklevel=2,
@@ -119,6 +124,8 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
                     base_image_dir,
                     "Data_Entry_2017.csv",
                     user_path=csv_path or "",
+                    required=True,
+                    arg="csv_path",
                 )
                 or csv_path
             )
@@ -151,6 +158,7 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -169,11 +177,10 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
         return harmonizer.harmonize()
 
     def verify_images(self, drop_missing: bool = True) -> pd.DataFrame:
-        """Check that every ``image_path`` exists on disk, is single-channel,
-        and optionally drop bad rows.
+        """Check that every ``image_path`` exists and PIL can open its header, and optionally drop bad rows.
 
-        Rows are dropped if the file is missing **or** the image has more than
-        1 channel (e.g. RGB PNGs that slipped into the dataset).
+        A row is bad if its file is missing or PIL cannot open its header. The check does not read the
+        pixels, so a cut-off file passes. A gray RGB or RGBA file is good: the loader makes it 1 channel (D-42).
 
         Args:
             drop_missing: If ``True`` (default), bad rows are removed from the
@@ -188,16 +195,15 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
         from tqdm import tqdm
 
         df = self._get_harmonized_df()
+        _require_image_folder(df, self.base_image_dir)  # D-04
 
         def _check(p):
             fp = os.path.join(self.base_image_dir, p) if self.base_image_dir else p
             if not os.path.isfile(fp):
                 return "missing"
             try:
-                with Image.open(fp) as im:
-                    channels = len(im.getbands())
-                if channels > 1:
-                    return "multichannel"
+                with Image.open(fp):  # reads the header only
+                    pass
             except Exception:
                 return "unreadable"
             return "ok"
@@ -209,7 +215,6 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
         bad_df["verify_reason"] = status[bad_mask].values
 
         n_missing = (status == "missing").sum()
-        n_multi = (status == "multichannel").sum()
         n_unread = (status == "unreadable").sum()
 
         if not bad_df.empty and drop_missing:
@@ -217,15 +222,15 @@ class ChestXray14Dataset(BaseRadiologicalDataset):
             self.set_harmonized_df(kept)
             print(
                 f"Dropped {len(bad_df)} rows "
-                f"(missing={n_missing}, multichannel={n_multi}, unreadable={n_unread}), "
+                f"(missing={n_missing}, unreadable={n_unread}), "
                 f"{len(kept)} remaining."
             )
         elif bad_df.empty:
-            print("All image files valid (single-channel).")
+            print("All image files exist, and PIL can open their headers.")
         else:
             print(
                 f"Found {len(bad_df)} bad rows "
-                f"(missing={n_missing}, multichannel={n_multi}, unreadable={n_unread}), "
+                f"(missing={n_missing}, unreadable={n_unread}), "
                 f"not dropped."
             )
 

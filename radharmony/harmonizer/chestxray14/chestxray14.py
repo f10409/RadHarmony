@@ -1,4 +1,4 @@
-"""Harmonizer for the NIH ChestX-ray14 dataset (non-bbox images)."""
+"""Harmonizer for the NIH ChestX-ray14 dataset."""
 
 import os
 
@@ -10,27 +10,33 @@ from ..base import BaseHarmonizer
 class ChestXray14Harmonizer(BaseHarmonizer):
     """Harmonize ChestX-ray14 into the standard RadHarmony format.
 
-    Includes only images that do **not** have bounding-box annotations
-    (~111,240 images).  For the ~880 images with bounding boxes, use
-    :class:`ChestXray14BboxHarmonizer`.
+    This class holds the official train and test images together and is not
+    for benchmarks. Use :class:`ChestXray14TrainHarmonizer` and
+    :class:`ChestXray14TestHarmonizer`.
+
+    With ``bbox_csv_path``, it drops the 880 images that have boxes (111,240
+    images are left). For the images with boxes, use
+    :class:`ChestXray14BboxHarmonizer`. The split classes keep their official
+    list instead (``SPLIT_LIST``).
 
     ChestX-ray14 has 112,120 frontal-view chest X-rays from 30,805 patients.
     Labels are NLP-derived from radiology reports and stored as pipe-separated
     strings in the ``Finding Labels`` column
-    (e.g. ``"Atelectasis|Effusion"``).
+    (for example ``"Atelectasis|Effusion"``).
 
     Images are PNG files distributed across 12 subdirectories
     (``images_001/images/`` … ``images_012/images/``) under ``base_image_dir``
-    (e.g. ``.../NIH_CXR/CXR14/``).
+    (for example ``.../NIH_CXR/CXR14/``).
 
-    Note: ``Pleural_Thickening`` already uses an underscore in the raw CSV,
-    so its snake_case form is ``pleural_thickening`` (no double-underscore).
+    Note: the raw CSV has ``Pleural_Thickening`` with a "_" already. Its
+    snake case form is ``pleural_thickening``, with one "_".
 
     Args:
         csv_path: Path to ``Data_Entry_2017.csv``.
-        bbox_csv_path: Path to ``BBox_List_2017.csv`` (used to exclude bbox images).
+        bbox_csv_path: Path to ``BBox_List_2017.csv``. Used to drop the images
+            with boxes. The split classes do not use it.
         base_image_dir: Root directory containing ``images_*/images/`` folders
-            (e.g. ``.../NIH_CXR/CXR14/``).
+            (for example ``.../NIH_CXR/CXR14/``).
     """
 
     LABEL_COLS = [
@@ -61,6 +67,15 @@ class ChestXray14Harmonizer(BaseHarmonizer):
     REPORT_JOIN_COLS = None
     REPORT_PATH_COL = None
 
+    # Data_Entry_2017.csv: "Patient Age" in years and "Patient Gender" (M or F).
+    # 16 ages are above 130 (for example 413), so their age_years is NaN (D-06).
+    AGE_SOURCE_COL = "Patient Age"
+    AGE_SOURCE_UNIT = "years"
+    SEX_SOURCE_COL = "Patient Gender"
+
+    # Official split list under base_image_dir. None: no split filter.
+    SPLIT_LIST = None
+
     def __init__(
         self, csv_path: str, bbox_csv_path: str = None, base_image_dir: str = None
     ):
@@ -79,7 +94,7 @@ class ChestXray14Harmonizer(BaseHarmonizer):
         """Resolve image filenames to relative paths by scanning subdirectories.
 
         The CSV ``Image Index`` column contains just the filename
-        (e.g. ``00000001_000.png``), but images live in
+        (for example ``00000001_000.png``), but images live in
         ``images_001/images/`` … ``images_012/images/``.  We scan once to
         build a filename→relative-path lookup.
         """
@@ -114,26 +129,17 @@ class ChestXray14Harmonizer(BaseHarmonizer):
             if snake != col:
                 self.df.rename(columns={col: snake}, inplace=True)
 
-    def harmonize(self, **kwargs) -> pd.DataFrame:
-        """Read CSV, one-hot encode labels, resolve image paths.
+    def _read_source(self) -> pd.DataFrame:
+        """Read ``Data_Entry_2017.csv`` and keep the rows of this class.
 
-        If ``bbox_csv_path`` was provided, images with bounding boxes are
-        excluded (those belong to :class:`ChestXray14BboxHarmonizer`).
+        A split class (``SPLIT_LIST`` set) keeps only the images of its official
+        list, including the images with boxes. Otherwise, if you give
+        ``bbox_csv_path``, it drops the images with boxes (they belong to
+        :class:`ChestXray14BboxHarmonizer`).
         """
-        self._harmonized_df_override = None
-        self.df = pd.read_csv(self.csv_path)
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_image_path()
-        self._build_labels()
-        self._build_view_position()
-        self._build_mask_path()
-        self._build_report()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-
-        # Exclude images that have bounding-box annotations
+        df = super()._read_source()
+        if self.SPLIT_LIST is not None:
+            return self._keep_split_list(df)
         if self.bbox_csv_path is not None:
             bbox_df = pd.read_csv(
                 self.bbox_csv_path,
@@ -144,9 +150,31 @@ class ChestXray14Harmonizer(BaseHarmonizer):
                 ],
                 usecols=["image_id"],
             )
-            bbox_image_ids = set(bbox_df["image_id"].unique())
-            self.df = self.df[~self.df["Image Index"].isin(bbox_image_ids)]
+            df = df[~df["Image Index"].isin(set(bbox_df["image_id"].unique()))]
+        return df
 
-        self.df.reset_index(drop=True, inplace=True)
+    def _build_bbox(self) -> None:
+        # bbox_csv_path only drops the images with boxes (see _read_source). This class has no boxes.
+        pass
 
-        return self._select_harmonized_columns(self.df)
+    def _keep_split_list(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Return the rows of ``df`` whose image is in ``SPLIT_LIST``.
+
+        Raises:
+            ValueError: ``base_image_dir`` is None, so the list cannot be found.
+            FileNotFoundError: the list is not in ``base_image_dir``.
+        """
+        if self.base_image_dir is None:
+            raise ValueError(
+                f"{type(self).__name__} needs base_image_dir to find {self.SPLIT_LIST}. "
+                "Without the list, the table would hold the train and test images together."
+            )
+        list_path = os.path.join(self.base_image_dir, self.SPLIT_LIST)
+        if not os.path.isfile(list_path):
+            raise FileNotFoundError(
+                f"{self.SPLIT_LIST!r} is not in {self.base_image_dir!r}. NIH ships it with the "
+                "dataset. Without it, the table would hold the train and test images together."
+            )
+        with open(list_path) as f:
+            allowed = set(f.read().splitlines())
+        return df[df["Image Index"].isin(allowed)]

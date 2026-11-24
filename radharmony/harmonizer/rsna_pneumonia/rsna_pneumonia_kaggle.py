@@ -1,21 +1,25 @@
 """Harmonizer for the RSNA Pneumonia Detection Challenge dataset (Kaggle Stage 2).
 
-The Kaggle distribution ships two flat CSVs and a flat DICOM directory:
+The Kaggle release has two flat CSVs (``stage_2_detailed_class_info.csv`` and
+``stage_2_train_labels.csv``) and a flat folder of 1024x1024 DICOM files
+(``stage_2_train_images/<patientId>.dcm``). ``class`` has 3 values: "Normal",
+"No Lung Opacity / Not Normal" and "Lung Opacity". An image with ``Target=1`` has one or
+more pixel boxes. The harmonizer converts them to fractions
+``[dim0_min, dim0_max, dim1_min, dim1_max]``.
 
-  stage_2_detailed_class_info.csv  — patientId, class
-  stage_2_train_labels.csv         — patientId, x, y, width, height, Target
-  stage_2_train_images/            — <patientId>.dcm  (flat, 1024×1024)
-
-``class`` takes three values: "Normal", "No Lung Opacity / Not Normal",
-"Lung Opacity".  Images with ``Target=1`` in the labels CSV carry one or
-more pixel-space bounding boxes; these are normalised to
-``[dim0_min, dim0_max, dim1_min, dim1_max]`` fractional coordinates.
+``sex`` and ``age_years`` come from the DICOM tags ``PatientSex`` and ``PatientAge``
+(D-06, D-26). The CSVs have no sex and no age. ``PatientAge`` is a plain number of years,
+for example ``"58"``. A few ages are above 130, for example 155, and give NaN.
+``view_position`` comes from the DICOM tag ``ViewPosition`` (PA or AP, D-01, Q-18). The
+harmonizer reads the headers only if ``base_image_dir`` is set.
 """
 
 import os
 
 import pandas as pd
 
+from .._bbox import clip_boxes
+from .._dicom_tags import add_patient_tags
 from ..base import BaseHarmonizer
 
 
@@ -24,12 +28,10 @@ class RSNAPneumoniaKaggleHarmonizer(BaseHarmonizer):
 
     Args:
         csv_path: Path to ``stage_2_detailed_class_info.csv``.
-        base_image_dir: ``stage_2_train_images/`` directory — flat dir of
-            ``<patientId>.dcm`` files (e.g.
-            ``~/datasets/rsna-pneumonia-detection-challenge/stage_2_train_images/``).
-        bbox_csv_path: Path to ``stage_2_train_labels.csv``.  Required when
-            bounding boxes are needed; otherwise only classification labels
-            are produced.
+        base_image_dir: The ``stage_2_train_images/`` folder (flat, ``<patientId>.dcm``), for
+            example ``~/datasets/rsna-pneumonia-detection-challenge/stage_2_train_images/``.
+        bbox_csv_path: Path to ``stage_2_train_labels.csv``. Needed for boxes. Without it,
+            the table has only the class labels.
     """
 
     LABEL_COLS = [
@@ -39,7 +41,7 @@ class RSNAPneumoniaKaggleHarmonizer(BaseHarmonizer):
     ]
 
     LABEL_JOIN_COLS = None
-    VIEW_POSITION_SOURCE_COL = None
+    VIEW_POSITION_SOURCE_COL = "ViewPosition"  # the DICOM tag (D-01, Q-18)
     VIEW_POSITION_JOIN_COLS = None
     MASK_SOURCE_COL = None
     MASK_JOIN_COLS = None
@@ -48,7 +50,12 @@ class RSNAPneumoniaKaggleHarmonizer(BaseHarmonizer):
     REPORT_JOIN_COLS = None
     REPORT_PATH_COL = None
 
-    # All RSNA Pneumonia DICOMs are 1024×1024.
+    # DICOM tags, read by _build_patient_tags() (D-06, D-26).
+    AGE_SOURCE_COL = "PatientAge"
+    AGE_SOURCE_UNIT = "years"
+    SEX_SOURCE_COL = "PatientSex"
+
+    # All images are 1024x1024.
     _IMG_SIZE = 1024
 
     def __init__(
@@ -78,12 +85,20 @@ class RSNAPneumoniaKaggleHarmonizer(BaseHarmonizer):
         self.df["study_id"] = self.df["patientId"].astype(str)
 
     def _build_image_path(self) -> None:
-        # base_image_dir points at stage_2_train_images/, so image_path is
-        # just <patientId>.dcm relative to that.
         self.df["image_path"] = self.df["patientId"].astype(str) + ".dcm"
 
+    def _build_patient_tags(self) -> None:
+        """Read ``PatientSex``, ``PatientAge`` and ``ViewPosition`` from the DICOM headers (D-06, Q-18)."""
+        if self.base_image_dir:
+            self.df = add_patient_tags(self.df, self.base_image_dir, extra_tags=(self.VIEW_POSITION_SOURCE_COL,))
+
+    def _build_view_position(self) -> None:
+        # The DICOM headers give ViewPosition, sex and age. Read them after the id filter.
+        self._build_patient_tags()
+        super()._build_view_position()
+
     def _build_labels(self) -> None:
-        # One-hot encode the 'class' column into three binary columns.
+        # One 0/1 column for each value of ``class``.
         for orig, snake in [
             ("Lung Opacity",                 "lung_opacity"),
             ("No Lung Opacity / Not Normal", "no_lung_opacity_/_not_normal"),
@@ -96,7 +111,7 @@ class RSNAPneumoniaKaggleHarmonizer(BaseHarmonizer):
             return
 
         bbox_df = pd.read_csv(self.bbox_csv_path)
-        # Only Target=1 rows carry actual boxes; Target=0 rows have NaN coords.
+        # Target=0 rows have NaN coordinates.
         bbox_df = bbox_df[bbox_df["Target"] == 1].dropna(
             subset=["x", "y", "width", "height"]
         )
@@ -121,31 +136,19 @@ class RSNAPneumoniaKaggleHarmonizer(BaseHarmonizer):
         )
 
         self.df = self.df.merge(agg, on="patientId", how="left")
-        # Images without bboxes (Normal / No Lung Opacity) get empty lists.
+        # An image with no box gets an empty list.
         self.df["bbox"] = self.df["bbox"].apply(
             lambda x: x if isinstance(x, list) else []
         )
-        # All boxes belong to a single class; mirror the list length for bbox_labels.
+        # All boxes have one class.
         self.df["bbox_labels"] = self.df["bbox"].apply(
             lambda boxes: ["lung_opacity"] * len(boxes)
         )
+        clip_boxes(self.df, "RSNA Pneumonia (Kaggle)")  # D-07
 
-    def harmonize(self, **kwargs) -> pd.DataFrame:
-        """Read the class-info CSV, build all standard columns, and return harmonized DataFrame."""
-        self._harmonized_df_override = None
+    def _read_source(self) -> pd.DataFrame:
+        """Read the class CSV and keep one row per image (D-03).
 
-        self.df = pd.read_csv(self.csv_path)
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_image_path()
-        self._build_labels()
-        self._build_bbox()
-        self._build_view_position()
-        self._build_mask_path()
-        self._build_report()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
-
-        return self._select_harmonized_columns(self.df)
+        The CSV has one line per box, and one line for an image with no box.
+        """
+        return pd.read_csv(self.csv_path).drop_duplicates("patientId", ignore_index=True)

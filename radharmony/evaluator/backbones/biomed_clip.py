@@ -2,9 +2,11 @@
 
 Uses ``microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224`` from the
 HuggingFace Hub via OpenCLIP. Accepts any format supported by MONAI's
-``LoadImage`` (PNG, JPEG, DICOM, NIfTI, …). Images are min-max normalized
-to [0, 255], converted to PIL RGB, then passed through OpenCLIP's
-``preprocess_val``.
+``LoadImage`` (PNG, JPEG, DICOM, NIfTI, …). 
+The loader gives the image as the dataset load shows it, in 0 to 255
+(D-13, D-27). A DICOM file gets its VOI window, and an 8-bit image keeps
+its values. Any other image is scaled with its minimum and maximum. Then
+it becomes PIL RGB and goes through OpenCLIP's ``preprocess_val``.
 
 Requires the ``biomed`` extra::
 
@@ -20,7 +22,7 @@ import monai.transforms as mt
 
 from radharmony.evaluator.transforms import EncoderPreprocessTransform, RadiologyEncoderTransform
 from radharmony.evaluator.wrappers import ImageEncoderWrapper
-from ._utils import squeeze_frame_dim, to_3channel, to_pil_rgb, patches_to_spatial
+from ._utils import display_255, load_image, squeeze_frame_dim, to_3channel, to_pil_rgb, patches_to_spatial
 
 _BIOMED_HUB = "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
 
@@ -34,12 +36,12 @@ def make_biomed_clip(
     """Return ``(transform, image_encoder, text_encoder, tokenizer)`` for BiomedCLIP.
 
     A single model instance is created and shared across all returned
-    objects — no weights are loaded twice.
+    objects, no weights are loaded twice.
 
     Parameters
     ----------
     device :
-        Target device for the encoder and text encoder (e.g. ``"cuda"``,
+        Target device for the encoder and text encoder (for example ``"cuda"``,
         ``"cuda:7"``, ``"cpu"``). The transform's preprocess step runs on
         CPU in DataLoader workers.
     hub :
@@ -48,9 +50,9 @@ def make_biomed_clip(
     output_keys :
         Keys to keep in each sample dict. Defaults to ``{"img", "cls"}``.
         Pass ``{"img", "mask"}`` or ``{"img", "cls", "mask"}`` for
-        segmentation — the mask is processed through the same spatial
+        segmentation. The mask is processed through the same spatial
         pipeline as the image (OpenCLIP Resize + CenterCrop to 224 × 224)
-        using nearest-neighbour interpolation.
+        using nearest-neighbor interpolation.
 
     dtype :
         Output tensor dtype set by the final ``ToTensorD``. Defaults to
@@ -65,14 +67,14 @@ def make_biomed_clip(
         MONAI transform for any format supported by ``LoadImage``.
     image_encoder : ImageEncoderWrapper
         Classification mode (default): ``forward(x) -> Tensor[B, 512]``
-        — the projected image CLS embedding.
+        Returns the projected image CLS embedding.
 
         Segmentation mode (``"mask"`` in *output_keys*):
-        ``forward(x) -> Tensor[B, 768, H, W]`` — pre-projection ViT patch
+        ``forward(x) -> Tensor[B, 768, H, W]``, pre-projection ViT patch
         feature map (trunk hidden dim), where ``H = W = 14`` for 224 px
         input (16-px patches).
     text_encoder : callable
-        ``(tokens: Tensor[T, L]) -> Tensor[T, 512]`` — encodes tokenized
+        ``(tokens: Tensor[T, L]) -> Tensor[T, 512]``, encodes tokenized
         text on ``device`` and returns float32 on CPU. Pass to
         ``ZeroShotEvaluator(text_encoder=...)``.
     tokenizer : open_clip tokenizer
@@ -104,9 +106,10 @@ def make_biomed_clip(
     from torchvision.transforms.functional import InterpolationMode
 
     _loader_to_pil = mt.Compose([
-        mt.LoadImage(image_only=True, ensure_channel_first=True),
+        load_image(),
         mt.Lambda(squeeze_frame_dim),
         mt.Transpose(indices=[0, 2, 1]),
+        mt.Lambda(display_255),
         mt.Lambda(to_pil_rgb),
     ])
     # Mask loader: tensor path (no PIL conversion / no value normalization).

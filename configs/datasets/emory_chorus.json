@@ -1,0 +1,24 @@
+{
+  "_comment": "Emory CHoRUS, X-ray subset. Internal Emory data: it is not public, and you must not share it. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "Emory CHoRUS (X-ray subset)",
+  "registry_key": "emory_chorus",
+  "modality": "2D",
+  "image_format": "DICOM",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source (2026-11-05): the manifest CSV of the X-ray subset (one row for each DICOM file, 13,611 rows, 6,094 studies, 1,496 patients), read with pandas. The chest filter keeps a row when modality is DX or CR and the body part or the study description holds CHEST: 10,290 rows. Every row is DX and MONOCHROME2. image_path and sop_uid are unique. PatientSex is M or F. PatientAge is whole years (16 to 89, no blank in the chest rows). The subset has no labels, masks, boxes or reports. harmonizer_args gives the manifest to the harmonizer, so the test does not scan the DICOM tree.",
+    "emory_chorus": {
+      "harmonizer_args": {"csv_path": "manifest_csv_path"},
+      "images": 10290,
+      "studies": 4889,
+      "patients": 1397,
+      "positives": {},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 4006, "M": 6284},
+      "age_years": [16, 89]
+    }
+  }
+}

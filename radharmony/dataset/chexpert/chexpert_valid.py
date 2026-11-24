@@ -14,7 +14,7 @@ class CheXpertValidDataset(CheXpertDataset):
     Carries the same 14 labels as the training split.
 
     ``base_image_dir`` should point at the ``valid/`` directory (the directory
-    that directly contains the ``patient*/`` image folders, e.g.
+    that directly contains the ``patient*/`` image folders, for example
     ``/data/CheXpert-v1.0/valid/``).  ``valid.csv`` is discovered
     automatically via :func:`~radharmony.utils.infer.infer_path`.
 
@@ -35,14 +35,13 @@ class CheXpertValidDataset(CheXpertDataset):
             and harmonized_df is None
             and harmonizer is None
         ):
-            csv_path = (
-                infer_path(
-                    base_image_dir,
-                    "valid.csv",
-                    "CheXpert-v1.0-small/valid.csv",
-                    user_path="",
-                )
-                or None
+            # required: a missing valid.csv must not fall back to train.csv (V-A-34).
+            csv_path = infer_path(
+                base_image_dir,
+                "valid.csv",
+                "CheXpert-v1.0-small/valid.csv",
+                required=True,
+                arg="csv_path",
             )
 
         super().__init__(base_image_dir=base_image_dir, csv_path=csv_path, **kwargs)

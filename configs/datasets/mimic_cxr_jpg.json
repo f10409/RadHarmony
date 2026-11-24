@@ -1,0 +1,93 @@
+{
+  "_comment": "MIMIC-CXR-JPG v2.0.0 (PhysioNet). Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+
+  "dataset_name": "MIMIC-CXR-JPG",
+  "registry_key": "mimic_cxr_jpg",
+  "modality": "2D",
+  "image_format": "JPG",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py, with the default drop_uncertain (True for train and validate, False for test). Sources: the raw files read with pandas (mimic-cxr-2.0.0-metadata.csv, mimic-cxr-2.0.0-split.csv, mimic-cxr-2.0.0-chexpert.csv, mimic-cxr-2.1.0-test-set-labeled.csv). The split file gives train 368,960, validate 2,991 and test 5,159 images, and no patient is in two splits. Train and validate keep the images of their split whose study has CheXpert labels with no -1 (a blank label is 0). A row with every label blank has no label at all, so it gets NaN in every label (D-05, V-H1-41). uncertain counts these rows, from the raw label file read with pandas. The labeled test set has 687 studies of 296 patients: 676 studies are in the official test split, 9 studies (3 patients) are in the official validate split, and 2 studies (54107786, 58592606) have no JPG in the metadata file. So the test class gives 685 studies. The validate class keeps the 3 patients of the labeled test set (D-34): 62 images, 43 studies after the label filter (94 images, 64 studies in the split file). So 3 patients are in validate and in the labeled test set. mimic_cxr_jpg_test_chexpert is the test split of the split file with the labeler labels and the default drop_uncertain (True): 3,556 images, 2,216 studies, 287 patients, as the DICOM mimic_cxr_test. All 287 patients are also in the labeled test set, so 290 patients are in two keys. Test keeps -1 (uncertain), so it has no NaN label. The JPG release has no sex or age.",
+    "patients_in_two_splits": 290,
+    "mimic_cxr_jpg_train": {
+      "images": 291240,
+      "studies": 171373,
+      "patients": 60024,
+      "positives": {
+        "atelectasis": 45441, "cardiomegaly": 46603, "consolidation": 7494, "edema": 25038,
+        "enlarged_cardiomediastinum": 6828, "fracture": 5959, "lung_lesion": 7627,
+        "lung_opacity": 38440, "no_finding": 141184, "pleural_effusion": 51210,
+        "pleural_other": 2353, "pneumonia": 18407, "pneumothorax": 11432, "support_devices": 59620
+      },
+      "uncertain": {
+        "atelectasis": 4857, "cardiomegaly": 4857, "consolidation": 4857, "edema": 4857,
+        "enlarged_cardiomediastinum": 4857, "fracture": 4857, "lung_lesion": 4857,
+        "lung_opacity": 4857, "no_finding": 4857, "pleural_effusion": 4857,
+        "pleural_other": 4857, "pneumonia": 4857, "pneumothorax": 4857, "support_devices": 4857
+      },
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    },
+    "mimic_cxr_jpg_validate": {
+      "images": 2320,
+      "studies": 1355,
+      "patients": 459,
+      "positives": {
+        "atelectasis": 390, "cardiomegaly": 388, "consolidation": 48, "edema": 199,
+        "enlarged_cardiomediastinum": 64, "fracture": 18, "lung_lesion": 79,
+        "lung_opacity": 262, "no_finding": 1125, "pleural_effusion": 450,
+        "pleural_other": 12, "pneumonia": 135, "pneumothorax": 84, "support_devices": 517
+      },
+      "uncertain": {
+        "atelectasis": 49, "cardiomegaly": 49, "consolidation": 49, "edema": 49,
+        "enlarged_cardiomediastinum": 49, "fracture": 49, "lung_lesion": 49,
+        "lung_opacity": 49, "no_finding": 49, "pleural_effusion": 49,
+        "pleural_other": 49, "pneumonia": 49, "pneumothorax": 49, "support_devices": 49
+      },
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    },
+    "mimic_cxr_jpg_test": {
+      "images": 1029,
+      "studies": 685,
+      "patients": 296,
+      "positives": {
+        "atelectasis": 276, "cardiomegaly": 217, "consolidation": 79, "edema": 181,
+        "enlarged_cardiomediastinum": 60, "fracture": 72, "lung_lesion": 83,
+        "lung_opacity": 246, "no_finding": 58, "pleural_effusion": 386,
+        "pleural_other": 43, "pneumonia": 95, "pneumothorax": 53, "support_devices": 280
+      },
+      "uncertain": {
+        "atelectasis": 13, "cardiomegaly": 13, "consolidation": 13, "edema": 13,
+        "enlarged_cardiomediastinum": 13, "fracture": 13, "lung_lesion": 13,
+        "lung_opacity": 13, "no_finding": 13, "pleural_effusion": 13,
+        "pleural_other": 13, "pneumonia": 13, "pneumothorax": 13, "support_devices": 13
+      },
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    },
+    "mimic_cxr_jpg_test_chexpert": {
+      "images": 3556,
+      "studies": 2216,
+      "patients": 287,
+      "positives": {
+        "atelectasis": 703, "cardiomegaly": 859, "consolidation": 163, "edema": 649,
+        "enlarged_cardiomediastinum": 114, "fracture": 120, "lung_lesion": 127,
+        "lung_opacity": 787, "no_finding": 984, "pleural_effusion": 1031,
+        "pleural_other": 83, "pneumonia": 372, "pneumothorax": 106, "support_devices": 952
+      },
+      "uncertain": {
+        "atelectasis": 42, "cardiomegaly": 42, "consolidation": 42, "edema": 42,
+        "enlarged_cardiomediastinum": 42, "fracture": 42, "lung_lesion": 42,
+        "lung_opacity": 42, "no_finding": 42, "pleural_effusion": 42,
+        "pleural_other": 42, "pneumonia": 42, "pneumothorax": 42, "support_devices": 42
+      },
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    }
+  }
+}

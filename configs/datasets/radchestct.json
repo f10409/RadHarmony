@@ -1,0 +1,32 @@
+{
+  "_comment": "RAD-ChestCT. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "RAD-ChestCT",
+  "registry_key": "radchestct",
+  "modality": "3D",
+  "image_format": "NPZ",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: tables/img{train,valid,test}_Abnormality_and_Location_Labels.csv and CT_Scan_Metadata_Complete_35747.csv, read with pandas. One row per volume (NoteAcc_DEID). The patient is MRN_DEID from the metadata file. No patient is in two splits. Boxes: Extrema_35747.csv, read with pandas. Each volume has one lung box. 173 of the 35,747 rows have inf values. 15 of them are in the splits (14 train, 1 valid, 0 test), and these volumes have no box (V-H2-6).",
+    "patients_in_two_splits": 0,
+    "radchestct_train": {
+      "images": 2286,
+      "studies": 2286,
+      "patients": 2114,
+      "rows_with_bbox": 2272,
+      "boxes": 2272
+    },
+    "radchestct_valid": {
+      "images": 984,
+      "studies": 984,
+      "patients": 616,
+      "rows_with_bbox": 983,
+      "boxes": 983
+    },
+    "radchestct_test": {
+      "images": 360,
+      "studies": 360,
+      "patients": 342,
+      "rows_with_bbox": 360,
+      "boxes": 360
+    }
+  }
+}

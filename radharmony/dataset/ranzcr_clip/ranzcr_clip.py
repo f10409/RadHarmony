@@ -3,23 +3,28 @@
 Wraps :class:`RANZCRClipHarmonizer`.  Multi-label classification (11 binary
 targets) is the primary task and works out of the box with ``output_cls=True``.
 
-Mask outputs are optional.  ``train_annotations.csv`` contains polyline
-annotations tracing each catheter / line for a subset of training images;
-:class:`RANZCRClipHarmonizer` aggregates and JSON-encodes them, and
-:meth:`RANZCRClipHarmonizer._decode_mask` rasterizes them via
+Mask outputs are optional.  ``train_annotations.csv`` has polyline
+annotations that trace each catheter / line for some training images.
+The harmonizer :class:`RANZCRClipHarmonizer` aggregates and JSON-encodes them.
+The method :meth:`RANZCRClipHarmonizer._decode_mask` rasterizes them via
 ``cv2.polylines`` with a configurable ``mask_line_thickness``.  Pre-decode
-to PNG files via ``mask_output_dir`` (mirrors the SIIM-ACR-PTX flow — MONAI
+to PNG files via ``mask_output_dir`` (mirrors the SIIM-ACR-PTX flow, MONAI
 cannot read raw JSON strings as image paths).
 
-The harmonized DataFrame includes both train and test rows distinguished by
-a ``split`` column ("train" or "test").  Test rows have NaN labels (no
-public labels for the competition holdout); call
+By default, the harmonized DataFrame includes both train and test rows
+distinguished by a ``split`` column ("train" or "test").  Test rows have NaN
+labels (no public labels for the competition holdout). Call
 :meth:`get_datasets_predefined` to obtain split-specific datasets.
+
+This mixes splits: ``get_datasets()`` puts unlabeled test rows into train
+and validation. It is not for benchmarks. Use :class:`RANZCRClipTrainDataset`
+(labeled rows) and :class:`RANZCRClipTestDataset` (unlabeled test images).
 """
 
 import os
 import warnings
 
+import monai as mn
 import pandas as pd
 import torch
 
@@ -27,8 +32,25 @@ from radharmony.harmonizer import RANZCRClipHarmonizer
 from radharmony.registry import register_dataset
 from radharmony.utils.data_utils import get_data_dict
 from radharmony.utils.infer import infer_path
-from ..base import BaseRadiologicalDataset
+from ..base import BaseRadiologicalDataset, _has_random_step
 from ..transforms import RadiologyTransform2D
+
+
+class _RequireLabels(mn.transforms.Transform):
+    """Raise a clear error when a sample has NaN labels (an unlabeled Kaggle test image).
+
+    It is a deterministic MONAI transform, so PersistentDataset still caches
+    the steps after it.
+    """
+
+    def __call__(self, d: dict) -> dict:
+        if any(pd.isna(v) for v in d.get("cls", [])):
+            raise ValueError(
+                f"{d['img']} is a RANZCR CLiP test image with no labels, so output_cls=True cannot "
+                "load it. Use RANZCRClipTrainDataset to train and RANZCRClipTestDataset for the "
+                "test images, or pass include_test_split=False."
+            )
+        return d
 
 
 @register_dataset("ranzcr_clip")
@@ -37,7 +59,7 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Root of the Kaggle download
-            (e.g. ``~/.cache/kagglehub/competitions/ranzcr-clip-catheter-line-classification/``).
+            (for example ``~/.cache/kagglehub/competitions/ranzcr-clip-catheter-line-classification/``).
             Contains ``train/``, ``test/``, and the CSVs.
         csv_path: Path to ``train.csv``.  Auto-inferred when ``None``.
         annotations_csv_path: Path to ``train_annotations.csv``.  Auto-inferred
@@ -51,13 +73,21 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
             starter notebook.
         include_test_split: When ``True`` (default), the harmonized DataFrame
             includes test/<id>.jpg rows with NaN labels and ``split="test"``.
+            With ``output_cls=True``, a sample of such a row raises a
+            ``ValueError`` when it loads.
         transform: MONAI Compose transform.  Defaults to standard 2-D pipeline.
         cache_dir: PersistentDataset cache directory.  ``None`` disables caching.
         output_cls: Yield label vector under key ``cls``.
         output_mask: Yield rasterized polyline masks under key ``mask``.
             Requires ``mask_output_dir`` and ``annotations_csv_path``.
-        output_report / output_bbox: Not supported; silently ignored.
+        output_report / output_bbox / output_reg: Not supported. A warning, and no key.
     """
+
+    SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "mask"})
+
+    #: The train source files must exist (D-35). A test-split subclass that reads
+    #: only its test files sets False.
+    _TRAIN_FILES_REQUIRED: bool = True
 
     LABEL_COLS = [
         "cvc_abnormal",
@@ -88,6 +118,7 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -102,7 +133,7 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
             annotations_csv_path = os.path.expanduser(annotations_csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RANZCRClipHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -149,23 +180,23 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._csv_path = (
-                infer_path(base_image_dir, "train.csv", user_path=csv_path or "")
+                infer_path(
+                    base_image_dir, "train.csv", user_path=csv_path or "",
+                    required=self._TRAIN_FILES_REQUIRED, arg="csv_path",
+                )
                 or csv_path
             )
+            # The masks come from train_annotations.csv, so output_mask needs it.
             self._annotations_csv_path = (
                 infer_path(
                     base_image_dir,
                     "train_annotations.csv",
                     user_path=annotations_csv_path or "",
+                    required=output_mask,
+                    arg="annotations_csv_path",
                 )
                 or annotations_csv_path
             )
-            if output_mask and not self._annotations_csv_path:
-                raise ValueError(
-                    "output_mask=True requires annotations_csv_path "
-                    "(train_annotations.csv) — not found near "
-                    f"{base_image_dir!r}. Pass annotations_csv_path= explicitly."
-                )
         else:
             self._csv_path = csv_path
             self._annotations_csv_path = annotations_csv_path
@@ -189,6 +220,7 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -216,6 +248,16 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
             mask_num_cores=self._mask_num_cores,
         )
 
+    def _make_dataset(self, dicts: list, cache_subdir: str, transform=None):
+        """Build the dataset. With ``output_cls``, check the labels before the transform."""
+        if self.output_cls:
+            transform = transform if transform is not None else self.transform
+            # A flat list: a Compose inside a Compose is one random step to the cache.
+            steps = list(transform.transforms) if isinstance(transform, mn.transforms.Compose) else (
+                [transform] if transform else [])
+            transform = mn.transforms.Compose([_RequireLabels()] + steps)
+        return super()._make_dataset(dicts, cache_subdir, transform=transform)
+
     def get_datasets_predefined(
         self,
         num_cores: int = 2,
@@ -226,10 +268,12 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
 
         Slices the harmonized DataFrame on its ``split`` column.  Test rows
         have NaN labels and are intended for inference / submission only.
+        With ``test_transform=None``, the test split uses the dataset transform.
+        A random step in it gives a warning (D-49).
 
         Raises:
             ValueError: If the harmonized DataFrame has no ``split`` column
-                (e.g. ``include_test_split=False`` was set), or either split
+                (for example ``include_test_split=False`` was set), or either split
                 is empty.
         """
         df = self._get_harmonized_df()
@@ -246,6 +290,13 @@ class RANZCRClipDataset(BaseRadiologicalDataset):
             sub = df[df["split"] == split_name]
             if sub.empty:
                 raise ValueError(f"Split '{split_name}' is empty in the harmonized DataFrame.")
+            if transform is None and split_name != "train" and _has_random_step(self.transform):
+                warnings.warn(
+                    f"The dataset transform has a random step, and the {split_name} split uses it, because "
+                    f"{split_name}_transform is None. So the {split_name} images get augmentation. "
+                    f"Pass {split_name}_transform= with no random step (D-49).",
+                    stacklevel=2,
+                )
             dicts = get_data_dict(sub, self.base_image_dir, "image_path", cols, num_cores)
             out.append(self._make_dataset(dicts, cache_subdir=split_name, transform=transform))
         return tuple(out)

@@ -25,20 +25,21 @@ class ReXGradientDataset(BaseRadiologicalDataset):
     79 U.S. medical sites, distributed via HuggingFace by rajpurkarlab.
     Three splits: train (238,968 images), validation (17,007), public
     test (17,029). Per-study text reports are pre-segmented into
-    Indication / Comparison / Findings / Impression sections; the
+    Indication / Comparison / Findings / Impression sections. The
     harmonizer concatenates them with section headers into the
-    ``report`` field. There are no structured pathology labels in this
-    dataset.
+    ``report`` field. The dataset ships no structured labels. Optional
+    CheXpert-14 labels (GPT-OSS-120B over the reports) can be joined with
+    ``labels_csv_path``.
 
     The source metadata is the per-split JSON file
     (``*_metadata_view_position.json``), which carries the per-image
-    ``ImagePath`` lists; the per-study CSV that ships alongside is not
+    ``ImagePath`` lists. The per-study CSV that ships alongside is not
     sufficient on its own. The ``csv_path`` argument is kept for
-    interface compatibility with the rest of RadHarmony — it must point
+    interface compatibility with the rest of RadHarmony, it must point
     at the JSON file. Passing a ``.csv`` path raises ``ValueError``.
 
     Args:
-        base_image_dir: Root of the extracted PNG tree (e.g.
+        base_image_dir: Root of the extracted PNG tree (for example
             ``.../ReXGradient-160K/deid_png/``). Immediate children are
             ``<PatientID>/`` directories.
         csv_path: Path to ``<split>_metadata_view_position.json``.
@@ -50,29 +51,38 @@ class ReXGradientDataset(BaseRadiologicalDataset):
             2-D pipeline.
         cache_dir: PersistentDataset cache directory. ``None`` disables
             caching.
-        output_cls: ReXGradient ships no classification labels; setting
-            ``True`` emits a ``UserWarning`` via the base class.
+        labels_csv_path: Optional CSV of GPT-OSS CheXpert-14 labels, joined
+            on accession number (see :class:`ReXGradientHarmonizer`). Needed
+            for ``output_cls``.
+        output_cls: Yield the 14 CheXpert labels under ``cls`` (1 present,
+            0 absent, NaN unclear). Needs ``labels_csv_path`` or a preset
+            harmonizer that has the labels. Otherwise emits a
+            ``UserWarning`` and ``cls`` is absent.
         output_report: Yield the concatenated 4-section report text
             under key ``report``.
         output_mask: Not supported.
         output_bbox: Not supported here (a small interstitial-pattern
             bbox JSON exists but is out of scope for this dataset class).
-        dtype: Output tensor dtype for the default transform.
+        dtype: Dtype of ``img`` in the default transform. The labels stay float32.
     """
 
-    SUPPORTED_OUTPUTS: frozenset = frozenset({"report"})
+    SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "report"})
     _HARMONIZER_CLS = ReXGradientHarmonizer
     LABEL_COLS: list = []
+    #: CheXpert-14 columns the harmonizer adds when labels are joined.
+    _CHEXPERT14 = sorted(ReXGradientHarmonizer.LABEL_COLS)
 
     def __init__(
         self,
         base_image_dir: str = None,
         csv_path: str = None,
+        labels_csv_path: str = None,
         transform=None,
         cache_dir: str = "./cache",
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -80,7 +90,7 @@ class ReXGradientDataset(BaseRadiologicalDataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = ReXGradientHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -98,12 +108,14 @@ class ReXGradientDataset(BaseRadiologicalDataset):
                 infer_path(
                     base_image_dir,
                     *self._json_filename_variants(),
+                    # The JSON files are in download/metadata/ of the folder above (D-35).
+                    *(f"download/metadata/{n}" for n in self._json_filename_variants()),
                     user_path=csv_path or "",
                 )
                 or csv_path
             )
             if self._csv_path is None:
-                raise ValueError(
+                raise FileNotFoundError(  # D-35
                     "ReXGradient metadata JSON not found near "
                     f"{base_image_dir!r}. Pass csv_path pointing at "
                     "'<split>_metadata_view_position.json' explicitly."
@@ -118,9 +130,17 @@ class ReXGradientDataset(BaseRadiologicalDataset):
         else:
             self._csv_path = csv_path
 
+        self.labels_csv_path = labels_csv_path
+        has_preset = not (harmonizer_path is None and harmonized_df is None and harmonizer is None)
+        if labels_csv_path is not None:
+            self.LABEL_COLS = list(self._CHEXPERT14)
+        elif not has_preset or not self._preset_has_labels(harmonized_df, harmonizer, harmonizer_path):
+            # No label source: cls is unsupported, so the base class warns (D-11, V-D-39).
+            self.SUPPORTED_OUTPUTS = frozenset({"report"})
+
         if transform is None:
             output_keys = {"img"}
-            if output_cls:
+            if output_cls and "cls" in self.SUPPORTED_OUTPUTS:
                 output_keys.add("cls")
             if output_report:
                 output_keys.add("report")
@@ -137,6 +157,7 @@ class ReXGradientDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -144,21 +165,41 @@ class ReXGradientDataset(BaseRadiologicalDataset):
         )
 
     @classmethod
+    def _preset_has_labels(cls, harmonized_df, harmonizer, harmonizer_path) -> bool:
+        """Return True when the preset table has a CheXpert-14 label column.
+
+        The table has labels only when it was made with ``labels_csv_path``.
+        """
+        if harmonized_df is not None:
+            columns = harmonized_df.columns
+        elif harmonizer is not None:
+            columns = harmonizer.harmonized_df.columns
+        else:
+            columns = cls._HARMONIZER_CLS.load_from_saved(harmonizer_path).harmonized_df.columns
+        return bool(set(cls._CHEXPERT14) & set(columns))
+
+    @classmethod
     def _json_filename_variants(cls) -> tuple[str, ...]:
         """Filenames :func:`infer_path` should try when csv_path is omitted.
 
-        The base class is split-agnostic — it accepts any of the three
+        The base class is split-agnostic, it accepts any of the three
         split JSONs. Split-specific subclasses (Train/Valid/Test) tighten
         this to their own file so the dataset binds to the right split.
         """
         return _DEFAULT_JSON_VARIANTS
 
+    def _infer_label_cols_from_df(self, df) -> list:
+        # Only the CheXpert-14 columns are labels. Since D-08 (2026-11-02), the base rule
+        # gives the same list.
+        return [c for c in self._CHEXPERT14 if c in df.columns]
+
     def _get_harmonized_df(self) -> pd.DataFrame:
         preset = self._try_resolve_preset_harmonized()
         if preset is not None:
             return preset
-        harmonizer = ReXGradientHarmonizer(
+        harmonizer = self._HARMONIZER_CLS(
             csv_path=self._csv_path,
             base_image_dir=self.base_image_dir,
+            labels_csv_path=self.labels_csv_path,
         )
         return harmonizer.harmonize()

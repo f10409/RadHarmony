@@ -5,19 +5,34 @@ import SimpleITK as sitk
 from .base import RadiologicPreprocessor
 
 
+def _valid_orientation(code) -> bool:
+    """Return True if ``code`` has exactly one letter of each pair L/R, A/P and S/I."""
+    return (
+        isinstance(code, str)
+        and len(code) == 3
+        and all(sum(c in pair for c in code) == 1 for pair in ("LR", "AP", "SI"))
+    )
+
+
 class CTPreprocessor(RadiologicPreprocessor):
     """Preprocessor for CT volumes and other 3D radiological images.
 
     Applies HU windowing, axial foreground cropping, isotropic resizing,
-    and DICOM orientation correction.
+    and DICOM orientation correction. The resize also resamples the depth to
+    the same spacing as the axial plane. Example: a CT-RATE volume has
+    512 x 512 x 303 voxels (x, y, z). The crop and the resize give 112 x 76 x 84
+    voxels, so the depth is 84 slices. The LIP orientation then gives 112 x 84 x 76.
 
-    Supports any 3D format readable by SimpleITK (.nii, .nii.gz, .nrrd,
-    .mha, .mhd, etc.).
+    Supports the 3D formats that SimpleITK reads, for example .nii, .nii.gz,
+    .nrrd, .mha and .mhd. It reads one file. It does not read a folder of
+    DICOM slices.
 
     Args:
         target_long_side: Desired voxel count for the longest axial dimension (default: 112).
         interpolation: SimpleITK interpolation method (default: sitkLinear).
-        orientation: DICOM orientation string applied to output (default: "LIP").
+        orientation: DICOM orientation code of the output, 3 capital letters with one
+            letter from each pair L/R, A/P and S/I (default: "LIP").
+            Other strings raise ``ValueError``.
         window_min: Lower bound for HU windowing (default: -1000).
         window_max: Upper bound for HU windowing (default: 1000).
     """
@@ -31,6 +46,10 @@ class CTPreprocessor(RadiologicPreprocessor):
         window_max: float = 1000,
     ):
         super().__init__(target_long_side=target_long_side, interpolation=interpolation)
+        if not _valid_orientation(orientation):
+            raise ValueError(
+                f"orientation must be 3 capital letters, one of L/R, one of A/P and one of S/I, got {orientation!r}"
+            )
         self.orientation = orientation
         self.window_min = window_min
         self.window_max = window_max
@@ -39,7 +58,7 @@ class CTPreprocessor(RadiologicPreprocessor):
         """Run the 3D preprocessing pipeline on one volume.
 
         Args:
-            image_path: Path to a 3D volume (NIfTI, NRRD, MHA, etc.).
+            image_path: Path to a 3D volume (NIfTI, NRRD or MHA).
 
         Returns:
             Preprocessed SimpleITK image.
@@ -47,12 +66,18 @@ class CTPreprocessor(RadiologicPreprocessor):
         image = sitk.ReadImage(image_path)
         image = self._to_grayscale_float(image)
         image = self._window(image)
+        # The crop and the resize take index axes 0 and 1 as the axial plane.
+        # So put L-R, A-P, S-I on the index axes first (V-P-26).
+        try:
+            image = sitk.DICOMOrient(image, "LPS")
+        except RuntimeError:
+            pass  # Missing or degenerate direction cosines: skip reorientation
         image = self._crop_3d(image)
         image = self._resize_isotropic(image)
         try:
             image = sitk.DICOMOrient(image, self.orientation)
         except RuntimeError:
-            pass  # Missing/degenerate direction cosines — skip reorientation
+            pass  # Missing or degenerate direction cosines: skip reorientation
 
         return image
 
@@ -67,13 +92,10 @@ class CTPreprocessor(RadiologicPreprocessor):
         )
 
 
-# ==========================================
-# QUICK TEST  (python -m src.preprocessor.ct)
-# ==========================================
+# Quick test: python -m radharmony.preprocessor.ct <volume>
 
 if __name__ == "__main__":
     import sys
-    import numpy as np
 
     IMAGE_PATH = (
         "/path/to/CT-RATE/dataset/train_fixed"
@@ -92,10 +114,13 @@ if __name__ == "__main__":
         orientation="LIP",
     )
 
-    # --- step-by-step inspection ---
     raw = sitk.ReadImage(IMAGE_PATH)
     s0 = preprocessor._to_grayscale_float(raw)
     s1 = preprocessor._window(s0)
+    try:
+        s1 = sitk.DICOMOrient(s1, "LPS")
+    except RuntimeError:
+        pass
     s2 = preprocessor._crop_3d(s1)
     s3 = preprocessor._resize_isotropic(s2)
     try:
@@ -112,15 +137,14 @@ if __name__ == "__main__":
             f"val=[{arr.min():.3f}, {arr.max():.3f}]"
         )
 
-    # --- full pipeline ---
     out = preprocessor(IMAGE_PATH)
     arr = sitk.GetArrayFromImage(out)
     assert out.GetDimension() == 3, "Output must be 3D"
     assert arr.min() >= -1.0 and arr.max() <= 1.0, "Values must be in [-1, 1]"
-    assert max(out.GetSize()[:2]) == 112, f"Longest axial side must be 112, got {out.GetSize()}"
+    # LIP gives (L-R, S-I, A-P), so the axial sides are index axes 0 and 2.
+    assert max(out.GetSize()[0], out.GetSize()[2]) == 112, f"Longest axial side must be 112, got {out.GetSize()}"
     print("Full pipeline: passed.")
 
-    # --- run_batch ---
     import os
     import tempfile
     import pandas as pd
@@ -128,17 +152,18 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmp_dir:
         out_dir = os.path.join(tmp_dir, "output")
 
-        df_batch = pd.DataFrame({"Image Path": [IMAGE_PATH]})
+        df_batch = pd.DataFrame({"image_path": [IMAGE_PATH]})
 
         preprocessor.run_batch(df=df_batch, base_output_dir=out_dir, num_workers=1)
 
-        outputs = os.listdir(out_dir)
+        # The output keeps the folders of image_path below out_dir.
+        outputs = [os.path.join(d, f) for d, _, files in os.walk(out_dir) for f in files]
         assert len(outputs) == 1, f"Expected 1 output file, got {outputs}"
 
-        result = sitk.ReadImage(os.path.join(out_dir, outputs[0]))
+        result = sitk.ReadImage(outputs[0])
         result_arr = sitk.GetArrayFromImage(result)
         assert result.GetDimension() == 3, "Batch output must be 3D"
         assert result_arr.min() >= -1.0 and result_arr.max() <= 1.0, "Batch output values must be in [-1, 1]"
-        print(f"run_batch : passed.  output={outputs[0]}  size={result.GetSize()}")
+        print(f"run_batch : passed.  output={os.path.relpath(outputs[0], out_dir)}  size={result.GetSize()}")
 
     print("\nAll assertions passed.")

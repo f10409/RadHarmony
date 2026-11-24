@@ -1,0 +1,29 @@
+{
+  "_comment": "ROCOv2. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "ROCOv2",
+  "registry_key": "rocov2",
+  "modality": "2D",
+  "image_format": "JPG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source (2026-11-04): the Hugging Face parquet files hf/data/{train,validation,test}-*.parquet (eltorio/ROCOv2-radiology), column image_id, read with pandas. One row is one image and its caption, so images, studies, patients and rows are the image_id count of each split. The source has no patient ID, so patient_id is the image ID. Each image ID holds its split name (ROCOv2_2023_train_000001), so no patient is in 2 splits. The paper (Rueckert et al., Sci Data 2024) gives train 59,958, validation 9,904 and test 9,927 (79,789). The Hugging Face card and parquet have 59,962 train images, 4 more than the paper. The paper does not explain the difference.",
+    "patients_in_two_splits": 0,
+    "rocov2_train": {
+      "images": 59962,
+      "studies": 59962,
+      "patients": 59962,
+      "rows": 59962
+    },
+    "rocov2_validation": {
+      "images": 9904,
+      "studies": 9904,
+      "patients": 9904,
+      "rows": 9904
+    },
+    "rocov2_test": {
+      "images": 9927,
+      "studies": 9927,
+      "patients": 9927,
+      "rows": 9927
+    }
+  }
+}

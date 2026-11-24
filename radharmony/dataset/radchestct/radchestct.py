@@ -19,19 +19,19 @@ class RadChestCTDataset(BaseRadiologicalDataset):
         csv_path: Path to the metadata CSV (``CT_Scan_Metadata_Complete_35747.csv``).
             Auto-inferred near ``base_image_dir`` when ``None``.
         label_csv_path: Path to one raw findings CSV
-            (e.g. ``imgtrain_Abnormality_and_Location_Labels.csv``).
+            (for example ``imgtrain_Abnormality_and_Location_Labels.csv``).
             Auto-inferred near ``base_image_dir`` when ``None``.
         bbox_csv_path: Path to the extrema CSV (``Extrema_35747.csv``). Optional.
             Auto-inferred near ``base_image_dir`` when ``None``.
         transform: MONAI Compose transform. Defaults to a standard 3-D pipeline.
         cache_dir: PersistentDataset cache directory. ``None`` disables caching.
         output_cls: Yield label vector under key ``cls``.
-        output_mask: Yield segmentation mask under key ``mask``.
-        output_report: Yield report text under key ``report``.
+        output_mask / output_report / output_reg: Not supported. RAD-ChestCT has no masks and
+            no public reports. A warning, and no key (D-11, V-D-6).
         output_bbox: Yield bounding box under key ``bbox``.
     """
 
-    SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "mask", "report", "bbox"})
+    SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "bbox"})
     LABEL_COLS = [
         "air_trapping",
         "airspace_disease",
@@ -120,6 +120,14 @@ class RadChestCTDataset(BaseRadiologicalDataset):
     ]
     _HARMONIZER_CLS = RadChestCTHarmonizer
 
+    # Label CSVs to look for, in order. The train file wins, so this class gives the
+    # train split unless you pass label_csv_path. The split classes look for their own file.
+    _LABEL_NAMES = (
+        "imgtrain_Abnormality_and_Location_Labels.csv",
+        "imgvalid_Abnormality_and_Location_Labels.csv",
+        "imgtest_Abnormality_and_Location_Labels.csv",
+    )
+
     def __init__(
         self,
         base_image_dir: str = None,
@@ -131,6 +139,7 @@ class RadChestCTDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -138,8 +147,8 @@ class RadChestCTDataset(BaseRadiologicalDataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RadChestCTHarmonizer.load_from_saved(harmonizer_path)
-            base_image_dir = _h.image_base_dir
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
+            base_image_dir = _h.base_image_dir
 
         if base_image_dir is None and harmonizer_path is None and harmonized_df is None and harmonizer is None:
             raise ValueError(
@@ -150,18 +159,19 @@ class RadChestCTDataset(BaseRadiologicalDataset):
             self._csv_path = infer_path(
                 base_image_dir,
                 "CT_Scan_Metadata_Complete_35747.csv",
+                "tables/CT_Scan_Metadata_Complete_35747.csv",  # in the folder above (D-35)
                 user_path=csv_path or "",
+                required=True,
+                arg="csv_path",
             ) or csv_path
             self._label_csv_path = infer_path(
-                base_image_dir,
-                "imgtrain_Abnormality_and_Location_Labels.csv",
-                "imgvalid_Abnormality_and_Location_Labels.csv",
-                "imgtest_Abnormality_and_Location_Labels.csv",
+                base_image_dir, *self._LABEL_NAMES, *(f"tables/{n}" for n in self._LABEL_NAMES),
                 user_path=label_csv_path or "",
             ) or label_csv_path
             self._bbox_csv_path = infer_path(
                 base_image_dir,
                 "Extrema_35747.csv",
+                "tables/Extrema_35747.csv",
                 user_path=bbox_csv_path or "",
             ) or bbox_csv_path
         else:
@@ -194,6 +204,7 @@ class RadChestCTDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -204,10 +215,10 @@ class RadChestCTDataset(BaseRadiologicalDataset):
         preset = self._try_resolve_preset_harmonized()
         if preset is not None:
             return preset
-        harmonizer = RadChestCTHarmonizer(
+        harmonizer = self._HARMONIZER_CLS(
             csv_path=self._csv_path,
             label_csv_path=self._label_csv_path,
-            image_base_dir=self.base_image_dir,
+            base_image_dir=self.base_image_dir,
             bbox_csv_path=self._bbox_csv_path,
         )
         df = harmonizer.harmonize()

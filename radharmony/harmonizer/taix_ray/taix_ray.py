@@ -1,28 +1,21 @@
 """Harmonizer for the TAIX-Ray bedside chest radiography dataset.
 
-TAIX-Ray ships a single ``annotation.csv`` (produced by the download notebook
-from the upstream HuggingFace parquet shards) plus a flat ``images/<UID>.png``
-tree.  Labels are eight ordinal severity grades, all stored as raw integers
-in this layer; the dataset class binarises them when ``label_mode="binary"``.
+TAIX-Ray has one ``annotation.csv`` (made by the download notebook from the HuggingFace parquet
+shards) and a flat ``images/<UID>.png`` folder. The 8 labels are ordinal severity grades. This
+layer keeps them as raw integers. The dataset class makes them binary when ``label_mode="binary"``.
 
-Source CSV columns:
-    UID, Fold, Split, PatientID, PhysicianID, StudyDate, Age, Sex,
-    HeartSize, PulmonaryCongestion,
-    PleuralEffusion_Right, PleuralEffusion_Left,
-    PulmonaryOpacities_Right, PulmonaryOpacities_Left,
-    Atelectasis_Right, Atelectasis_Left
+CSV columns: UID, Fold, Split, PatientID, PhysicianID, StudyDate, Age, Sex, HeartSize,
+PulmonaryCongestion, PleuralEffusion_{Right,Left}, PulmonaryOpacities_{Right,Left},
+Atelectasis_{Right,Left}.
 
-Severity encoding (per Truhn et al. 2026):
-    HeartSize        : 0=Normal, 1=Borderline Enlarged, 2=Enlarged, 3=Massively Enlarged
-    All other labels : 0=None, 1=Questionable, 2=Mild, 3=Moderate, 4=Severe
+Grades (Truhn et al. 2026): HeartSize is 0 Normal, 1 Borderline Enlarged, 2 Enlarged,
+3 Massively Enlarged. All other labels are 0 None, 1 Questionable, 2 Mild, 3 Moderate, 4 Severe.
 """
-
-import pandas as pd
 
 from ..base import BaseHarmonizer
 
 
-# Raw CSV → snake_case rename applied during _build_labels.
+# CSV names and their snake_case names. _build_labels renames the columns.
 _RENAME_MAP = {
     "HeartSize": "heart_size",
     "PulmonaryCongestion": "pulmonary_congestion",
@@ -49,7 +42,7 @@ class TAIXRayHarmonizer(BaseHarmonizer):
             ``notebooks/download_huggingface.ipynb``).
     """
 
-    # snake_case names — already match what _build_labels will leave in self.df
+    # The snake_case names that _build_labels leaves in self.df.
     LABEL_COLS = [
         "atelectasis_left",
         "atelectasis_right",
@@ -61,10 +54,15 @@ class TAIXRayHarmonizer(BaseHarmonizer):
         "pulmonary_opacities_right",
     ]
 
-    # Carry per-radiograph metadata through to the harmonized output. Includes
-    # `split` because the dataset's predefined train/val/test slicing reads it.
-    EXTRA_OUTPUT_COLS = ["sex", "age", "study_date", "fold", "split", "physician_id"]
+    # Metadata for each image. ``split`` is here because the split classes read it.
+    EXTRA_OUTPUT_COLS = ["age", "study_date", "fold", "split", "physician_id"]
 
+    #: ``Age`` in annotation.csv is in DAYS (median 24,923, which is 68.2 years). Read as years,
+    #: 214,893 of 215,381 rows are above 110.
+    AGE_SOURCE_COL = "age"
+    AGE_SOURCE_UNIT = "days"
+    #: annotation.csv ``Sex`` (M or F), renamed to ``sex``. The base step maps it (D-26).
+    SEX_SOURCE_COL = "sex"
     LABEL_JOIN_COLS = None
     VIEW_POSITION_SOURCE_COL = None
     VIEW_POSITION_JOIN_COLS = None
@@ -83,19 +81,17 @@ class TAIXRayHarmonizer(BaseHarmonizer):
         self.df["patient_id"] = self.df["PatientID"].astype(str)
 
     def _build_study_id(self) -> None:
-        # Each radiograph is its own "study" in this dataset (one image per UID,
-        # no multi-view grouping). UID is the natural study identifier.
+        # One image for each UID, so the UID is the study ID.
         self.df["study_id"] = self.df["UID"].astype(str)
 
     def _build_image_path(self) -> None:
         self.df["image_path"] = self.df["UID"].astype(str) + ".png"
 
     def _build_labels(self) -> None:
-        # Rename raw camelCase columns to snake_case so they match LABEL_COLS
-        # and survive _select_harmonized_columns via EXTRA_OUTPUT_COLS / split.
+        # The names must match LABEL_COLS and EXTRA_OUTPUT_COLS, so that
+        # _select_harmonized_columns keeps the columns.
         self.df.rename(columns=_RENAME_MAP, inplace=True)
-        # Store raw severity integers as float32 so they fit cleanly into the
-        # MONAI cls tensor. The dataset class applies the binary/ordinal toggle.
+        # float32 fits the MONAI cls tensor. The dataset class chooses binary or ordinal.
         for col in self.LABEL_COLS:
             if col in self.df.columns:
                 self.df[col] = self.df[col].astype("float32")

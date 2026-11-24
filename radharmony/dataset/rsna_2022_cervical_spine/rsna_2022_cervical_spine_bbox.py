@@ -5,7 +5,7 @@ Per-volume 3-D variant of :class:`RSNA2022CervicalSpineDataset`.  Only the
 sample is a full CT volume (the study's DICOM directory).
 
 Bbox format: list of ``[d_min, d_max, y_min, y_max, x_min, x_max]`` 6-tuples
-normalised to ``[0, 1]`` in the post-transpose ``(D, H, W)`` axis order.
+normalized to ``[0, 1]`` in the post-transpose ``(D, H, W)`` axis order.
 Multiple fracture annotations within one study produce multiple boxes.
 
 For whole-volume 3-D classification + optional segmentation without bbox,
@@ -21,7 +21,7 @@ import pandas as pd
 from radharmony.harmonizer import RSNA2022CervicalSpineBboxHarmonizer
 from radharmony.registry import register_dataset
 from radharmony.utils.infer import infer_path
-from ..base import BaseRadiologicalDataset
+from ..base import BaseRadiologicalDataset, _require_image_folder
 from ..transforms import RadiologyTransform3D
 
 
@@ -30,7 +30,7 @@ class RSNA2022CervicalSpineBboxDataset(BaseRadiologicalDataset):
     """3-D MONAI PersistentDataset for the cervical-spine bounding-box subset.
 
     Args:
-        base_image_dir: Root of the DICOM tree — typically
+        base_image_dir: Root of the DICOM tree, typically
             ``.../rsna-2022-cervical-spine-fracture-detection/train_images/``.
         csv_path: Path to ``train.csv`` (the per-study cls labels).
             Auto-inferred when ``None``.
@@ -42,8 +42,8 @@ class RSNA2022CervicalSpineBboxDataset(BaseRadiologicalDataset):
         cache_dir: PersistentDataset cache directory.  ``None`` disables caching.
         output_cls: Yield the 8-D study-level label vector under key ``cls``.
         output_bbox: Yield the per-volume bounding-box list under key ``bbox``.
-        output_mask: Not supported; silently ignored.
-        output_report: Not supported; silently ignored.
+        output_mask: Not supported. Gives a warning and no key.
+        output_report: Not supported. Gives a warning and no key.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "bbox"})
@@ -69,6 +69,7 @@ class RSNA2022CervicalSpineBboxDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -83,7 +84,7 @@ class RSNA2022CervicalSpineBboxDataset(BaseRadiologicalDataset):
             bbox_csv_path = os.path.expanduser(bbox_csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RSNA2022CervicalSpineBboxHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -110,11 +111,11 @@ class RSNA2022CervicalSpineBboxDataset(BaseRadiologicalDataset):
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._csv_path = infer_path(
-                base_image_dir, "train.csv", user_path=csv_path or "",
+                base_image_dir, "train.csv", user_path=csv_path or "", required=True, arg="csv_path",
             ) or csv_path
             self._bbox_csv_path = infer_path(
                 base_image_dir, "train_bounding_boxes.csv",
-                user_path=bbox_csv_path or "",
+                user_path=bbox_csv_path or "", required=True, arg="bbox_csv_path",
             ) or bbox_csv_path
         else:
             self._csv_path = csv_path
@@ -126,6 +127,7 @@ class RSNA2022CervicalSpineBboxDataset(BaseRadiologicalDataset):
                 output_keys.add("cls")
             if output_bbox:
                 output_keys.add("bbox")
+                output_keys.add("bbox_labels")
             transform = RadiologyTransform3D(
                 output_keys=output_keys,
                 hu_window=(-1000, 1000),
@@ -139,6 +141,7 @@ class RSNA2022CervicalSpineBboxDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -163,6 +166,7 @@ class RSNA2022CervicalSpineBboxDataset(BaseRadiologicalDataset):
         study directory, not a single file.
         """
         df = self._get_harmonized_df()
+        _require_image_folder(df, self.base_image_dir)  # D-04
 
         def _exists(p):
             fp = os.path.join(self.base_image_dir, p) if self.base_image_dir else p

@@ -2,16 +2,20 @@
 
 import os
 
-import numpy as np
 import pandas as pd
 import pydicom
 from tqdm import tqdm
 
+from .._labels import chexpert_codes, warn_images_without_labels
 from ..base import BaseHarmonizer
 
 
 class MIMICCXRHarmonizer(BaseHarmonizer):
-    """Harmonize MIMIC-CXR v2 into the standard RadHarmony format.
+    """Harmonize MIMIC-CXR v2 into the standard RadHarmony format, all splits in one table.
+
+    This class mixes the official splits and is not for benchmarks. Use
+    :class:`MIMICCXRTrainHarmonizer`, :class:`MIMICCXRValidateHarmonizer`
+    and :class:`MIMICCXRTestHarmonizer`.
 
     Reads ``mimic-cxr-2.0.0-metadata.csv`` (or ``cxr-record-list.csv.gz``),
     which must contain a ``path`` column with relative image paths.
@@ -20,11 +24,11 @@ class MIMICCXRHarmonizer(BaseHarmonizer):
         csv_path: Path to the metadata CSV (``mimic-cxr-2.0.0-metadata.csv``
             or ``cxr-record-list.csv.gz``).
         label_csv_path: Path to ``mimic-cxr-2.0.0-chexpert.csv`` (optional).
-        dicom_base_dir: Root of the DICOM file tree (e.g. ``.../mimic-cxr/2.1.0/files/``).
+        dicom_base_dir: Root of the DICOM file tree (for example ``.../mimic-cxr/2.1.0/files/``).
             When provided, ``view_position`` is read directly from DICOM headers.
         report_csv_path: Path to ``cxr-study-list.csv.gz`` (optional).
         report_base_dir: Root directory prepended to relative report paths
-            (e.g. ``.../mimic-cxr/2.1.0/files/``).
+            (for example ``.../mimic-cxr/2.1.0/files/``).
     """
 
     LABEL_COLS = [
@@ -72,6 +76,7 @@ class MIMICCXRHarmonizer(BaseHarmonizer):
             report_base_dir=report_base_dir,
         )
         self.dicom_base_dir = dicom_base_dir
+        self.drop_uncertain, self.not_mentioned = True, "negative"  # set again by harmonize()
 
     def _harmonizer_init_snapshot(self) -> dict:
         snap = super()._harmonizer_init_snapshot()
@@ -79,8 +84,15 @@ class MIMICCXRHarmonizer(BaseHarmonizer):
             snap["dicom_base_dir"] = self.dicom_base_dir
         return snap
 
-    def harmonize(self, *args, drop_uncertain: bool = True, **kwargs):
-        self.drop_uncertain = drop_uncertain
+    def harmonize(self, *args, drop_uncertain: bool = True, not_mentioned: str = "negative", **kwargs):
+        """Run the base steps with the CheXpert-style label rule (D-05).
+
+        Args:
+            drop_uncertain: If ``True`` (the default), drop the rows with an uncertain label (-1).
+            not_mentioned: ``"negative"`` (the default) gives 0 for a blank label, ``"nan"`` keeps
+                NaN (D-05).
+        """
+        self.drop_uncertain, self.not_mentioned = drop_uncertain, not_mentioned
         return super().harmonize(*args, **kwargs)
 
     def _build_patient_id(self) -> None:
@@ -113,10 +125,8 @@ class MIMICCXRHarmonizer(BaseHarmonizer):
         self.df["view_position"] = self.df.progress_apply(_read_vp, axis=1)
 
     def _preprocess_label_df(self, label_df: pd.DataFrame) -> pd.DataFrame:
-        label_df = label_df.fillna(0.0)
-        label_df = label_df.replace({-1: np.nan})
-        if self.drop_uncertain:
-            label_df = label_df.dropna()
+        warn_images_without_labels(self.df, label_df, "MIMIC-CXR", self.label_csv_path)
+        label_df = chexpert_codes(label_df, self.LABEL_COLS, self.not_mentioned, self.drop_uncertain)
         label_df["patient_id"] = label_df["subject_id"].astype(str)
         label_df["study_id"] = label_df["study_id"].astype(str)
         return label_df

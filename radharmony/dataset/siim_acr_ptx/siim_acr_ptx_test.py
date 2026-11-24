@@ -1,4 +1,4 @@
-"""MONAI dataset for the SIIM-ACR Pneumothorax dataset — test split."""
+"""MONAI dataset for the SIIM-ACR Pneumothorax dataset: test split."""
 
 import warnings
 
@@ -11,16 +11,21 @@ from .siim_acr_ptx import SIIMACRPTXDataset
 
 @register_dataset("siim_acr_ptx_test")
 class SIIMACRPTXTestDataset(SIIMACRPTXDataset):
-    """Test split of the SIIM-ACR Pneumothorax dataset — images only, no labels.
+    """Test split of the SIIM-ACR Pneumothorax dataset: images only, no labels.
 
-    Globs the ``dicom-images-test/`` DICOM tree.  ``output_cls``,
-    ``output_mask``, and ``output_bbox`` are silently suppressed.
+    Globs the ``dicom-images-test/`` DICOM tree.  Every ``output_*`` flag
+    gives a warning and no key.
 
     Args:
-        base_image_dir: Root of the test DICOM tree — typically
+        base_image_dir: Root of the test DICOM tree, typically
             ``<competition_root>/dicom-images-test/``.
         All other args identical to :class:`SIIMACRPTXDataset`.
     """
+
+    SUPPORTED_OUTPUTS: frozenset = frozenset()
+    _HARMONIZER_CLS = SIIMACRPTXTestHarmonizer
+
+    _TRAIN_FILES_REQUIRED = False  # this class reads only the test files
 
     def __init__(
         self,
@@ -31,6 +36,7 @@ class SIIMACRPTXTestDataset(SIIMACRPTXDataset):
         output_cls=False,
         output_mask=False,
         output_report=False,
+        output_reg=False,
         output_bbox=False,
         harmonized_df=None,
         harmonizer=None,
@@ -40,6 +46,8 @@ class SIIMACRPTXTestDataset(SIIMACRPTXDataset):
         for flag, name in [
             (output_cls, "output_cls"),
             (output_mask, "output_mask"),
+            (output_report, "output_report"),
+            (output_reg, "output_reg"),
             (output_bbox, "output_bbox"),
         ]:
             if flag:

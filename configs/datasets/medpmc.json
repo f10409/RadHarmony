@@ -1,0 +1,16 @@
+{
+  "_comment": "MedPMC. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "MedPMC",
+  "registry_key": "medpmc",
+  "modality": "2D",
+  "image_format": "JPG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source (2026-11-04): webdataset/metadata/medpmc_index.parquet read with pandas, 11,123,087 rows (multipanel 3,156,144, singlepanel 643,401, subfigure 7,323,542). This matches medpmc_index_summary.json of the source and the 11M of the paper (Kim et al., arXiv:2607.07673). One row is one image and its caption, so rows is 11,123,087. images counts source_type/key + image_ext (every image_ext is .jpg): 11,123,087. studies counts parent_image_id, or image_id where it is empty (only subfigure rows have a parent): 3,799,545, the multipanel and singlepanel figures. patients counts pmcid (the article): 1,274,778. The class has one key and no split, so there is no patients_in_two_splits.",
+    "medpmc": {
+      "images": 11123087,
+      "studies": 3799545,
+      "patients": 1274778,
+      "rows": 11123087
+    }
+  }
+}

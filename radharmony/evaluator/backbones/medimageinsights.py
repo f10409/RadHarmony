@@ -6,7 +6,7 @@ Transformer), 360 M params image encoder, 252 M params language encoder.
 Accepts any format supported by MONAI's ``LoadImage`` (PNG, JPEG, DICOM,
 NIfTI, …). Images are converted to PIL RGB and passed through the model's
 torchvision preprocess chain (bicubic Resize to 480 × 480 + ImageNet
-normalization). Embeddings are 1024-dim, L2-normalised.
+normalization). Embeddings are 1024-dim, L2-normalized.
 
 Requires the ``medimageinsights`` extra::
 
@@ -23,7 +23,7 @@ to ``~/.cache/huggingface/hub/`` on first call.
 #    be imported even when the optional dependency is not installed.
 #
 # 2. A SINGLE model instance is created and shared between the transform
-#    preprocessor and the encoder — no weights are loaded twice.
+#    preprocessor and the encoder, no weights are loaded twice.
 #
 # 3. Image preprocessing (PIL conversion, resize, ImageNet normalization) lives
 #    entirely in the MONAI transform closure. ImageEncoderWrapper never does it.
@@ -41,14 +41,14 @@ to ``~/.cache/huggingface/hub/`` on first call.
 from __future__ import annotations
 
 import math
-from typing import Any, Callable
+from typing import Callable
 
 import torch
 import monai.transforms as mt
 
 from radharmony.evaluator.transforms import EncoderPreprocessTransform, RadiologyEncoderTransform
 from radharmony.evaluator.wrappers import ImageEncoderWrapper
-from ._utils import squeeze_frame_dim, to_3channel, to_pil_rgb
+from ._utils import display_255, load_image, squeeze_frame_dim, to_3channel, to_pil_rgb
 
 _MEDIMAGEINSIGHTS_HUB = "lion-ai/MedImageInsights"
 _WEIGHTS_SUBDIR = "2024.09.27"
@@ -62,15 +62,15 @@ def make_medimageinsights(
 ) -> tuple[mt.Compose, ImageEncoderWrapper, Callable, None]:
     """Return ``(transform, image_encoder, text_encoder, None)`` for MedImageInsights.
 
-    A single ``MedImageInsight`` model instance is created and shared: its
-    torchvision preprocess chain is captured in the transform closure and its
+    A single ``MedImageInsight`` model instance is created and shared. Its
+    torchvision preprocess chain is captured in the transform closure. Its
     DaViT backbone is registered in the returned ``ImageEncoderWrapper``. No
     weights are loaded twice.
 
     Parameters
     ----------
     device :
-        Target device for the encoder (e.g. ``"cuda"``, ``"cuda:7"``,
+        Target device for the encoder (for example ``"cuda"``, ``"cuda:7"``,
         ``"cpu"``). The transform's preprocess step runs on CPU in DataLoader
         workers regardless of this setting.
     hub :
@@ -79,8 +79,8 @@ def make_medimageinsights(
     output_keys :
         Keys to keep in each sample dict. Defaults to ``{"img", "cls"}``.
         Pass ``{"img", "mask"}`` or ``{"img", "cls", "mask"}`` for
-        segmentation — the mask is resized to the same spatial resolution as
-        the image (480 × 480 by default) using nearest-neighbour interpolation.
+        segmentation. The mask is resized to the same spatial resolution as
+        the image (480 × 480 by default) using nearest-neighbor interpolation.
 
     dtype :
         Output tensor dtype set by the final ``ToTensorD``. Defaults to
@@ -96,16 +96,16 @@ def make_medimageinsights(
         ``transform=`` kwarg.
     image_encoder : ImageEncoderWrapper
         Classification mode (default): ``forward(x) -> Tensor[B, 1024]``
-        — DaViT global embedding, projected and L2-normalised.
+        Returns the DaViT global embedding, projected and L2-normalized.
 
         Segmentation mode (``"mask"`` in *output_keys*):
-        ``forward(x) -> Tensor[B, 2048, H, W]`` — spatial feature map
+        ``forward(x) -> Tensor[B, 2048, H, W]``, spatial feature map
         captured from the last DaViT block (``image_encoder.blocks[3][0]``)
         via a per-call forward hook. For 480 × 480 input: ``H = W = 15``
         (DaViT final stride 32 → 480 / 32 = 15).
     text_encoder : callable
-        ``(texts: list[str]) -> Tensor[T, 1024]`` — L2-normalised text
-        embeddings on CPU. MedImageInsights encodes raw strings; no external
+        ``(texts: list[str]) -> Tensor[T, 1024]``, L2-normalized text
+        embeddings on CPU. MedImageInsights encodes raw strings. No external
         tokeniser is required. Pass to
         ``ZeroShotEvaluator(text_encoder=...)``.
     tokenizer : None
@@ -136,7 +136,7 @@ def make_medimageinsights(
     from huggingface_hub import snapshot_download  # type: ignore[import-untyped]
 
     # ── Download / locate snapshot ────────────────────────────────────────────
-    # snapshot_download is idempotent; on subsequent calls it returns the cached
+    # snapshot_download is idempotent. On subsequent calls it returns the cached
     # path without re-downloading.
     model_dir = snapshot_download(hub)
     if model_dir not in sys.path:
@@ -151,13 +151,16 @@ def make_medimageinsights(
         language_model_name="language_model.pth",
     )
     classifier.load_model()
+    # load_model() leaves the model in train mode, with 23 DropPath layers on.
+    classifier.model.eval()
 
-    # ── Image loader: MONAI → PIL RGB (CPU; runs in DataLoader workers) ───────
+    # ── Image loader: MONAI → PIL RGB (CPU. Runs in DataLoader workers) ───────
     _loader = mt.Compose([
-        mt.LoadImage(image_only=True, ensure_channel_first=True),
+        load_image(),
         mt.Lambda(squeeze_frame_dim),
         mt.Transpose(indices=[0, 2, 1]),   # MONAI (C,W,H) → (C,H,W)
-        mt.Lambda(to_pil_rgb),             # min-max → uint8 → PIL RGB
+        mt.Lambda(display_255),
+        mt.Lambda(to_pil_rgb),             # 0 to 255 → PIL RGB, no stretch
     ])
 
     # ── Mask loader: same spatial steps, no intensity normalization ───────────
@@ -168,15 +171,15 @@ def make_medimageinsights(
         mt.Lambda(to_3channel),            # keep float, replicate to 3-channel
     ])
 
-    # ── Preprocess closure: path → Tensor[3, 480, 480], ImageNet-normalised ──
+    # ── Preprocess closure: path → Tensor[3, 480, 480], ImageNet-normalized ──
     _preprocess_chain = classifier.preprocess  # torchvision Compose
 
     def _preprocess(path) -> torch.Tensor:
         return _preprocess_chain(_loader(str(path)))
 
-    # ── Mask preprocess: mirror spatial transform with NEAREST interpolation ──
-    # Extract T.Resize from the model's own preprocess chain so the mask always
-    # undergoes identical spatial transforms as the image, even if config.yaml
+    # ── Mask preprocess: same spatial transform, NEAREST interpolation ────────
+    # Take T.Resize from the model's own preprocess chain. The mask then gets
+    # the same spatial transforms as the image, even if config.yaml
     # changes the target resolution.
     _spatial_transforms = [
         T.Resize(t.size, interpolation=InterpolationMode.NEAREST, antialias=False)
@@ -217,10 +220,13 @@ def make_medimageinsights(
             return spatial.permute(0, 2, 1).reshape(B, C, H, W)  # [B, 2048, H, W]
     else:
         def _model_call(m, x: torch.Tensor) -> torch.Tensor:
-            return m.encode_image(x)           # [B, 1024], L2-normalised
+            return m.encode_image(x)           # [B, 1024], L2-normalized
 
     # ── Text encoder for zero-shot ────────────────────────────────────────────
     def _text_encoder(texts: list[str]) -> torch.Tensor:
+        # encode() sends the tokens to classifier.device, which load_model() set
+        # to its own GPU choice. Use the device that the model is on now.
+        classifier.device = next(_backbone.parameters()).device
         with torch.no_grad():
             result = classifier.encode(images=None, texts=texts)
         emb = result["text_embeddings"]        # numpy or tensor [T, 1024]

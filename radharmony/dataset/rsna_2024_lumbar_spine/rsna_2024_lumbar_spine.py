@@ -9,7 +9,7 @@ from radharmony.harmonizer import RSNA2024LumbarSpineHarmonizer
 from radharmony.harmonizer.rsna_2024_lumbar_spine import _expanded_label_cols
 from radharmony.registry import register_dataset
 from radharmony.utils.infer import infer_path
-from ..base import BaseRadiologicalDataset
+from ..base import BaseRadiologicalDataset, _require_image_folder
 from ..transforms import RadiologyTransform3D
 
 
@@ -17,7 +17,7 @@ from ..transforms import RadiologyTransform3D
 class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
     """3-D MONAI PersistentDataset for RSNA 2024 Lumbar Spine Degenerative Classification.
 
-    One sample per MRI series — 1975 studies × ~3 series = ~6294 rows.  Each
+    One sample per MRI series: 1975 studies × ~3 series = ~6294 rows.  Each
     ``image_path`` is a DICOM series directory (``<study_id>/<series_id>/``)
     that the ITKReader loads as a 3-D volume.  Labels are the 75 one-hot
     severity columns produced by :class:`RSNA2024LumbarSpineHarmonizer`.
@@ -34,12 +34,12 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
             each annotated point becomes a tiny 3-D cube bbox that renders
             as a dot in the bbox overlay pipeline.
         transform: MONAI Compose transform.  Defaults to the 3-D pipeline with
-            ``hu_window=None`` (MRI, no Hounsfield window) — percentile-based
-            intensity scaling in :func:`_base_load_3d` handles normalisation.
+            ``hu_window=None`` (MRI, no Hounsfield window), percentile-based
+            intensity scaling in :func:`_base_load_3d` handles normalization.
         cache_dir: PersistentDataset cache directory.  None disables caching.
         output_cls: Yield the 75-D label vector under key ``cls``.
-        output_mask: Not supported; silently ignored.
-        output_report: Not supported; silently ignored.
+        output_mask: Not supported. Gives a warning and no key.
+        output_report: Not supported. Gives a warning and no key.
         output_bbox: Yield per-point cube bboxes under key ``bbox`` (requires
             ``coord_csv_path``).
     """
@@ -48,9 +48,13 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
     LABEL_COLS = _expanded_label_cols()
     _HARMONIZER_CLS = RSNA2024LumbarSpineHarmonizer
 
-    #: Allowed values for ``series_filter`` — the ``view_position`` strings set
+    #: Allowed values for ``series_filter``, the ``view_position`` strings set
     #: by :class:`RSNA2024LumbarSpineHarmonizer` from ``series_description``.
     SERIES_TYPES = ("Axial T2", "Sagittal T1", "Sagittal T2/STIR")
+
+    #: The train source files must exist (D-35). A test-split subclass that reads
+    #: only its test files sets False.
+    _TRAIN_FILES_REQUIRED: bool = True
 
     def __init__(
         self,
@@ -63,6 +67,7 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -80,7 +85,7 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
             coord_csv_path = os.path.expanduser(coord_csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RSNA2024LumbarSpineHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -95,12 +100,14 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             csv_path = infer_path(
-                base_image_dir, "train.csv", user_path=csv_path or "",
+                base_image_dir, "train.csv", user_path=csv_path or "", required=self._TRAIN_FILES_REQUIRED, arg="csv_path",
             ) or csv_path
             series_description_csv_path = infer_path(
                 base_image_dir,
                 "train_series_descriptions.csv",
                 user_path=series_description_csv_path or "",
+                required=self._TRAIN_FILES_REQUIRED,
+                arg="series_description_csv_path",
             ) or series_description_csv_path
             coord_csv_path = infer_path(
                 base_image_dir,
@@ -108,24 +115,8 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
                 user_path=coord_csv_path or "",
             ) or coord_csv_path
 
-        if output_bbox and not coord_csv_path:
-            warnings.warn(
-                "output_bbox=True requires train_label_coordinates.csv "
-                "(coord_csv_path) — none found. bboxes will be empty.",
-                stacklevel=2,
-            )
-
-        output_keys = {"img"}
-        if output_cls:
-            output_keys.add("cls")
-        if output_bbox:
-            output_keys.add("bbox")
-
-        if transform is None:
-            transform = RadiologyTransform3D(
-                output_keys=output_keys, hu_window=None,
-                dtype=dtype,
-            ).get_transform()
+        self._dtype = dtype
+        self._default_transform = transform is None
         super().__init__(
             base_image_dir=base_image_dir,
             transform=transform,
@@ -133,11 +124,14 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
             harmonizer_path=harmonizer_path,
         )
+        if self._default_transform:
+            self.transform = self._make_default_transform()
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._harmonizer = RSNA2024LumbarSpineHarmonizer(
                 csv_path=csv_path,
@@ -158,7 +152,28 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
         df = preset if preset is not None else self._harmonizer.harmonize()
         if self._series_filter:
             df = df[df["view_position"] == self._series_filter].reset_index(drop=True)
+        if self.output_bbox and "bbox" not in df.columns:
+            # No point CSV gives no box column. The samples then leave out the
+            # box keys, as for a flag with no data (D-11, V-D-40).
+            warnings.warn(
+                "output_bbox=True, but the table has no 'bbox' column (no coord_csv_path, "
+                "train_label_coordinates.csv). The samples have no 'bbox' and 'bbox_labels' keys.",
+                UserWarning,
+                stacklevel=3,
+            )
+            self.output_bbox = False
+            if self._default_transform:
+                self.transform = self._make_default_transform()
         return df
+
+    def _make_default_transform(self):
+        """Return the default 3-D transform for the output flags of this dataset."""
+        output_keys = {"img"}
+        if self.output_cls:
+            output_keys.add("cls")
+        if self.output_bbox:
+            output_keys.update({"bbox", "bbox_labels"})
+        return RadiologyTransform3D(output_keys=output_keys, hu_window=None, dtype=self._dtype).get_transform()
 
     def verify_images(self, drop_missing: bool = True):
         """Check each series directory exists and contains at least one .dcm.
@@ -166,10 +181,10 @@ class RSNA2024LumbarSpineDataset(BaseRadiologicalDataset):
         Overrides the base implementation because ``image_path`` here is a
         DICOM **series directory** (ITKReader reads the stack), not a single file.
         """
-        import pandas as pd
         from tqdm import tqdm
 
         df = self._get_harmonized_df()
+        _require_image_folder(df, self.base_image_dir)  # D-04
 
         def _exists(p):
             fp = os.path.join(self.base_image_dir, p) if self.base_image_dir else p

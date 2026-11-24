@@ -15,7 +15,7 @@ def rle_to_mask(rle: str, width: int = 1024, height: int = 1024) -> np.ndarray:
     array = np.asarray([int(x) for x in rle.split()])
     starts, lengths = array[0::2], array[1::2]
     current = 0
-    for start, length in zip(starts, lengths):
+    for start, length in zip(starts, lengths, strict=False):
         current += start
         mask[current : current + length] = 1
         current += length

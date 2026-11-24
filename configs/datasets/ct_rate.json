@@ -1,0 +1,73 @@
+{
+  "_comment": "CT-RATE. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "CT-RATE",
+  "registry_key": "ct_rate",
+  "modality": "3D",
+  "image_format": "NIfTI",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: tables/train_predicted_labels.csv and tables/valid_predicted_labels.csv, read with pandas (one row per volume). The patient is the first 2 parts of VolumeName (train_1), the study the first 3 (train_1_a). Train and valid patient names have different prefixes, so no patient is in both. sex and age_years come from PatientSex and PatientAge of tables/train_metadata.csv and tables/validation_metadata.csv (DICOM age strings, for example 049Y). Train has 6 volumes with no sex and 12 with no age. 7 train ages are in months (018M is 1.5 years).",
+    "patients_in_two_splits": 0,
+    "ct_rate_train": {
+      "images": 47149,
+      "studies": 24128,
+      "patients": 20000,
+      "positives": {
+        "arterial_wall_calcification": 13377,
+        "atelectasis": 12263,
+        "bronchiectasis": 4732,
+        "cardiomegaly": 5308,
+        "consolidation": 8319,
+        "coronary_artery_wall_calcification": 12025,
+        "emphysema": 9122,
+        "hiatal_hernia": 6751,
+        "interlobular_septal_thickening": 3745,
+        "lung_nodule": 21382,
+        "lung_opacity": 17420,
+        "lymphadenopathy": 12221,
+        "medical_material": 5818,
+        "mosaic_attenuation_pattern": 3638,
+        "peribronchial_thickening": 4973,
+        "pericardial_effusion": 3412,
+        "pleural_effusion": 5705,
+        "pulmonary_fibrotic_sequela": 12589
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 19681, "M": 27462},
+      "age_years": [1.5, 102]
+    },
+    "ct_rate_valid": {
+      "images": 3039,
+      "studies": 1564,
+      "patients": 1304,
+      "positives": {
+        "arterial_wall_calcification": 867,
+        "atelectasis": 713,
+        "bronchiectasis": 330,
+        "cardiomegaly": 325,
+        "consolidation": 581,
+        "coronary_artery_wall_calcification": 765,
+        "emphysema": 600,
+        "hiatal_hernia": 417,
+        "interlobular_septal_thickening": 249,
+        "lung_nodule": 1361,
+        "lung_opacity": 1184,
+        "lymphadenopathy": 789,
+        "medical_material": 313,
+        "mosaic_attenuation_pattern": 253,
+        "peribronchial_thickening": 355,
+        "pericardial_effusion": 226,
+        "pleural_effusion": 376,
+        "pulmonary_fibrotic_sequela": 831
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 1263, "M": 1776},
+      "age_years": [18, 96]
+    }
+  }
+}

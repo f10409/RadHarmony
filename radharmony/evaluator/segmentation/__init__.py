@@ -1,14 +1,15 @@
-"""Segmentation evaluators — frozen-encoder dense-feature probes.
+"""Segmentation evaluators: frozen-encoder dense-feature probes.
 
 Public surface:
 
-- :class:`BaseSegEvaluator` — abstract base; shared encoder + loader plumbing.
-- :class:`LinearProbeSegEvaluator` — 1×1 Conv2d head on frozen patch features
-  with bilinear upsample, multi-class CE, k-fold / fixed-split + bootstrap.
-- :class:`UPerNetSegEvaluator` — ViTDet-style SFP + HF UPerNet head over the
-  same frozen patch features; same protocol / metrics as the linear probe.
-- :class:`ConvProbeSegEvaluator` — small conv-block head
-  (``1×1 → LN2d → 3×3 → LN2d`` + ``1×1`` classifier); same protocol /
+- :class:`BaseSegEvaluator`: abstract base with the shared encoder and loader code.
+- :class:`LinearProbeSegEvaluator`: 1×1 Conv2d head on frozen patch features
+  with bilinear upsample and multi-class CE. It runs k-fold or fixed-split
+  with bootstrap.
+- :class:`UPerNetSegEvaluator`: ViTDet-style SFP and HF UPerNet head over the
+  same frozen patch features. Same protocol and metrics as the linear probe.
+- :class:`ConvProbeSegEvaluator`: small conv-block head
+  (``1×1 → LN2d → 3×3 → LN2d`` and a ``1×1`` classifier). Same protocol and
   metrics as the linear probe.
 """
 

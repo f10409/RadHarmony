@@ -106,5 +106,36 @@
   },
 
   "hu_window": [-1000, 1000],
-  "custom_preprocessing": "Custom harmonize() collapses per-slice CSV rows to one row per StudyInstanceUID (drop_duplicates) and drops pe_present_on_image. image_path is a DICOM series directory rather than a single file, so the harmonizer and dataset both override verify_images to use os.path.isdir. Image loading uses the standard RadiologyTransform3D pipeline: ITKReader series load → HU window (-1000, 1000) → 0.5/99.5 percentile scaling to [-1, 1] → resize/pad to 112³."
+  "custom_preprocessing": "Custom harmonize() collapses per-slice CSV rows to one row per StudyInstanceUID (drop_duplicates) and drops pe_present_on_image. image_path is a DICOM series directory rather than a single file, so the harmonizer and dataset both override verify_images to use os.path.isdir. Image loading uses the standard RadiologyTransform3D pipeline: ITKReader series load → HU window (-1000, 1000) → 0.5/99.5 percentile scaling to [-1, 1] → resize/pad to 112³.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: the Kaggle competition page (https://www.kaggle.com/c/rsna-str-pulmonary-embolism-detection) and train.csv and test.csv read with pandas on 2026-11-03. Rules of the harmonizer applied in pandas: one row per StudyInstanceUID (the first slice row), and patient_id = study_id = StudyInstanceUID, because the source has no patient column. train.csv has 1,790,594 slice rows for 7,279 studies. Each study has 1 series, and each of the 13 study labels has 1 value in all slices of a study. The labels are only 0 and 1 (no blank), so uncertain is empty. test.csv has 146,853 slice rows for 650 studies and no label column (D-25). The 2 files share no study. The source has no age and no sex: 5 sampled DICOM headers have no PatientAge and no PatientSex.",
+    "patients_in_two_splits": 0,
+    "rsna_pe_detection_train": {
+      "images": 7279,
+      "studies": 7279,
+      "patients": 7279,
+      "positives": {
+        "acute_and_chronic_pe": 145,
+        "central_pe": 401,
+        "chronic_pe": 292,
+        "flow_artifact": 295,
+        "indeterminate": 157,
+        "leftsided_pe": 1544,
+        "negative_exam_for_pe": 4911,
+        "qa_contrast": 122,
+        "qa_motion": 63,
+        "rightsided_pe": 1875,
+        "rv_lv_ratio_gte_1": 940,
+        "rv_lv_ratio_lt_1": 1271,
+        "true_filling_defect_not_pe": 57
+      },
+      "uncertain": {}
+    },
+    "rsna_pe_detection_test": {
+      "images": 650,
+      "studies": 650,
+      "patients": 650
+    }
+  }
 }

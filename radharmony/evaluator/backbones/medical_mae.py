@@ -13,7 +13,7 @@ variant     embed dim   pretrain
 ==========  ==========  ==========
 
 Input: 224×224 RGB, **chest-X-ray normalization** (``mean=[0.5056]*3``,
-``std=[0.252]*3``) — *not* ImageNet — via the canonical
+``std=[0.252]*3``), *not* ImageNet, via the canonical
 ``Augmentation(normalize="chestx-ray").get_augmentation("full_224", "val")``
 pipeline (resize 256, center-crop 224).
 
@@ -34,30 +34,30 @@ Requires the ``medical_mae`` extra::
     uv pip install -e ".[medical_mae]"
 """
 
-# ──────────────────────────────────────────────────────────────────────────────
 # Implementation notes
-# ──────────────────────────────────────────────────────────────────────────────
+# --------------------
 # The medical_mae ``VisionTransformer`` subclass overrides
-# ``forward_features(self, x)``, matching the **timm 0.4.x** parent signature
-# (per requirements.txt's ``timm==0.4.12`` pin — *not* the 0.3.2 the entry-point
-# script asserts). Modern timm calls ``forward_features(x, attn_mask=...,
+# ``forward_features(self, x)`` to match the **timm 0.4.x** parent signature.
+# This follows the ``timm==0.4.12`` pin of requirements.txt, *not* the 0.3.2
+# that the entry-point script asserts. Modern timm calls ``forward_features(x, attn_mask=...,
 # is_causal=...)`` and breaks the override.
 #
 # On first call we side-install ``timm==0.4.12`` into
 # ``<repo_root>/third_party_models/medical_mae/timm-0412/`` via
 # ``uv pip install --target --no-deps`` and use it only during model
-# construction; the rest of the Python session keeps the venv's timm so EVA-X,
-# Ark+, and other timm-based backbones still work.
+# construction. The rest of the Python session keeps the venv's timm.
+# So EVA-X, Ark+, and other timm-based backbones still work.
 #
-# Loading mirrors ``main_linprobe_chestxray.py``:
-#   - checkpoint["model"] has FLAT keys (no ``encoder.`` prefix)
-#   - drop ``head.{weight,bias}`` only if shape-mismatched
-#   - call ``interpolate_pos_embed(model, state)`` for any non-224 input
-#   - load_state_dict(strict=False) — decoder_*, mask_token are expected unexpected
+# Loading follows ``main_linprobe_chestxray.py``:
+#   1. checkpoint["model"] has FLAT keys (no ``encoder.`` prefix).
+#   2. Drop ``head.{weight,bias}`` only if shape-mismatched.
+#   3. Call ``interpolate_pos_embed(model, state)`` for any non-224 input.
+#   4. load_state_dict(strict=False): decoder_* and mask_token are expected
+#      unexpected keys.
 #
 # Default mode = CLS token (``global_pool=False``) using the pretrained
 # ``self.norm``. ``global_pool=True`` would warm-start ``fc_norm`` from default
-# LayerNorm init — intended for fine-tuning, not zero-shot features.
+# LayerNorm init. This is for fine-tuning, not zero-shot features.
 # ──────────────────────────────────────────────────────────────────────────────
 
 from __future__ import annotations
@@ -150,13 +150,13 @@ def make_medical_mae(
         ``uv pip install --target --no-deps``. Defaults to
         ``<mae_dir>/timm-0412``.
     device :
-        Target device for the encoder (e.g. ``"cuda"``, ``"cuda:7"``,
+        Target device for the encoder (for example ``"cuda"``, ``"cuda:7"``,
         ``"cpu"``). The transform's preprocess step runs on CPU in DataLoader
         workers regardless.
     output_keys :
         Keys to keep in each sample dict. Defaults to ``{"img", "cls"}``.
         Pass ``{"img", "mask"}`` or ``{"img", "cls", "mask"}`` for
-        segmentation — the mask is resized to 224×224 (NEAREST + center-crop)
+        segmentation. The mask is resized to 224×224 (NEAREST + center-crop)
         with no normalization.
 
     dtype :
@@ -172,12 +172,12 @@ def make_medical_mae(
         MONAI transform suitable for passing to a RadHarmony dataset via the
         ``transform=`` kwarg.
     encoder : ImageEncoderWrapper
-        Classification mode (default): ``forward(x) -> Tensor[B, D]`` —
+        Classification mode (default): ``forward(x) -> Tensor[B, D]``:
         the CLS-token embedding from the pretrained ``self.norm``.
         ``D = 768`` (base) or ``384`` (small).
 
         Segmentation mode (``"mask"`` in *output_keys*):
-        ``forward(x) -> Tensor[B, D, 14, 14]`` — spatial patch feature map
+        ``forward(x) -> Tensor[B, D, 14, 14]``, spatial patch feature map
         (224 px / 16 px patches = 14 × 14).
 
     Example
@@ -204,7 +204,7 @@ def make_medical_mae(
     # ── Lazy imports (optional dependency) ────────────────────────────────────
     from torchvision import transforms as tv_transforms  # type: ignore[import-untyped]
     from torchvision.transforms.functional import InterpolationMode  # type: ignore[import-untyped]
-    from ._utils import squeeze_frame_dim, to_3channel, normalize_to_uint8
+    from ._utils import display_255, load_image, squeeze_frame_dim, to_3channel, to_uint8
 
     mae_dir = os.path.abspath(mae_dir or _DEFAULT_MAE_DIR)
     legacy_dir = os.path.abspath(legacy_timm_dir or os.path.join(mae_dir, "timm-0412"))
@@ -226,9 +226,9 @@ def make_medical_mae(
 
     _ensure_legacy_timm(legacy_dir)
 
-    # ── Side-load legacy timm + medical_mae repo for the duration of construction ─
-    # The constructed model holds references to timm 0.4.12 classes via its MRO,
-    # so the forward pass continues to work after we restore the venv timm.
+    # ── Side-load legacy timm + medical_mae repo during construction ──────────
+    # The model holds references to timm 0.4.12 classes via its MRO.
+    # So the forward pass still works after we restore the venv timm.
     _saved_modules = {
         k: sys.modules[k] for k in list(sys.modules)
         if (k == "timm" or k.startswith("timm."))
@@ -276,11 +276,12 @@ def make_medical_mae(
 
     # ── MONAI loader (handles PNG, JPEG, DICOM, NIfTI, …) ─────────────────────
     _loader = mt.Compose([
-        mt.LoadImage(image_only=True, ensure_channel_first=True),
+        load_image(),
         mt.Lambda(squeeze_frame_dim),
         mt.Transpose(indices=[0, 2, 1]),
+        mt.Lambda(display_255),
         mt.Lambda(to_3channel),
-        mt.Lambda(normalize_to_uint8),
+        mt.Lambda(to_uint8),
     ])
     _loader_mask = mt.Compose([
         mt.LoadImage(image_only=True, ensure_channel_first=True),
@@ -318,7 +319,7 @@ def make_medical_mae(
     if _seg_mode:
         def _model_call(m, x: torch.Tensor) -> torch.Tensor:
             # With global_pool=False, m.norm still exists and applies to the
-            # full [CLS, patch_1, ..., patch_N] sequence; hook it to grab the
+            # full [CLS, patch_1, ..., patch_N] sequence. Hook it to grab the
             # post-norm token sequence, skip CLS, reshape to a spatial grid.
             captured: dict[str, torch.Tensor] = {}
 
@@ -333,7 +334,7 @@ def make_medical_mae(
             return patches_to_spatial(captured["tokens"][:, 1:])  # [B, D, 14, 14]
     else:
         def _model_call(m, x: torch.Tensor) -> torch.Tensor:
-            return m(x)  # [B, D] — CLS token via the pretrained self.norm
+            return m(x)  # [B, D], CLS token via the pretrained self.norm
 
     # ── Assemble transform + encoder ──────────────────────────────────────────
     pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess)

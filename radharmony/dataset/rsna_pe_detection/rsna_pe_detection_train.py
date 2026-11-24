@@ -11,7 +11,7 @@ from .rsna_pe_detection import RSNAPEDetectionDataset
 class RSNAPEDetectionTrainDataset(RSNAPEDetectionDataset):
     """Train split of :class:`RSNAPEDetectionDataset`.
 
-    Identical to the base class; uses :class:`RSNAPEDetectionTrainHarmonizer`
+    Identical to the base class. Uses :class:`RSNAPEDetectionTrainHarmonizer`
     for correct save/load round-trips via ``load_from_saved()``.
     All constructor arguments are the same as :class:`RSNAPEDetectionDataset`.
     """

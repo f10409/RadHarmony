@@ -14,7 +14,7 @@ import pandas as pd
 from radharmony.harmonizer import RSNAPEDetectionHarmonizer
 from radharmony.registry import register_dataset
 from radharmony.utils.infer import infer_path
-from ..base import BaseRadiologicalDataset
+from ..base import BaseRadiologicalDataset, _require_image_folder
 from ..transforms import RadiologyTransform3D
 
 
@@ -23,18 +23,18 @@ class RSNAPEDetectionDataset(BaseRadiologicalDataset):
     """3-D MONAI PersistentDataset for RSNA PE Detection.
 
     Args:
-        base_image_dir: Root of the DICOM tree — typically ``.../rsna_pe_dataset/train/``.
+        base_image_dir: Root of the DICOM tree, typically ``.../rsna_pe_dataset/train/``.
         csv_path: Path to ``train.csv``.  Auto-inferred (via the parent dir) when None.
         transform: MONAI Compose transform.  Defaults to the standard 3-D pipeline
             (ITKReader series load → HU window → percentile scale → resize/pad).
         cache_dir: PersistentDataset cache directory.  ``None`` disables caching.
         hu_window: ``(min_HU, max_HU)`` clipping window applied before percentile
-            normalisation.  Default ``(-1000, 1000)`` covers CTPA soft tissue +
+            normalization.  Default ``(-1000, 1000)`` covers CTPA soft tissue +
             lung parenchyma in one window.
         output_cls: Yield the 13-D label vector under key ``cls``.
-        output_mask: Not supported; silently ignored with a warning.
-        output_report: Not supported; silently ignored with a warning.
-        output_bbox: Not supported; silently ignored with a warning.
+        output_mask: Not supported. Gives a warning and no key.
+        output_report: Not supported. Gives a warning and no key.
+        output_bbox: Not supported. Gives a warning and no key.
     """
 
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls"})
@@ -65,6 +65,7 @@ class RSNAPEDetectionDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -77,7 +78,7 @@ class RSNAPEDetectionDataset(BaseRadiologicalDataset):
             csv_path = os.path.expanduser(csv_path)
 
         if harmonizer_path is not None and base_image_dir is None:
-            _h = RSNAPEDetectionHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -106,7 +107,7 @@ class RSNAPEDetectionDataset(BaseRadiologicalDataset):
 
         if harmonizer_path is None and harmonized_df is None and harmonizer is None:
             self._csv_path = infer_path(
-                base_image_dir, "train.csv", user_path=csv_path or "",
+                base_image_dir, "train.csv", user_path=csv_path or "", required=True, arg="csv_path",
             ) or csv_path
         else:
             self._csv_path = csv_path
@@ -127,6 +128,7 @@ class RSNAPEDetectionDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,
@@ -148,8 +150,12 @@ class RSNAPEDetectionDataset(BaseRadiologicalDataset):
 
         Overrides the base implementation because ``image_path`` points at a
         series directory, not a single file.
+
+        Raises:
+            ValueError: If ``image_path`` is relative and ``base_image_dir`` is ``None``.
         """
         df = self._get_harmonized_df()
+        _require_image_folder(df, self.base_image_dir)
 
         def _exists(p):
             fp = os.path.join(self.base_image_dir, p) if self.base_image_dir else p

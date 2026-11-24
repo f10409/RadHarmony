@@ -1,0 +1,79 @@
+{
+  "_comment": "VQA subset of Stanford's CheXinstruct instruction-tuning collection (Stanford-AIMI/CheXagent). CheXinstruct itself aggregates ~28 source datasets via per-source 'processor' classes that all emit one unified record schema (unique_id, study_id, data_source, task_name, image_path, text, target_text, qa_pair, optional options). This integration covers only the two VQA-task processors whose images are exclusively MIMIC-CXR: MIMICCXRVQAProcessor (Open-Ended VQA, Close-Ended VQA) and MIMICDiffVQAProcessor (Difference VQA). The other five CheXinstruct VQA sources (VQA-RAD, SLAKE, MedVQA-2019, PMC-VQA, Rad-Restruct) are out of scope for this pass -- they'd each need their own image root, breaking the single-base_image_dir convention. Stanford's processor code (CC BY-NC-ND 4.0, no derivatives) is run unmodified, offline, outside this repo, to produce a single compiled JSON; this harmonizer only reads that JSON and translates Stanford's schema into RadHarmony's BaseVQAHarmonizer schema -- it is original code, not a derivative of theirs.",
+
+  "dataset_name": "CheXinstruct VQA (MIMIC-CXR-VQA + MIMIC-Diff-VQA)",
+  "registry_key": "chexinstruct_vqa",
+  "modality": "2D",
+  "image_format": "JPEG",
+
+  "base_image_dir": "/path/to/mimic-cxr-jpg/2.0.0/files",
+
+  "primary_csv": {
+    "_comment": "Not a CSV -- a compiled JSON produced by scripts/compile_chexinstruct_vqa.py, which runs the vendored, unmodified Stanford processors over MIMIC-CXR-VQA and MIMIC-Diff-VQA raw annotation releases. One row per QA sample, flattened across train/val/test with a 'split' field added.",
+    "path": "/path/to/CheXinstruct/compiled/chexinstruct_vqa.json",
+    "filename_variants": ["chexinstruct_vqa.json"]
+  },
+
+  "patient_id": {
+    "_comment": "Not a column in the compiled JSON. Every image_path already follows MIMIC-CXR-JPG's p../p<subject_id>/s<study_id>/<dicom>.jpg layout (Stanford's processors build it from the same mimic-cxr-2.0.0-metadata.csv RadHarmony's own MIMICCXRJPGHarmonizer uses), so subject_id is regex-extracted from image_path rather than joined from elsewhere.",
+    "column": null,
+    "derivation": "regex r'/p(\\d+)/s\\d+/' on image_path -> subject_id, cast to str"
+  },
+
+  "study_id": {
+    "_comment": "Present as Stanford's own study_id field but wrapped, e.g. '[mimic-cxr] [50414267]'. Stripped to the bare numeric id so it matches MIMICCXRJPGHarmonizer's study_id format exactly (both are the plain MIMIC-CXR study_id as a string).",
+    "column": "study_id",
+    "derivation": "regex r'\\[mimic-cxr\\] \\[(\\d+)\\]' on the raw study_id string"
+  },
+
+  "image_path": {
+    "_comment": "Stanford's image_path is 'data/mimic-cxr/files/p../p.../s.../<dicom>.jpg' (a list of one path for MIMIC-Diff-VQA, a plain string for MIMIC-CXR-VQA). Stripping the 'data/mimic-cxr/files/' prefix lands exactly on RadHarmony's existing MIMIC-CXR-JPG base_image_dir -- no new image root needed.",
+    "column": "image_path",
+    "derivation": "unwrap single-element list (MIMIC-Diff-VQA) or use string directly (MIMIC-CXR-VQA)",
+    "prefix_to_strip": "data/mimic-cxr/files/"
+  },
+
+  "labels": {
+    "_comment": "Not applicable -- this is a VQA harmonizer (BaseVQAHarmonizer), not a classification harmonizer. No LABEL_COLS.",
+    "columns": [],
+    "separate_csv": { "path": null, "filename_variants": [], "join_columns": [] },
+    "uncertain_handling": { "nan_action": "keep", "negative_one_action": "keep", "drop_uncertain_rows": false }
+  },
+
+  "view_position": {
+    "_comment": "Not supported/not applicable for this VQA dataset.",
+    "column": null,
+    "source": null,
+    "separate_csv": { "path": null, "filename_variants": [], "join_columns": [] }
+  },
+
+  "masks": { "_comment": "Not applicable.", "supported": false, "column": null, "format": null },
+  "bboxes": { "_comment": "Not applicable.", "supported": false, "column": null },
+  "reports": {
+    "_comment": "Not applicable -- these are QA pairs (question/answer), not reports.",
+    "supported": false, "format": null,
+    "separate_csv": { "path": null, "filename_variants": [], "join_columns": [] },
+    "base_dir": null, "path_column": null
+  },
+
+  "extra_init_params": {
+    "_comment": "VQA-schema-specific fields carried through beyond the BaseVQAHarmonizer core columns, plus constructor-level subset filters.",
+    "question_type": "task_name from the compiled JSON: 'Open-Ended VQA', 'Close-Ended VQA', or 'Difference VQA'.",
+    "answer_struct": "the 'options' dict (e.g. {'yes': true, 'no': false}) present on close-ended rows only; null/absent for open-ended and difference rows.",
+    "data_source": "kept as an EXTRA_OUTPUT_COLS column ('MIMIC-CXR-VQA' or 'MIMIC-Diff-VQA') for provenance.",
+    "question_types": "optional list[str], subset/combination of QUESTION_TYPES to keep; filters before the per-row patient_id/study_id parsing for efficiency on the ~700k-row compiled file.",
+    "data_sources": "optional list[str], subset/combination of DATA_SOURCES to keep.",
+    "source_image_dirs": "optional dict[str, str] mapping data_source -> image root, for per-source roots. base_image_dir is shorthand for one root shared by every source (today's actual case -- both sources are MIMIC-CXR-derived); source_image_dirs takes precedence and is the general form future CheXinstruct families with multiple roots will need."
+  },
+
+  "hu_window": null,
+  "custom_preprocessing": "Requires running scripts/compile_chexinstruct_vqa.py, which runs the vendored processors (unmodified Stanford processor code, CC BY-NC-ND 4.0) on locally-obtained MIMIC-CXR-VQA and MIMIC-Diff-VQA raw releases before this harmonizer has anything to read. See docs/wiki/reference/datasets/vqa-text/chexinstruct_vqa.md for the full data-acquisition steps.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source: compiled/chexinstruct_vqa.json read with pandas (701,458 questions). The table has one row per question, so rows is the question count (D-03). The patient ID comes from the /p<subject_id>/ part of the image path. The two sources made their splits on their own, so the official splits share 2,007 patients: 1,500 are in train and val, 495 in train and test, 10 in val and test, and 2 in all three. 663 of them come from the MIMIC-CXR-VQA split alone (train and val). MIMIC-Diff-VQA alone shares none.",
+    "patients_in_two_splits": 2007,
+    "chexinstruct_vqa_train": {"images": 174218, "studies": 174206, "patients": 51530, "rows": 580166},
+    "chexinstruct_vqa_val": {"images": 9460, "studies": 9460, "patients": 3585, "rows": 99996},
+    "chexinstruct_vqa_test": {"images": 2659, "studies": 2658, "patients": 734, "rows": 21296}
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "_comment": "VQA-RAD. Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+  "dataset_name": "VQA-RAD",
+  "registry_key": "vqa_rad",
+  "modality": "2D",
+  "image_format": "JPG",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Source: VQA_RAD Dataset Public.json read with pandas (2,248 questions). The table has one row per question, so rows is the question count (D-03). phrase_type test_freeform and test_para (451 questions) are the test set, the others are train. The source has no patient ID, so patient_id is the image name. The paper made the test set on the same images: 202 of the 203 test images also have train questions.",
+    "patients_in_two_splits": 202,
+    "vqa_rad_train": {
+      "images": 313,
+      "studies": 313,
+      "patients": 313,
+      "rows": 1797
+    },
+    "vqa_rad_test": {
+      "images": 203,
+      "studies": 203,
+      "patients": 203,
+      "rows": 451
+    }
+  }
+}

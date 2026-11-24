@@ -1,25 +1,27 @@
-"""Harmonizer for the 687-study MIMIC-CXR-JPG independently-labeled test set."""
+"""Harmonizer for the MIMIC-CXR-JPG independently-labeled test set (685 studies)."""
 
 import pandas as pd
 
+from .._labels import chexpert_codes
 from .mimic_cxr_jpg import MIMICCXRJPGHarmonizer
 
 
 class MIMICCXRJPGTestHarmonizer(MIMICCXRJPGHarmonizer):
-    """MIMIC-CXR-JPG harmonizer for the 687-study labeled test set.
+    """MIMIC-CXR-JPG harmonizer for the labeled test set.
 
-    Uses the independently-labeled CSV ``mimic-cxr-2.1.0-test-set-labeled.csv``
-    (PhysioNet) instead of ``mimic-cxr-2.0.0-chexpert.csv``.  The test CSV has
-    only ``study_id`` (no ``subject_id``) and uses ``"Airspace Opacity"`` for
-    what the standard CheXpert labels call ``"Lung Opacity"``; both quirks
-    are normalised here so the harmonized DataFrame exposes the same
-    LABEL_COLS as the train variant.
+    The label file has 687 studies. 2 of them (54107786, 58592606) have no
+    JPG in the metadata file, so the inner merge gives 685 studies.
 
-    Unlike the train harmonizer, this defaults to ``drop_uncertain=False`` —
-    a fixed evaluation set should keep every labeled study so test metrics
-    match the published numbers.  ``-1`` (uncertain) values are preserved
-    as-is in the harmonized DataFrame; downstream code can apply U-Zeros /
-    U-Ones / U-Ignore depending on the convention being reproduced.
+    It uses the independently labeled CSV ``mimic-cxr-2.1.0-test-set-labeled.csv``
+    (PhysioNet) instead of ``mimic-cxr-2.0.0-chexpert.csv``. The test CSV has
+    only ``study_id`` (no ``subject_id``). It calls ``"Lung Opacity"`` by the
+    name ``"Airspace Opacity"``. The code fixes both, so the table has the
+    same LABEL_COLS as the train variant.
+
+    The default is ``drop_uncertain=False``, unlike the train harmonizer. A
+    fixed test set keeps every labeled study, so the metrics match the
+    published numbers. ``-1`` (uncertain) values stay as they are. Later code
+    can apply U-Zeros, U-Ones or U-Ignore.
 
     Args:
         csv_path: Path to ``mimic-cxr-2.0.0-metadata.csv``.
@@ -33,16 +35,8 @@ class MIMICCXRJPGTestHarmonizer(MIMICCXRJPGHarmonizer):
         return super().harmonize(*args, drop_uncertain=drop_uncertain, **kwargs)
 
     def _preprocess_label_df(self, label_df: pd.DataFrame) -> pd.DataFrame:
-        # The test CSV uses "Airspace Opacity"; rename to the canonical
-        # "Lung Opacity" used by the standard CheXpert label set.
+        # The test CSV says "Airspace Opacity". CheXpert says "Lung Opacity".
         label_df = label_df.rename(columns={"Airspace Opacity": "Lung Opacity"})
-        # Blanks (not-mentioned) → 0 (negative); preserve -1 (uncertain).
-        # This differs from the train harmonizer, which converts -1 → NaN
-        # so it can be dropped — for test-set evaluation we keep -1 visible.
-        label_df = label_df.fillna(0.0)
-        if self.drop_uncertain:
-            # Opt-in: drop any row carrying at least one -1 across labels.
-            label_cols = [c for c in label_df.columns if c != "study_id"]
-            label_df = label_df[~(label_df[label_cols] == -1).any(axis=1)]
+        label_df = chexpert_codes(label_df, self.LABEL_COLS, self.not_mentioned, self.drop_uncertain)
         label_df["study_id"] = label_df["study_id"].astype(str)
         return label_df

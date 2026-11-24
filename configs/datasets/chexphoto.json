@@ -1,0 +1,172 @@
+{
+  "_comment": "CheXphoto (Phillips et al., ML4H 2020, arXiv:2007.06199) — Stanford AIMI dataset benchmarking robustness to smartphone/synthetic photography artifacts on chest x-rays. Source x-rays sampled from CheXpert; labels inherited unchanged (14 CheXpert observations, 1/0/-1/blank semantics). Distributed via Stanford Redivis dataset 2qwg-aav2k243j v1.0 as 33,225 JPEGs + train.csv (32,521 rows) + valid.csv (702 rows). Test set is WITHHELD (CodaLab only) — do not wire it. Verified against the Redivis v1.0 distribution. Three things differ from a plain CheXpert clone and each fails silently: (1) column names use UNDERSCORES not CheXpert's spaces/slash, (2) Path DOES carry a 'CheXphoto-v1.0/<split>/' prefix that must be stripped, (3) there is NO film subset. Measured composition — train: natural/{iphone:1,000, nokia:10,507} + synthetic/{digital:10,507, photographic:10,507} = 32,521 imgs / 3,000 patients; valid: natural/oneplus:234 + synthetic/{digital:234, photographic:234} = 702 imgs / 200 patients. Same patient recurs across natural and synthetic renderings of the SAME source x-ray — split by patient_id, never by row. Tree: <split>/<method>/<device_or_transform>/patient<NNNNN>/study<N>/view<N>_<view>.jpg. Implemented as CheXphotoHarmonizer + chexphoto/chexphoto_train/chexphoto_valid.",
+  "dataset_name": "CheXphoto",
+  "registry_key": "chexphoto",
+  "modality": "2D",
+  "image_format": "JPEG",
+  "base_image_dir": "<split root containing natural/ and synthetic/, e.g. <DATA_ROOT>/CheXphoto/>",
+  "primary_csv": {
+    "_comment": "One CSV per split, 19 cols = Path + Sex + Age + Frontal_Lateral + AP_PA + 14 label cols. VERIFIED row counts: train.csv=32,521, valid.csv=702. NOTE the header uses UNDERSCORES (Frontal_Lateral, AP_PA, No_Finding, Pleural_Effusion, Support_Devices, ...) — NOT CheXpert's 'Frontal/Lateral' / 'No Finding'. Subclassing CheXpertHarmonizer without a rename map therefore silently fails to match any multi-word label column. See CheXphotoHarmonizer.COL_MAP.",
+    "path": "<DATA_ROOT>/CheXphoto/train.csv or valid.csv",
+    "filename_variants": [
+      "train.csv",
+      "valid.csv"
+    ]
+  },
+  "patient_id": {
+    "_comment": "VERIFIED: extract the 'patient<NNNNN>' segment by REGEX, not by index. CheXpert reads Path.split('/')[2], but CheXphoto inserts two extra segments (<method>/<device>), so index 2 is the SUBSET — the inherited CheXpert builder yields patient_id='synthetic' for every row, which silently destroys patient-level splitting. 3,000 patients in train, 200 in valid.",
+    "column": null,
+    "derivation": "re.search(r'patient\\d+', Path) — position varies by subset; never index."
+  },
+  "study_id": {
+    "_comment": "f'{patient_id}_{study_segment}' where study_segment is the 'study<N>' path element. Same convention as CheXpert.",
+    "column": null,
+    "derivation": "f'{patient_segment}_{study_segment}' parsed from Path."
+  },
+  "image_path": {
+    "_comment": "VERIFIED: the Path column DOES carry a 'CheXphoto-v1.0/<split>/' prefix that the downloaded tree does NOT have (Redivis ships train and valid as separate file-index tables, so the split segment is implicit). Strip the first TWO segments — '/'.join(x.split('/')[2:]) — same convention as CheXpert. Verified 32,521/32,521 train and 702/702 valid images resolve on disk after stripping. Getting this wrong yields a dataset where every single image fails to load.",
+    "column": "Path",
+    "derivation": null,
+    "prefix_to_strip": "CheXphoto-v1.0/<split>/ (strip first 2 path segments)"
+  },
+  "labels": {
+    "_comment": "Same 14 CheXpert observations, same 1/0/-1/blank semantics, but CSV headers are UNDERSCORED (No_Finding, Pleural_Effusion, Enlarged_Cardiomediastinum, Lung_Opacity, Lung_Lesion, Pleural_Other, Support_Devices). VERIFIED: there is NO film subset and valid.csv has ZERO missing label values, so the paper's note about film rows carrying only 5 valid labels does not apply to v1.0. AP_PA IS null on 96 valid rows (lateral views) — CheXpertHarmonizer._build_labels calls dropna() on the WHOLE frame under drop_uncertain, which would drop those rows for an unrelated NaN; CheXphotoHarmonizer overrides it to restrict the drop to label columns.",
+    "columns": [
+      "Atelectasis",
+      "Cardiomegaly",
+      "Consolidation",
+      "Edema",
+      "Enlarged_Cardiomediastinum",
+      "Fracture",
+      "Lung_Lesion",
+      "Lung_Opacity",
+      "No_Finding",
+      "Pleural_Effusion",
+      "Pleural_Other",
+      "Pneumonia",
+      "Pneumothorax",
+      "Support_Devices"
+    ],
+    "separate_csv": {
+      "_comment": "Labels are in the primary CSV (train.csv / valid.csv), same as CheXpert.",
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "uncertain_handling": {
+      "_comment": "Match CheXpert defaults (D-05): a blank (NaN) -> 0, -1 stays -1, and drop_uncertain=True drops the rows with -1. Measured effect: train 32,521 -> 20,034 rows; valid 702 -> 702 (no uncertain labels in valid at all). Note this is complete-case deletion and removes exactly the borderline cases a robustness study may care about.",
+      "nan_action": "to_zero",
+      "negative_one_action": "keep",
+      "drop_uncertain_rows": true
+    }
+  },
+  "view_position": {
+    "_comment": "AP_PA column (underscore, not 'AP/PA'). Null on 96 of 702 valid rows = lateral views; A lateral row gives LATERAL, and a frontal row with LL gives NaN (CheXpertHarmonizer, Q-13).",
+    "column": "AP_PA",
+    "source": "csv",
+    "separate_csv": {
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    }
+  },
+  "masks": {
+    "_comment": "No segmentation masks in CheXphoto.",
+    "supported": false,
+    "column": null,
+    "format": null
+  },
+  "bboxes": {
+    "_comment": "No bounding boxes in CheXphoto.",
+    "supported": false,
+    "column": null
+  },
+  "reports": {
+    "_comment": "No radiology reports (labels only, inherited from CheXpert; reports themselves not redistributed).",
+    "supported": false,
+    "format": null,
+    "separate_csv": {
+      "_comment": null,
+      "path": null,
+      "filename_variants": [],
+      "join_columns": []
+    },
+    "base_dir": null,
+    "path_column": null
+  },
+  "extra_init_params": {
+    "_comment": "subset: str = 'all' | 'natural' | 'synthetic' — filters on the first path segment after the stripped prefix. NO 'film' option: verified 0 paths match /film/i in either split. Measured: train natural=11,507 / synthetic=21,014."
+  },
+  "hu_window": null,
+  "custom_preprocessing": "Subclass CheXpertHarmonizer but override THREE things (all verified necessary): a COL_MAP rename for the underscored headers; _build_patient_id/_build_study_id to regex out 'patient<NNNNN>' instead of indexing (index 2 is the subset here); and _build_labels to restrict drop_uncertain's dropna to label columns. Registered as chexphoto / chexphoto_train / chexphoto_valid. NOTE for the dataset class: CheXpertDataset hardcodes CheXpertHarmonizer in its own __init__ rather than reading _HARMONIZER_CLS, so the subclass must overwrite self._harmonizer AFTER super().__init__. Do NOT instead pass harmonizer= to super() — that routes through _sync_label_cols_from_harmonizer, which treats every column outside a fixed allow-list as a label and sweeps the string-valued subset/capture_method extras into LABEL_COLS. Test split is WITHHELD (CodaLab) — do NOT register a test class.",
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py, with the default drop_uncertain=True. Written on 2026-11-03. Sources: the paper (Phillips et al., ML4H 2020, arXiv:2007.06199) and train.csv (32,521 rows, 3,000 patients) and valid.csv (702 rows, 200 patients) of the Redivis v1.0 download, read with pandas. Policy (as the CheXphoto harmonizer, a CheXpert subclass): a blank label is 0, a row with every label blank stays NaN (D-05), and a row with -1 in any label is dropped. No row has every label blank, so uncertain is empty. valid.csv has no -1. patient_id is the patient<N> part of Path, and study_id is patient_id + '_' + the study<N> part. The same X-ray is in the table several times (natural and synthetic copies), so images is larger than studies. Sex is Male or Female (D-26). age_years is Age in years. The test split is withheld by the authors (CodaLab), so it has no key.",
+    "patients_in_two_splits": 0,
+    "chexphoto_train": {
+      "images": 20034,
+      "studies": 5484,
+      "patients": 2279,
+      "positives": {
+        "atelectasis": 3445,
+        "cardiomegaly": 2540,
+        "consolidation": 1190,
+        "edema": 5394,
+        "enlarged_cardiomediastinum": 1081,
+        "fracture": 853,
+        "lung_lesion": 855,
+        "lung_opacity": 8122,
+        "no_finding": 3009,
+        "pleural_effusion": 8322,
+        "pleural_other": 282,
+        "pneumonia": 535,
+        "pneumothorax": 2296,
+        "support_devices": 10860
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {
+        "F": 7351,
+        "M": 12683
+      },
+      "age_years": [
+        18,
+        90
+      ]
+    },
+    "chexphoto_valid": {
+      "images": 702,
+      "studies": 200,
+      "patients": 200,
+      "positives": {
+        "atelectasis": 240,
+        "cardiomegaly": 204,
+        "consolidation": 99,
+        "edema": 135,
+        "enlarged_cardiomediastinum": 327,
+        "fracture": 0,
+        "lung_lesion": 3,
+        "lung_opacity": 378,
+        "no_finding": 114,
+        "pleural_effusion": 201,
+        "pleural_other": 3,
+        "pneumonia": 24,
+        "pneumothorax": 24,
+        "support_devices": 321
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {
+        "F": 318,
+        "M": 384
+      },
+      "age_years": [
+        18,
+        90
+      ]
+    }
+  }
+}

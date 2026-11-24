@@ -2,13 +2,16 @@
 
 Uses ``google/siglip2-so400m-patch16-384`` by default. SigLIP 2 adds a
 multi-positive contrastive objective and multilingual training on top of
-SigLIP v1 — stronger zero-shot classification and retrieval at the cost of
-a slightly larger eval input (384 × 384, patch 16 → 24 × 24 grid).
+SigLIP v1. It gives stronger zero-shot classification and retrieval, at the
+cost of a slightly larger eval input (384 × 384, patch 16 → 24 × 24 grid).
 
 Accepts any format supported by MONAI's ``LoadImage`` (PNG, JPEG, DICOM,
-NIfTI, …). Images are min-max normalized to uint8 and passed through
-``AutoProcessor`` (resize to ``image_size × image_size`` and
-``(0.5, 0.5, 0.5)`` normalization handled by the processor).
+NIfTI, …). 
+The loader gives the image as the dataset load shows it, in 0 to 255
+(D-13, D-27). A DICOM file gets its VOI window, and an 8-bit image keeps
+its values. Any other image is scaled with its minimum and maximum. Then
+``AutoProcessor`` resizes it to ``image_size × image_size`` and normalizes it
+with ``(0.5, 0.5, 0.5)``.
 
 Requires the ``siglip2`` extra::
 
@@ -25,7 +28,7 @@ Requires the ``siglip2`` extra::
 #
 # SigLIP / SigLIP 2 use an attention-pool head and have **no CLS token**:
 # ``last_hidden_state`` is already pure patch tokens. Do NOT slice ``[:, 1:]``
-# — that would drop a real patch.
+# (that would drop a real patch).
 #
 # The patch grid is read dynamically from
 # ``model.config.vision_config.image_size // model.config.vision_config.patch_size``
@@ -41,10 +44,26 @@ import monai.transforms as mt
 
 from radharmony.evaluator.transforms import EncoderPreprocessTransform, RadiologyEncoderTransform
 from radharmony.evaluator.wrappers import ImageEncoderWrapper
-from ._utils import squeeze_frame_dim, to_3channel, normalize_to_uint8, patches_to_spatial
+from ._utils import display_255, load_image, squeeze_frame_dim, to_3channel, to_uint8, patches_to_spatial
 
 
 _SIGLIP2_HUB = "google/siglip2-so400m-patch16-384"
+
+
+def _lowercase_text(processor) -> None:
+    """Make the processor lowercase text before it tokenizes, as in SigLIP 2 training.
+
+    The hub checkpoint loads a plain ``GemmaTokenizer``, which keeps capitals.
+    transformers' own ``Siglip2Tokenizer`` adds the same ``Lowercase`` step
+    ("SigLIP2 training default: lowercase normalization").
+    """
+    from tokenizers import normalizers  # type: ignore[import-untyped]
+
+    backend = processor.tokenizer.backend_tokenizer
+    if backend.normalizer is None:
+        backend.normalizer = normalizers.Lowercase()
+    else:
+        backend.normalizer = normalizers.Sequence([normalizers.Lowercase(), backend.normalizer])
 
 
 def make_siglip2(
@@ -55,15 +74,15 @@ def make_siglip2(
 ) -> tuple[mt.Compose, ImageEncoderWrapper, Callable[[torch.Tensor], torch.Tensor], Any]:
     """Return ``(transform, image_encoder, text_encoder, processor)`` for SigLIP 2.
 
-    A single ``SiglipModel`` instance is created and shared: the processor is
-    captured in the transform's preprocess closure, the vision tower is used
-    by the returned ``ImageEncoderWrapper``, and the text tower is captured
+    A single ``SiglipModel`` instance is created and shared. The processor is
+    captured in the transform's preprocess closure. The vision tower is used
+    by the returned ``ImageEncoderWrapper``. The text tower is captured
     in the text-encoder closure. No weights are loaded twice.
 
     Parameters
     ----------
     device :
-        Target device for the encoder (e.g. ``"cuda"``, ``"cuda:7"``,
+        Target device for the encoder (for example ``"cuda"``, ``"cuda:7"``,
         ``"cpu"``). The transform's preprocess step runs on CPU in
         DataLoader workers regardless of this setting.
     hub :
@@ -73,9 +92,9 @@ def make_siglip2(
     output_keys :
         Keys to keep in each sample dict. Defaults to ``{"img", "cls"}``.
         Pass ``{"img", "mask"}`` or ``{"img", "cls", "mask"}`` for
-        segmentation — the mask is processed through the same spatial
+        segmentation. The mask is processed through the same spatial
         pipeline as the image (processor resize + crop to
-        ``image_size × image_size``) using nearest-neighbour interpolation.
+        ``image_size × image_size``) using nearest-neighbor interpolation.
 
     dtype :
         Output tensor dtype set by the final ``ToTensorD``. Defaults to
@@ -91,22 +110,23 @@ def make_siglip2(
         the ``transform=`` kwarg.
     image_encoder : ImageEncoderWrapper
         Classification mode (default): ``forward(x) -> Tensor[B, 1152]``
-        — the attention-pooled embedding from ``vision_model.pooler_output``.
+        Returns the attention-pooled embedding from ``vision_model.pooler_output``.
         For non-default variants ``D`` matches ``vision_config.hidden_size``
-        (e.g. 768 for ``siglip2-base-patch16-224``).
+        (for example 768 for ``siglip2-base-patch16-224``).
 
         Segmentation mode (``"mask"`` in *output_keys*):
-        ``forward(x) -> Tensor[B, D, H, W]`` — spatial patch feature map.
+        ``forward(x) -> Tensor[B, D, H, W]``, spatial patch feature map.
         For the default so400m-patch16-384: ``[B, 1152, 24, 24]``. ``H = W
         = image_size // patch_size`` is read from the model config so
         variant swaps work automatically.
     text_encoder : callable
-        ``(token_dict) -> Tensor[T, 1152]`` — encodes tokenized text on
+        ``(token_dict) -> Tensor[T, 1152]``, encodes tokenized text on
         ``device`` and returns float32 on CPU. Pass to
         ``ZeroShotEvaluator(text_encoder=...)``.
     processor : SiglipProcessor
         Pass to ``ZeroShotEvaluator(tokenizer=...)`` for text tokenization.
-        SigLIP 2 uses a 64-token max length by default.
+        SigLIP 2 uses a 64-token max length by default. The processor
+        lowercases the text, as in the SigLIP 2 training.
 
     Example
     -------
@@ -130,14 +150,16 @@ def make_siglip2(
     # ── Load model (single instance shared by transform + encoders) ───────────
     _model = AutoModel.from_pretrained(hub).to(device).eval()
     _processor = AutoProcessor.from_pretrained(hub)
+    _lowercase_text(_processor)
 
     # ── MONAI loader (handles PNG, JPEG, DICOM, NIfTI, …) ─────────────────────
     _loader = mt.Compose([
-        mt.LoadImage(image_only=True, ensure_channel_first=True),
+        load_image(),
         mt.Lambda(squeeze_frame_dim),
         mt.Transpose(indices=[0, 2, 1]),
+        mt.Lambda(display_255),
         mt.Lambda(to_3channel),
-        mt.Lambda(normalize_to_uint8),
+        mt.Lambda(to_uint8),
     ])
     _loader_mask = mt.Compose([
         mt.LoadImage(image_only=True, ensure_channel_first=True),
@@ -159,7 +181,7 @@ def make_siglip2(
         )
         return out["pixel_values"][0, :1]
 
-    # ── Model call (Option B — direct vision_model access) ────────────────────
+    # ── Model call (Option B, direct vision_model access) ────────────────────
     _seg_mode = output_keys is not None and "mask" in output_keys
 
     if _seg_mode:
@@ -171,7 +193,7 @@ def make_siglip2(
         def _model_call(m, x: torch.Tensor) -> torch.Tensor:
             return m.vision_model(pixel_values=x).pooler_output         # [B, D]
 
-    # ── Text encoder (Option B parallel — direct text_model access) ───────────
+    # ── Text encoder (Option B parallel, direct text_model access) ───────────
     def _text_encoder(token_dict) -> torch.Tensor:
         with torch.no_grad():
             return _model.text_model(
@@ -179,7 +201,7 @@ def make_siglip2(
             ).pooler_output.float().cpu()
 
     # ── Assemble transform + encoder ──────────────────────────────────────────
-    pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess)
+    pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess, processor=_processor)
     transform = (
         RadiologyEncoderTransform(
             preprocess=pp,

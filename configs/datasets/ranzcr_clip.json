@@ -107,5 +107,35 @@
   },
 
   "hu_window": null,
-  "custom_preprocessing": "Polyline rasterization: each annotation row's 'data' column is a stringified list of [x, y] pairs. Aggregate per StudyInstanceUID into a JSON list-of-lists, store in mask_path. _decode_mask uses cv2.polylines(img, [pts], isClosed=False, color=1, thickness=mask_line_thickness) to draw each polyline onto a zero (H, W) mask. Train rows from train.csv have split='train'; test rows are listed by directory walk over <base>/test/ with split='test' and NaN labels. EXTRA_OUTPUT_COLS=['split'] preserves the split column on the harmonized output."
+  "custom_preprocessing": "Polyline rasterization: each annotation row's 'data' column is a stringified list of [x, y] pairs. Aggregate per StudyInstanceUID into a JSON list-of-lists, store in mask_path. _decode_mask uses cv2.polylines(img, [pts], isClosed=False, color=1, thickness=mask_line_thickness) to draw each polyline onto a zero (H, W) mask. Train rows from train.csv have split='train'; test rows are listed by directory walk over <base>/test/ with split='test' and NaN labels. EXTRA_OUTPUT_COLS=['split'] preserves the split column on the harmonized output.",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: train.csv, train_annotations.csv and the test/ folder, read with pandas and os.listdir. train.csv has 30,083 images of 3,255 patients, with no blank label. 9,095 train images have at least one polyline in train_annotations.csv. test/ has 3,582 JPEGs, the same IDs as sample_submission.csv. Kaggle gives no labels and no patient ID for them, so patient_id is the image ID and the patient check cannot see a shared patient.",
+    "patients_in_two_splits": 0,
+    "ranzcr_clip_train": {
+      "images": 30083,
+      "studies": 30083,
+      "patients": 3255,
+      "positives": {
+        "cvc_abnormal": 3195, "cvc_borderline": 8460, "cvc_normal": 21324,
+        "ett_abnormal": 79, "ett_borderline": 1138, "ett_normal": 7240,
+        "ngt_abnormal": 279, "ngt_borderline": 529, "ngt_incompletely_imaged": 2748,
+        "ngt_normal": 4797, "swan_ganz_catheter_present": 830
+      },
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 9095,
+      "rows_with_report": 0
+    },
+    "ranzcr_clip_test": {
+      "images": 3582,
+      "studies": 3582,
+      "patients": 3582,
+      "positives": {},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0
+    }
+  }
 }

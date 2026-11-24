@@ -1,0 +1,1494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RadHarmony Evaluation Pipeline</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6b6a65;
+  --line: #e1e0d9;
+  --ring: rgba(11, 11, 11, 0.10);
+  --accent: #2a78d6;
+  --accent-soft: #e3eefc;
+  --on-accent: #ffffff;
+  --p1: #2a78d6;
+  --p2: #eb6834;
+  --p3: #1baf7a;
+  --p1-soft: #e8f1fc;
+  --p2-soft: #fdeee7;
+  --p3-soft: #e4f6ef;
+  --sev-medium: #256abf;
+  --sev-low: #86b6ef;
+  --ok: #006300;
+  --bad: #d03b3b;
+  --code-bg: #f0efec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #262624;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --line: #2c2c2a;
+    --ring: rgba(255, 255, 255, 0.10);
+    --accent: #3987e5;
+    --accent-soft: #1b2a3d;
+    --on-accent: #0d0d0d;
+    --p1: #3987e5;
+    --p2: #d95926;
+    --p3: #199e70;
+    --p1-soft: #18222f;
+    --p2-soft: #2d1d16;
+    --p3-soft: #142720;
+    --sev-medium: #86b6ef;
+    --sev-low: #2a78d6;
+    --ok: #0ca30c;
+    --bad: #e66767;
+    --code-bg: #232321;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #262624;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --line: #2c2c2a;
+  --ring: rgba(255, 255, 255, 0.10);
+  --accent: #3987e5;
+  --accent-soft: #1b2a3d;
+  --on-accent: #0d0d0d;
+  --p1: #3987e5;
+  --p2: #d95926;
+  --p3: #199e70;
+  --p1-soft: #18222f;
+  --p2-soft: #2d1d16;
+  --p3-soft: #142720;
+  --sev-medium: #86b6ef;
+  --sev-low: #2a78d6;
+  --ok: #0ca30c;
+  --bad: #e66767;
+  --code-bg: #232321;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a { color: var(--accent); }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; line-height: 1.25; }
+h2 { font-size: 1.25rem; margin: 28px 0 10px; }
+h3 { font-size: 1.05rem; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+ul, ol { padding-left: 22px; margin: 8px 0; }
+li { margin: 3px 0; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 22px 0 10px; }
+.sub { color: var(--ink-2); margin: 0; }
+.toprow { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 0.9rem; cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.btn:focus-visible, .part-card a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+nav.tabs {
+  position: sticky; top: 0; z-index: 5; background: var(--bg);
+  border-bottom: 1px solid var(--line); margin-top: 8px;
+}
+.tablist { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+.tab {
+  background: none; border: none; border-bottom: 2px solid transparent; color: var(--ink-2);
+  padding: 10px 12px; font: inherit; font-size: 0.92rem; cursor: pointer; white-space: nowrap;
+}
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+main { padding: 8px 0 60px; }
+section.panel { display: none; scroll-margin-top: 52px; }
+section.panel.active { display: block; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+}
+.grid { display: grid; gap: 12px; }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 860px) { .g3, .g5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .g3, .g2, .g5 { grid-template-columns: minmax(0, 1fr); } }
+
+.part-card { border-top: 4px solid var(--p1); }
+.part-card.p2 { border-top-color: var(--p2); }
+.part-card.p3 { border-top-color: var(--p3); }
+.part-card h3 { margin-top: 0; }
+.part-card h3 a { color: var(--ink); text-decoration: none; }
+.part-card h3 a:hover { text-decoration: underline; }
+.part-card h3 a::after { content: " \2192"; color: var(--accent); }
+.kv { color: var(--ink-2); font-size: 0.9rem; }
+.kv b { color: var(--ink); font-weight: 600; }
+
+.tile .num { font-size: 1.9rem; font-weight: 650; line-height: 1.1; }
+.tile .lbl { color: var(--ink-2); font-size: 0.88rem; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; font-size: 0.85rem; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.tablewrap table tr:last-child td { border-bottom: none; }
+td.term { white-space: nowrap; font-weight: 600; }
+
+.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 8px 12px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+  border-radius: 999px; padding: 1px 9px; font-size: 0.8rem; color: var(--ink-2); background: var(--surface);
+  white-space: nowrap;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--muted); }
+
+/* Flow diagram */
+.flow-layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1140px) { .flow-layout { grid-template-columns: minmax(0, 1fr); } }
+.diagram-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 6px; }
+.diagram-wrap svg { display: block; min-width: 720px; width: 100%; height: auto; }
+.lane { stroke: none; }
+.lane1 { fill: var(--p1-soft); } .lane2 { fill: var(--p2-soft); } .lane3 { fill: var(--p3-soft); }
+.lane-label { font-size: 12px; font-weight: 600; fill: var(--ink-2); }
+.node { cursor: pointer; outline: none; }
+.node rect { fill: var(--surface); stroke-width: 1.5; }
+.node.l1 rect { stroke: var(--p1); } .node.l2 rect { stroke: var(--p2); } .node.l3 rect { stroke: var(--p3); }
+.node.kn rect { stroke: var(--muted); stroke-dasharray: 4 3; }
+.node text { font-size: 12.5px; fill: var(--ink); text-anchor: middle; pointer-events: none; }
+.node:hover rect { stroke-width: 2.5; }
+.node.sel rect { stroke-width: 3.5; fill: var(--surface-2); }
+.node:focus-visible rect { stroke: var(--ink); stroke-width: 3; }
+.edge { fill: none; stroke: var(--muted); stroke-width: 1.6; }
+.edge.dash { stroke-dasharray: 5 4; }
+.edge-label { font-size: 11px; fill: var(--ink-2); }
+.detail { position: sticky; top: 56px; }
+.detail h3 { margin: 0 0 2px; }
+.detail .when { color: var(--ink-2); font-size: 0.88rem; margin-bottom: 8px; }
+.detail .files code { display: inline-block; margin: 2px 4px 2px 0; }
+.stepper { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+.stepcount { color: var(--ink-2); font-size: 0.88rem; }
+
+/* Journey */
+.journey { list-style: none; padding: 0; margin: 0; position: relative; }
+.journey li { position: relative; padding: 0 0 4px 34px; margin: 0; }
+.journey li::before {
+  content: ""; position: absolute; left: 11px; top: 26px; bottom: -2px; width: 2px; background: var(--line);
+}
+.journey li:last-child::before { display: none; }
+.jbtn {
+  width: 100%; text-align: left; background: none; border: none; color: var(--ink); font: inherit;
+  padding: 6px 0; cursor: pointer; display: flex; gap: 8px; align-items: baseline;
+}
+.jbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.jbtn .n {
+  position: absolute; left: 0; top: 6px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--line); font-size: 0.78rem; display: grid; place-items: center; font-weight: 600;
+}
+.journey li.done .n { border-color: var(--accent); }
+.journey li.open .n { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.jbtn .t { font-weight: 600; }
+.jbtn .who { color: var(--ink-2); font-size: 0.85rem; }
+.jbody { display: none; padding: 2px 0 12px; }
+.journey li.open .jbody { display: block; }
+
+/* Checks */
+.runpick { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+tr.off td { opacity: 0.45; }
+tr.off td.runcell { opacity: 1; }
+.runcell { font-size: 0.85rem; }
+.yes { color: var(--ok); font-weight: 600; }
+.no { color: var(--muted); }
+
+.sim { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 700px) { .sim { grid-template-columns: minmax(0, 1fr); } }
+.sim label { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.result { font-weight: 650; font-size: 1.05rem; }
+.result.pass { color: var(--ok); }
+.result.fail { color: var(--bad); }
+
+/* Accordion */
+details.acc { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin: 8px 0; }
+details.acc > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; list-style: none; display: flex; gap: 10px; align-items: baseline; }
+details.acc > summary::-webkit-details-marker { display: none; }
+details.acc > summary::before { content: "+"; color: var(--muted); width: 12px; flex: none; }
+details.acc[open] > summary::before { content: "\2212"; }
+details.acc > .body { padding: 0 14px 12px 36px; }
+details.acc > .tablewrap { margin: 0 12px 12px; }
+.sn { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+/* Decisions list */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0 12px; }
+input[type="search"] {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px;
+  padding: 6px 10px; font: inherit; font-size: 0.9rem; min-width: 0; width: 220px; max-width: 100%;
+}
+.dlist { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
+.ditem { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; }
+.ditem .id { font-weight: 650; font-variant-numeric: tabular-nums; margin-right: 6px; }
+.ditem .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.st-decided .dot { background: var(--accent); }
+.st-planned .dot { background: var(--p2); }
+.st-code .dot { background: var(--muted); }
+
+/* Chart */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.88rem; color: var(--ink-2); margin: 4px 0 10px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; vertical-align: -1px; margin-right: 6px; }
+.bars { display: grid; gap: 8px; }
+.brow { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 10px; align-items: center; }
+@media (max-width: 560px) { .brow { grid-template-columns: 110px minmax(0, 1fr); } .brow .bl { font-size: 0.8rem; } }
+.bl { font-size: 0.88rem; color: var(--ink-2); text-align: right; }
+.track { display: flex; align-items: center; height: 22px; border-left: 1px solid var(--muted); }
+.seg { height: 18px; margin-right: 2px; cursor: default; }
+.seg.end { border-radius: 0 4px 4px 0; }
+.seg.medium { background: var(--sev-medium); }
+.seg.low { background: var(--sev-low); }
+.tot { font-size: 0.82rem; color: var(--ink-2); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.seg:hover, .seg:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+#tip {
+  position: fixed; z-index: 20; pointer-events: none; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); box-shadow: 0 4px 16px var(--ring); border-radius: 8px;
+  padding: 6px 10px; font-size: 0.85rem; display: none; max-width: 260px;
+}
+
+/* Timeline */
+.tl { list-style: none; padding: 0; margin: 0; }
+.tl li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.tl li:last-child { border-bottom: none; }
+.tl .d { color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: 0.88rem; }
+@media (max-width: 480px) { .tl li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+.check-list { list-style: none; padding: 0; }
+.check-list li { padding-left: 26px; position: relative; }
+.check-list li::before { position: absolute; left: 4px; font-weight: 700; }
+.check-list.done li::before { content: "\2713"; color: var(--ok); }
+.check-list.todo li::before { content: "\25CB"; color: var(--muted); }
+.muted { color: var(--muted); }
+footer { color: var(--muted); font-size: 0.82rem; padding: 20px 0 40px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="toprow">
+      <div>
+        <h1>RadHarmony evaluation pipeline</h1>
+        <p class="sub">From the code you write to the report and the fix, end to end. Branch <code>v0.2-dev</code>, 2026-10-28. Built, tested and committed.</p>
+      </div>
+      <button class="btn" id="themeBtn" type="button" title="Change the color theme">Theme: auto</button>
+    </div>
+  </header>
+</div>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap">
+    <div class="tablist" role="tablist" id="tablist"></div>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ================= Overview ================= -->
+<section class="panel" id="overview" role="tabpanel" aria-labelledby="tab-overview">
+  <h2>In one minute</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-top:0">The problem</h3>
+      <p>The wiki had about 380 code blocks, and nothing ran them. The repo had no linter, no style check for prose and no guard for base-code edits.</p>
+      <p>A one-time audit on 2026-10-27 found <b>126 findings</b> (about 118 different bugs), each with proof: 6 high, 63 medium, 57 low.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">The goal</h3>
+      <ul>
+        <li>Find bugs with proof: a command and its output.</li>
+        <li>Keep the docs true to the code.</li>
+        <li>Turn each mistake into a check, so that it cannot come back.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>3 parts</h2>
+  <p>Before the 3 parts, an agent writes the code. For a new dataset, the <code>add-dataset</code> skill does this (tab <a href="#dataset" data-go="dataset">Add a dataset</a>).</p>
+  <div class="grid g3">
+    <div class="card part-card">
+      <h3><a href="#checks" data-go="checks">1. Automatic checks</a></h3>
+      <p><code>scripts/evalkit/run_all.py</code></p>
+      <p class="kv"><b>When:</b> each commit, CI, and inside <code>/evaluate</code></p>
+      <p class="kv"><b>Who:</b> the computer, no agent</p>
+      <p class="kv"><b>You get:</b> pass or fail</p>
+    </div>
+    <div class="card part-card p2">
+      <h3><a href="#evaluate" data-go="evaluate">2. /evaluate</a></h3>
+      <p>a 3-part review with proof</p>
+      <p class="kv"><b>When:</b> each branch, or the whole repo before a release (<code>--full</code>)</p>
+      <p class="kv"><b>Who:</b> the main agent and up to 27 other agents</p>
+      <p class="kv"><b>You get:</b> a report, open questions and lessons</p>
+    </div>
+    <div class="card part-card p3">
+      <h3><a href="#fix" data-go="fix">3. /fix &lt;finding ids&gt;</a></h3>
+      <p>a failing test first, then the fix</p>
+      <p class="kv"><b>When:</b> after a maintainer picks the findings to fix</p>
+      <p class="kv"><b>Who:</b> the main agent</p>
+      <p class="kv"><b>You get:</b> fixed code or docs, each with a new test</p>
+    </div>
+  </div>
+
+  <h2>What the agents compare the code with</h2>
+  <p>2 main files. The tab "The flow" (last box) lists all of them.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-top:0"><code>eval/RULES.md</code></h3>
+      <p>Rules with a check (L-001 to L-007, B-001, STE, ruff, BLOCK, CLAIM), and judgement rules J-01 to J-12 for the rules reviewer.</p>
+      <p class="kv">Example: J-06, "an evaluator does not use test labels to pick a threshold".</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0"><code>docs/wiki/design.md</code></h3>
+      <p>33 design decisions (D-01 to D-33). Each says what the code must do, its status, and its known gaps.</p>
+      <p class="kv">Example: D-07, "a box is <code>[y_min, y_max, x_min, x_max]</code> fractions".</p>
+    </div>
+  </div>
+
+  <details class="acc">
+    <summary>Words used on this page</summary>
+    <div class="tablewrap">
+      <table><tbody id="words"></tbody></table>
+    </div>
+  </details>
+
+  <h2>First whole-repo review, 2026-10-27</h2>
+  <div class="grid g5" id="tiles"></div>
+  <p class="muted">Details in the tab "First review".</p>
+</section>
+
+<!-- ================= Add a dataset ================= -->
+<section class="panel" id="dataset" role="tabpanel" aria-labelledby="tab-dataset">
+  <h2>Implementation: add a dataset (/add-dataset)</h2>
+  <p>The pipeline checks code, so an agent must write the code first. For a new dataset, the <code>add-dataset</code> skill does this. Its 13 steps are in <code>.claude/skills/add-dataset/SKILL.md</code> (900 lines). The <code>add-backbone</code> skill does the same job for a new image encoder.</p>
+
+  <h3>The steps today</h3>
+  <p class="kv">The step numbers in brackets are the numbers in <code>SKILL.md</code>.</p>
+  <details class="acc" open>
+    <summary><span class="sn">1</span>Describe the data (skill steps 1 to 4)</summary>
+    <div class="body">The agent writes the dataset config <code>configs/datasets/&lt;key&gt;.json</code>: paths, columns, labels and masks. It fills the missing fields from the CSV headers, the image folders and the DICOM headers. It asks the user only for what it cannot find.</div>
+  </details>
+  <details class="acc">
+    <summary><span class="sn">2</span>Confirm the image folder (skill step 4a)</summary>
+    <div class="body">The agent picks <code>base_image_dir</code>: the deepest folder that holds the entries of <code>image_path</code> directly. It checks that the 2 parts together give a real file or folder for one row. The user confirms the choice. Example (RSNA Pneumonia): <code>base_image_dir</code> is <code>.../stage_2_train_images/</code>, and <code>image_path</code> is <code>&lt;patientId&gt;.dcm</code>.</div>
+  </details>
+  <details class="acc">
+    <summary><span class="sn">3</span>Write the code (skill steps 5 to 9)</summary>
+    <div class="body">
+      <p>The agent reads a similar dataset first: CheXpert or MIMIC-CXR for 2-D, CT-RATE or RadChestCT for 3-D. Then it writes these parts:</p>
+      <ul>
+        <li>the harmonizer in <code>radharmony/harmonizer/&lt;name&gt;/</code>, with <code>_build_*</code> steps such as <code>_build_patient_id()</code></li>
+        <li>the dataset class in <code>radharmony/dataset/&lt;name&gt;/</code>, with <code>@register_dataset("&lt;key&gt;")</code></li>
+        <li>the exports in the <code>__init__.py</code> files</li>
+        <li>a build function and a <code>DATASET_REGISTRY</code> entry in <code>app.py</code></li>
+      </ul>
+    </div>
+  </details>
+  <details class="acc">
+    <summary><span class="sn">4</span>Check (skill steps 10 and 11)</summary>
+    <div class="body">The agent goes through a checklist of 24 items, for example "<code>LABEL_COLS</code> sorted" and "<code>SUPPORTED_OUTPUTS</code> set". The agent runs <code>scripts/check_datasets.py --datasets &lt;key&gt; --max-samples 30</code>. It must exit with 0. The agent also adds the dataset to <code>notebooks/datasets/dataset_integrity_check.ipynb</code>.</div>
+  </details>
+  <details class="acc">
+    <summary><span class="sn">5</span>Write the docs (skill step 12)</summary>
+    <div class="body">The agent writes the wiki page <code>docs/wiki/reference/datasets/&lt;group&gt;/&lt;key&gt;.md</code>. Its fixed sections are Overview, Download, Expected layout, Label columns, Constructor arguments, samples, Harmonizer notes and Outputs. The agent adds a row to <code>docs/wiki/reference/datasets/index.md</code> and <code>docs/wiki/index.md</code>.</div>
+  </details>
+  <details class="acc">
+    <summary><span class="sn">6</span>Write what it learned (skill step 13)</summary>
+    <div class="body">The agent sums up what it learned. If a lesson is general, the agent edits <code>SKILL.md</code> by hand, for example with a new checklist item.</div>
+  </details>
+  <p class="kv">The skill does not change base code. If a change is necessary, the agent stops and asks the user first.</p>
+
+  <h3>Then the pipeline checks the new dataset</h3>
+  <p class="kv">The tabs "The flow", "1. Automatic checks", "2. /evaluate" and "3. /fix" explain each step.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>When</th><th>What runs</th><th>Example of a problem that it finds</th></tr></thead>
+      <tbody>
+        <tr><td><code>git commit</code></td><td>the lint and docs checks and the base check, on the staged files</td><td>the new wiki page passes an argument that the class does not accept</td></tr>
+        <tr><td>CI</td><td>the lint and docs checks on all files, the shrink check, and pytest</td><td>the new registry key has no entry in <code>configs/data_paths.json</code> (<code>tests/test_data_paths.py</code>)</td></tr>
+        <tr><td><code>/evaluate</code></td><td>a branch review: bug hunters, a checker, a rules reviewer and an asked reviewer</td><td>label columns not sorted (D-05), or one dataset class that gives both train and test rows (D-09)</td></tr>
+        <tr><td><code>/fix</code></td><td>a failing test, then the fix, for each finding that you pick</td><td>the proof that <code>LABEL_COLS</code> is not sorted becomes a failing test. The fix sorts the list.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">Gaps today</h3>
+    <p class="kv">The skill is older than the pipeline. On 2026-10-28, these gaps were in it:</p>
+    <ol>
+      <li>No step adds the new key to <code>configs/data_paths.json</code>. The class gets a registry key from <code>@register_dataset</code>, so <code>test_every_registry_key_has_an_entry</code> fails in CI. The commit hook runs no pytest, so the commit passes. The bug hunters also find no data path for the new key.</li>
+      <li>Skill step 11 says to add path constants near the top of <code>scripts/check_datasets.py</code>. That script now reads the paths from <code>configs/data_paths.json</code>. A <code>/mnt/NAS</code> path in a script also breaks rule L-006.</li>
+      <li>The skill does not point to <code>docs/wiki/design.md</code>. It covers some decisions in its own words: sorted labels (D-05) and one class for each official split (D-09). It has no step for age in years (D-06) or one <code>sex</code> column (D-26).</li>
+      <li>Skill step 13 puts a lesson into <code>SKILL.md</code> as text. Nothing turns it into a check. The pipeline turns a lesson into a check and a row in <code>eval/RULES.md</code>.</li>
+      <li>The skill does not end with <code>/evaluate</code>.</li>
+    </ol>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <h3 style="margin-top:0">Planned (skills upgrade, not started)</h3>
+    <p>The plan puts the skills upgrade after the pipeline and the docs rewrite. On 2026-10-28, Frank Li chose to make no change to the skill before then. The upgrade fixes the 5 gaps above. The tab "Skills upgrade" has the full plan.</p>
+    <p>One new step for this skill is decided (Frank Li, 2026-10-28): <b>review the config before the code</b>. A new agent with no earlier context checks the config against the raw files and <code>docs/wiki/design.md</code>. Each finding needs a command and its output. Example: "<code>labels.columns</code> names <code>Pleural_Effusion</code>, but the CSV header has <code>Pleural Effusion</code>." Then the main agent asks the user about each finding, one at a time. Code starts only after that.</p>
+    <p>A second new step is decided (Frank Li, 2026-10-28): <b>record the dataset stats before the code</b>.</p>
+    <ul>
+      <li>For each official split, the agent records the images, studies, patients, positives for each label, uncertain labels, and rows with boxes, masks or reports.</li>
+      <li>It also records the patients in 2 splits (must be 0), the sex counts and the age range.</li>
+      <li>The numbers come from 2 sources: the dataset paper or website, and the raw files read with pandas, with no RadHarmony code. Each difference gets a written reason, for example "the paper also counts the 500 patients of the hidden test set".</li>
+      <li>The stats go into an <code>expected_stats</code> block in <code>configs/datasets/&lt;key&gt;.json</code>. The config reviewer computes them again.</li>
+      <li>After the code exists, one shared test (<code>tests/test_dataset_stats.py</code>) compares <code>harmonize()</code> with <code>expected_stats</code>, exactly. It needs the NAS, so it runs in the full run, not in CI.</li>
+      <li>The wiki page states the same numbers with claim notes. So the docs and the test have one source.</li>
+    </ul>
+    <p class="kv">Why: before 2026-10-28, only NODE21 had such a test (<code>test_counts_match_the_paper</code>). Example of a gap that it finds: the ChestX-ray14 wiki page says 25,596 test images, but <code>harmonize()</code> returned 24,716 (V-H1-2). The test now exists, with <code>expected_stats</code> for 5 datasets.</p>
+  </div>
+</section>
+
+<!-- ================= Flow ================= -->
+<section class="panel" id="flow" role="tabpanel" aria-labelledby="tab-flow">
+  <h2>The life of one change</h2>
+  <p>Example: you add a harmonizer for a new dataset. Click a box, or use the buttons to go step by step. Dashed lines show how lessons and decisions go back into the checks.</p>
+  <div class="stepper">
+    <button class="btn" type="button" id="prevStep">&larr; Back</button>
+    <button class="btn" type="button" id="nextStep">Next &rarr;</button>
+    <button class="btn" type="button" id="playStep">Play</button>
+    <span class="stepcount" id="stepCount"></span>
+  </div>
+  <div class="flow-layout">
+    <div class="diagram-wrap">
+      <svg id="diagram" viewBox="0 0 960 470" role="group" aria-label="Pipeline flow diagram">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"></path>
+          </marker>
+        </defs>
+        <rect class="lane lane1" x="8" y="10" width="944" height="100" rx="10"></rect>
+        <rect class="lane lane2" x="8" y="170" width="944" height="100" rx="10"></rect>
+        <rect class="lane lane3" x="8" y="340" width="944" height="100" rx="10"></rect>
+        <text class="lane-label" x="20" y="30">Part 1: automatic checks</text>
+        <text class="lane-label" x="180" y="190">Part 2: /evaluate</text>
+        <text class="lane-label" x="180" y="360">Decisions and Part 3: /fix</text>
+        <text class="lane-label" x="640" y="30" style="font-weight:400">Before a release: /evaluate --full</text>
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </svg>
+    </div>
+    <div class="card detail" id="detail" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ================= Automatic checks ================= -->
+<section class="panel" id="checks" role="tabpanel" aria-labelledby="tab-checks">
+  <h2>Part 1: automatic checks</h2>
+  <p><code>scripts/evalkit/run_all.py</code> runs 9 checks in 3 groups. There are 2 run types: a quick run (no NAS data, no GPU) and a full run. Pick where the run happens to see which checks run. The numbers are from the quick run on 2026-10-28.</p>
+  <div class="runpick" role="group" aria-label="Where the run happens">
+    <button class="btn" type="button" data-run="fast" aria-pressed="false">commit hook</button>
+    <button class="btn" type="button" data-run="quick" aria-pressed="true">CI</button>
+    <button class="btn" type="button" data-run="full" aria-pressed="false">/evaluate</button>
+  </div>
+  <p id="runDesc" class="note"></p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Group</th><th>Check</th><th>What it finds</th><th>Example</th><th>Today</th><th>In this run</th></tr></thead>
+      <tbody id="checkRows"></tbody>
+    </table>
+  </div>
+
+  <h3>The known-problems lists</h3>
+  <p>The lists are in <code>eval/known_problems/&lt;check&gt;.json</code>. An old problem passes for now. Only a new problem fails.</p>
+  <ul>
+    <li>The key of a problem comes from the check, the rule, the file and the text. It does not use the line number. So a problem that moves to another line is still old.</li>
+    <li>After a fix, <code>run_all.py --update-known --full</code> writes the lists again. It needs the NAS.</li>
+    <li>A list must not grow. <code>run_all.py --check-shrink origin/main</code> fails if a list grew since that commit. CI runs this check on each PR. Exception: a new rule that you name with <code>--new-rule</code> can add its old problems to a list (D-45).</li>
+    <li>The shrink check works only for lists that are already on <code>main</code>. Today no list is on <code>main</code>.</li>
+  </ul>
+  <div class="card">
+    <h3 style="margin-top:0">Try it</h3>
+    <p class="kv">The STE list holds 3 old problems. Select what is in your code after your change.</p>
+    <div class="sim">
+      <div id="simBoxes"></div>
+      <div aria-live="polite">
+        <div class="result" id="simResult"></div>
+        <p id="simText" class="kv"></p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Doc code block notes</h3>
+  <p>A note on the line before a code block tells the runner what to do. A <code>skip</code> needs a reason.</p>
+  <pre><code>&lt;!-- block: run=ci|local|gpu|skip data=&lt;key&gt; timeout=300 reason="..." --&gt;</code></pre>
+  <p>Example: <code>&lt;!-- block: run=local data=chexpert_train --&gt;</code> runs the block only in a full run, with the CheXpert data from the NAS. The runner compiles a block with no note, and runs it only in a full run.</p>
+</section>
+
+<!-- ================= /evaluate ================= -->
+<section class="panel" id="evaluate" role="tabpanel" aria-labelledby="tab-evaluate">
+  <h2>Part 2: /evaluate</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Command</th><th>Name</th><th>What it looks at</th></tr></thead>
+      <tbody>
+        <tr><td><code>/evaluate</code></td><td>branch review</td><td>the diff against <code>main</code> (or the <code>--base</code> branch), plus uncommitted changes</td></tr>
+        <tr><td><code>/evaluate --full</code></td><td>whole-repo review</td><td>8 repo parts, one at a time. Use it before a release.</td></tr>
+        <tr><td><code>/evaluate --lessons-only</code></td><td>lessons only</td><td>the work of this session. No report file.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The 6 steps</h3>
+  <div id="evalSteps"></div>
+
+  <h3>The agents</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Review part</th><th>Agent</th><th>Model</th><th>Count (whole-repo review)</th><th>Brief</th><th>Writes</th></tr></thead>
+      <tbody>
+        <tr><td>Correct?</td><td>bug hunter</td><td>opus and sonnet</td><td>2 for each repo part (16)</td><td><code>hunter.md</code> and an intent file</td><td><code>correct/&lt;part&gt;_&lt;model&gt;/findings.json</code> and proof scripts</td></tr>
+        <tr><td>Correct?</td><td>checker</td><td>haiku</td><td>1 for each repo part (8)</td><td><code>checker.md</code></td><td><code>correct/&lt;part&gt;_check/checked.json</code></td></tr>
+        <tr><td>Follows our rules?</td><td>rules reviewer</td><td>sonnet</td><td>2 (code, docs)</td><td><code>rules_reviewer.md</code></td><td><code>rules/&lt;scope&gt;/findings.json</code></td></tr>
+        <tr><td>Does what was asked?</td><td>asked reviewer</td><td>opus</td><td>1</td><td><code>asked_reviewer.md</code></td><td><code>asked/findings.json</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>A whole-repo review has these 27 agents, plus the main agent. At most 10 agents run at the same time. The briefs are in <code>.claude/skills/evaluate/references/</code>.</p>
+  <div class="note"><b>Why 2 bug hunters and a checker?</b> Two different models miss different bugs. The checker did not write the findings, so it has no reason to keep a weak one. It runs each command again and keeps a finding only if the output shows the failure. Review agents start fresh: they get their brief, not the main agent's guesses.</div>
+
+  <h3>The 8 repo parts</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>ID</th><th>Repo part</th><th>GPU</th></tr></thead>
+      <tbody>
+        <tr><td>H1, H2, H3</td><td>harmonizers, about 15 datasets each. H2 also has the base harmonizer.</td><td>no</td></tr>
+        <tr><td>D</td><td>dataset classes and transforms</td><td>no</td></tr>
+        <tr><td>P</td><td>preprocessors and utils</td><td>no</td></tr>
+        <tr><td>A</td><td>app, scripts, registry, integrity-check script</td><td>no</td></tr>
+        <tr><td>B</td><td>backbones</td><td>yes</td></tr>
+        <tr><td>E</td><td>evaluators and metrics</td><td>if needed</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>A finding needs proof</h3>
+  <div class="grid g3">
+    <div class="card"><b>Correct?</b><p class="kv">a command, its output, and the expected output (from the intent file or a design decision)</p></div>
+    <div class="card"><b>Follows our rules?</b><p class="kv">the rule ID and a quote of the code or text</p></div>
+    <div class="card"><b>Does what was asked?</b><p class="kv">a quote of the request, and what the code does</p></div>
+  </div>
+  <p>Example from the first whole-repo review (shortened):</p>
+<pre><code>{
+  "id": "V-H1-23",
+  "found_by": ["opus"],
+  "title": "ChestX-ray14 train/test split is lost in harmonized_df",
+  "command": ".venv/bin/python reports/eval/2026-10-27-full/correct/H1_opus/repro_cxr14_split_state.py",
+  "output": "ChestXray14TestHarmonizer: harmonize() returned 24716 rows | h.harmonized_df 111240 rows",
+  "expected": "harmonized_df has the same 24,716 test rows as the harmonize() return value",
+  "severity": "medium",
+  "severity_changed": "high -> medium on 2026-10-28: no current benchmark uses this path"
+}</code></pre>
+
+  <h3>Severity</h3>
+  <ul>
+    <li><b>high:</b> it changes a benchmark number or a training or evaluation result.</li>
+    <li><b>medium:</b> wrong output, but no current benchmark number changes. Or a crash on a call that the docs show.</li>
+    <li><b>low:</b> code that nothing calls, a wrong docstring or message, or an edge case.</li>
+  </ul>
+  <p>A finding whose cause is in base code gets <code>touches_base_code: true</code>. <code>/fix</code> asks before it changes base code for such a finding.</p>
+
+  <h3>Open questions</h3>
+  <p>Sometimes no design decision covers a behavior, and the agent cannot tell if it is a bug. Then the agent writes an open question, not a finding. The checker merges the questions of the 2 bug hunters. <code>merge.py</code> merges questions with the same text and gives each one an ID (Q-1, Q-2). The main agent asks you about each one.</p>
+<pre><code>"open_questions": [{"question": "...", "today": "what the code does",
+                    "evidence": "command and output", "options": ["...", "..."]}]</code></pre>
+
+  <h3>The report</h3>
+  <ol>
+    <li>The run facts: date, branch, commit, scope and agents.</li>
+    <li>Automatic checks.</li>
+    <li>Correct?</li>
+    <li>Follows our rules?</li>
+    <li>Does what was asked?</li>
+    <li>Compared with the last whole-repo review (<code>--full</code> only): still open, fixed or cannot run.</li>
+    <li>Coverage and BLOCKED: what the agents could not test, and why.</li>
+    <li>Open questions.</li>
+    <li>Lessons, in 7 groups. Examples: "automatic checks to add" (a draft rule for <code>eval/RULES.md</code>) and "tool cost" (an agent that stopped before it wrote its file). The other groups: where the findings were, judgement rules, <code>CLAUDE.md</code> size, rules that change nothing, and missing information.</li>
+  </ol>
+  <p>The 3 review parts stay separate. The report does not merge or rank them across parts.</p>
+</section>
+
+<!-- ================= Decisions ================= -->
+<section class="panel" id="decisions" role="tabpanel" aria-labelledby="tab-decisions">
+  <h2>Decisions, one item at a time</h2>
+  <p>The checklist is <code>.claude/skills/evaluate/references/decisions.md</code>. <code>/evaluate</code> uses it in step 6. <code>/fix</code> uses it before a base-code edit or a new rule.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-top:0">When</h3>
+      <ul>
+        <li>an open question</li>
+        <li>a base-code change</li>
+        <li>a draft rule</li>
+        <li>a fix with more than one correct behavior</li>
+        <li>a severity change</li>
+      </ul>
+      <p class="kv"><b>Order in /evaluate:</b> open questions, then severity changes, then draft rules. Inside each group: high, then medium, then low. <code>/fix</code> asks about a base-code change or a fix with more than one correct behavior when it comes to one.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">For each item</h3>
+      <ol>
+        <li>Check the facts first.</li>
+        <li>Say what the code does today, with an example.</li>
+        <li>Give a recommendation, the reason and the cost.</li>
+        <li>Ask one question with 2 or 3 options. The recommendation is first. An open question also gets "Leave open".</li>
+        <li>Read the whole answer and any note that comes with it.</li>
+        <li>Record the answer before the next item.</li>
+      </ol>
+    </div>
+  </div>
+
+  <h3>Where the answer goes</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Answer</th><th>Where it goes</th></tr></thead>
+      <tbody>
+        <tr><td>a design decision</td><td>a D- entry in <code>docs/wiki/design.md</code>, with the name and the date</td></tr>
+        <tr><td>leave open</td><td>a D- entry with the status "Open" in <code>docs/wiki/design.md</code>. It keeps its ID when a maintainer decides it.</td></tr>
+        <tr><td>a draft rule, approved</td><td>"approved, to build with <code>/fix</code>" in the lessons of <code>report.md</code></td></tr>
+        <tr><td>a base-code change</td><td>the 5 steps in <code>CLAUDE.md</code>: ask first, warn after the edit, <code>BASE CODE CHANGE:</code> in the commit, the PR section, a final warning</td></tr>
+        <tr><td>a severity change</td><td><code>findings.json</code> and <code>report.md</code>, after the last <code>merge.py</code> run, because <code>merge.py</code> writes <code>findings.json</code> again</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Example: on 2026-10-28, open question O-1 in <code>docs/wiki/design.md</code> asked what <code>h.harmonized_df</code> must hold after <code>h.harmonize()</code>. Then the ChestX-ray14 test harmonizer returned 24,716 rows, but <code>h.harmonized_df</code> held 111,240. Frank Li chose "the same rows as <code>harmonize()</code>". It is now decision D-24. V-H1-23 was its known gap (fixed on 2026-10-28).</p>
+
+  <h3>The 33 design decisions</h3>
+  <p class="kv">A known gap is a place where the code breaks a decision today. It is a bug to fix. Each gap is one line with its finding ID. <code>reports/eval/index.json</code> gives the run folder of each ID. An agent reports a known gap again only in a new place. <code>/fix</code> removes a gap when it fixes it.</p>
+  <div class="filters" role="group" aria-label="Filter decisions">
+    <button class="btn" type="button" data-st="all" aria-pressed="true">All</button>
+    <button class="btn" type="button" data-st="decided" aria-pressed="false">Decided</button>
+    <button class="btn" type="button" data-st="planned" aria-pressed="false">Decided, planned</button>
+    <button class="btn" type="button" data-st="code" aria-pressed="false">From the code</button>
+    <input type="search" id="dsearch" placeholder="Search, for example box" aria-label="Search decisions">
+    <span class="stepcount" id="dcount" aria-live="polite"></span>
+  </div>
+  <div class="dlist" id="dlist"></div>
+  <ul class="kv">
+    <li><b>Decided:</b> a maintainer chose it. The entry names the person and the date, or the file that records it.</li>
+    <li><b>Decided, planned:</b> chosen, but not built yet. A missing feature here is not a bug.</li>
+    <li><b>From the code:</b> the code does it today, and no maintainer has confirmed it yet.</li>
+    <li><b>Open:</b> not decided yet. The entry gives the question, what the code does today and the options. It keeps its ID when a maintainer decides it. No entry is open today.</li>
+  </ul>
+</section>
+
+<!-- ================= /fix ================= -->
+<section class="panel" id="fix" role="tabpanel" aria-labelledby="tab-fix">
+  <h2>Part 3: /fix</h2>
+  <p><code>/fix V-H1-23 V-P-14</code> fixes only the findings that you name. For each one:</p>
+  <div id="fixSteps"></div>
+  <p class="note">Example: the fix for V-H1-23 (2026-10-28) started with 2 failing tests in <code>tests/test_dataset_stats.py</code>. The first test checks D-24: <code>h.harmonized_df</code> equals the result of <code>h.harmonize()</code>. The second test compares the image count with <code>expected_stats</code>, which come from the source file <code>test_list.txt</code> (25,596 images). Before the fix, <code>h.harmonized_df</code> had 111,240 rows, and 86,524 of them were training images.</p>
+  <h3>New rules (lessons)</h3>
+  <ol>
+    <li>A mistake happens 2 times, or one time with a large effect. Make it a rule.</li>
+    <li>If a computer can check the rule, write the check first: a test in <code>tests/test_lessons.py</code> or a check in <code>scripts/evalkit/lessons.py</code>.</li>
+    <li>Prove the check with <code>prove_rule.py</code>. It must fail on the commit with the mistake and pass on the fix.</li>
+    <li>Add a row to <code>eval/RULES.md</code>. If a computer cannot check the rule, add a judgement rule.</li>
+  </ol>
+<pre><code>python scripts/evalkit/prove_rule.py --bad 95bb587^ --good 95bb587 \
+    --with tests/test_lessons.py --with scripts/dataset_paths.py --with configs/data_paths.json \
+    -- tests/test_lessons.py::test_l001_chexpert_age_years_is_filled</code></pre>
+  <p class="kv">This proves rule L-001 (a declared age source fills <code>age_years</code>). The test fails on the commit before the CheXpert age fix and passes on the fix.</p>
+</section>
+
+<!-- ================= Follow a finding ================= -->
+<section class="panel" id="journey" role="tabpanel" aria-labelledby="tab-journey">
+  <h2>Follow one real finding: V-H1-23</h2>
+  <p>This is the path of one bug through the pipeline, from the bug hunter to a design decision. Click each step.</p>
+  <div class="card">
+    <ol class="journey" id="journeyList"></ol>
+  </div>
+</section>
+
+<!-- ================= First review ================= -->
+<section class="panel" id="results" role="tabpanel" aria-labelledby="tab-results">
+  <h2>The first whole-repo review, 2026-10-27</h2>
+  <p>Folder: <code>reports/eval/2026-10-27-full/</code> (local only, not in git). Commit d78f73a. 27 agents, plus the main agent.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Review part</th><th>Findings</th><th class="num">High</th><th class="num">Medium</th><th class="num">Low</th></tr></thead>
+      <tbody>
+        <tr><td>Automatic checks (full run)</td><td>22 doc code blocks failed (15) or timed out (7). Also 33 ok, 45 BLOCKED, and 159 not run because an earlier block on the same page did not pass.</td><td></td><td></td><td></td></tr>
+        <tr><td>Correct?</td><td>54 (52 different bugs)</td><td class="num">0</td><td class="num">27</td><td class="num">27</td></tr>
+        <tr><td>Follows our rules?</td><td>31</td><td class="num">0</td><td class="num">8</td><td class="num">23</td></tr>
+        <tr><td>Does what was asked?</td><td>12 of 30 promises not kept</td><td class="num">0</td><td class="num">7</td><td class="num">5</td></tr>
+        <tr><td>Old findings</td><td>126 run again: 126 still open, 0 fixed</td><td></td><td></td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Correct? findings by repo part</h3>
+  <div class="card">
+    <div class="toprow">
+      <div class="legend" id="legend"></div>
+      <button class="btn" type="button" id="tableToggle">Show as table</button>
+    </div>
+    <div class="bars" id="bars"></div>
+    <div class="tablewrap" id="barTable" hidden></div>
+    <p class="kv" style="margin-top:12px">No high finding. V-H1-23 was high in the first draft. It is medium, because no current benchmark uses the bad path. The checkers dropped 3 findings that did not repeat.</p>
+  </div>
+
+  <h3>Examples of real bugs</h3>
+  <ul>
+    <li><b>V-H1-23:</b> the ChestX-ray14 test harmonizer kept all 111,240 rows in <code>h.harmonized_df</code>, and 86,524 of them were training images (fixed on 2026-10-28).</li>
+    <li><b>V-H2-25 / V-D-20:</b> RANZCR puts 3,582 unlabeled test rows into train and val.</li>
+    <li><b>V-B-8:</b> the SigLIP2 zero-shot text is not lowercased. CheXpert valid macro AUROC today: 0.7212. With lowercased text: 0.7264.</li>
+    <li><b>V-E-18</b> (base code): the fixed-split probes pair labels by position, so a probe can score the wrong label.</li>
+    <li><b>A-1:</b> the docs promise a warning for an output flag that a dataset does not support. 13 dataset classes raise TypeError.</li>
+  </ul>
+
+  <h3>What the review taught us about the pipeline</h3>
+  <p>The report has 5 tool-cost lessons. These 4 are now in the agent briefs (2026-10-28):</p>
+  <ul>
+    <li>4 bug hunters wrote <code>findings.json</code> but could not write their second file, <code>report.md</code>. Their tools block report files. Now <code>hunter.md</code> asks only for <code>findings.json</code>, the one file that the checker reads.</li>
+    <li>2 checkers started background jobs and stopped before they wrote <code>checked.json</code>. Now <code>checker.md</code> says: run in the foreground, and write <code>checked.json</code> before the final message.</li>
+    <li>The rules reviewer reported 4 old findings again, because it did not get the list of old findings. Now it gets the old findings files.</li>
+    <li>The bug hunters of repo part D could not run <code>harmonize()</code> to the end on the large VQA datasets (about 700,000 rows). Now <code>intents/datasets.md</code> names a filter for each large VQA set, because their <code>harmonize()</code> has no <code>study_ids=</code>.</li>
+  </ul>
+</section>
+
+<!-- ================= Build and status ================= -->
+<section class="panel" id="status" role="tabpanel" aria-labelledby="tab-status">
+  <h2>How we built it</h2>
+  <div class="card">
+    <ul class="tl">
+      <li><span class="d">2026-10-27</span><span>Tag <code>v0.1.0</code> (f6de5ea). Branch <code>v0.2-dev</code>, version 0.2.0 (94f3b12).</span></li>
+      <li><span class="d">2026-10-27</span><span>One data-paths config: <code>configs/data_paths.json</code> and <code>scripts/dataset_paths.py</code> (d78f73a).</span></li>
+      <li><span class="d">2026-10-27</span><span>One-time audit: 8 repo parts, each with 2 bug hunters and 1 checker. 126 findings: 6 high, 63 medium, 57 low. The cause of 32 is in base code.</span></li>
+      <li><span class="d">2026-10-27</span><span>We made the design smaller: 3 parts with plain names (<code>eval/PIPELINE.md</code>).</span></li>
+      <li><span class="d">2026-10-27</span><span>We built the automatic checks, the known-problems lists, the 2 git hooks and CI.</span></li>
+      <li><span class="d">2026-10-27</span><span>We built <code>/evaluate</code> and <code>/fix</code>, then ran the first whole-repo review (<code>/evaluate --full</code>).</span></li>
+      <li><span class="d">2026-10-28</span><span>We wrote <code>docs/wiki/design.md</code>. Frank Li decided D-09 and D-24 to D-33, one at a time.</span></li>
+      <li><span class="d">2026-10-28</span><span>We added open questions and the one-item-at-a-time checklist to <code>/evaluate</code> and <code>/fix</code>.</span></li>
+    </ul>
+  </div>
+
+  <h3>Ideas we took from other projects</h3>
+  <div class="grid g3">
+    <div class="card"><b>pstack</b><p class="kv">Write the intent first. Use 2 bug hunters on different models. A finding needs a command and its output, and a third agent runs it again. A lesson becomes a check that must fail on the mistake and pass on the fix.</p></div>
+    <div class="card"><b>mattpocock/skills</b><p class="kv">The reviewer, not the coder, enforces the rules. A fix starts with a failing test. Skill files are short and have a "Done when" list.</p></div>
+    <div class="card"><b>Google elephant-goldfish-model</b><p class="kv">A written record of design decisions that fresh reviewers compare the code with. Questions with no answer go to a person.</p></div>
+  </div>
+
+  <h2>Status</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-top:0">Done</h3>
+      <ul class="check-list done">
+        <li>The automatic checks, the known-problems lists, the 2 git hooks and the CI workflow.</li>
+        <li>The <code>/evaluate</code> and <code>/fix</code> skills, with the one-item-at-a-time checklist.</li>
+        <li><code>docs/wiki/design.md</code> with D-01 to D-33.</li>
+        <li><code>run_all.py</code> passes: 473 tests pass, and no new problem.</li>
+        <li>Committed on <code>v0.2-dev</code> on 2026-10-28, with the git hooks on in this clone.</li>
+        <li>The draft rules L-008 to L-011 are approved (2026-10-28). <code>/fix</code> builds them in the fix phase.</li>
+        <li>The 22 failing doc blocks are on the known-problems list, so <code>run_all.py --full</code> passes. Only a new broken block fails.</li>
+        <li>Each finding ID points to <code>reports/eval/index.json</code>, which gives its run folder.</li>
+        <li>A branch review was tested on a scratch branch with 3 seeded bugs (2026-10-28). It found all 3 with proof and flagged the base-code edit. No automatic check found any of them.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Not done</h3>
+      <ul class="check-list todo">
+        <li>The <code>add-dataset</code> skill does not add the key to <code>configs/data_paths.json</code>, and it does not end with <code>/evaluate</code>. The tab "Add a dataset" lists all 5 gaps.</li>
+        <li>The docs have no claim notes yet.</li>
+        <li>Not started: the code cleanup and the docs rewrite. The skills upgrade has one part done (tab "Skills upgrade").</li>
+      </ul>
+    </div>
+  </div>
+  <h3>The order that Frank Li set (2026-10-28)</h3>
+  <ol>
+    <li>Finish the pipeline.</li>
+    <li>Fix the code findings and the known gaps, in the batch order of <code>eval/TODO.md</code> section 2. First the 6 high findings, then D-09 (official splits, where test images can go into training), then D-05 (label columns not sorted).</li>
+    <li>Build D-31 (study and patient tables, visit number).</li>
+  </ol>
+
+  <h3>How to run it</h3>
+<pre><code>git config core.hooksPath .githooks                     # once for each clone
+.venv/bin/python scripts/evalkit/run_all.py             # quick run, all checks
+.venv/bin/python scripts/evalkit/run_all.py --full --out reports/eval/&lt;date&gt;/checks   # full run (NAS)
+.venv/bin/python scripts/evalkit/run_all.py --update-known --full   # write the lists again after a fix (NAS)
+.venv/bin/python scripts/evalkit/run_all.py --check-shrink origin/main</code></pre>
+  <p>In Claude Code: <code>/evaluate</code>, <code>/evaluate --full</code>, <code>/evaluate --lessons-only</code> and <code>/fix V-H1-23</code>.</p>
+</section>
+
+<!-- ================= Skills upgrade ================= -->
+<section class="panel" id="skills" role="tabpanel" aria-labelledby="tab-skills">
+  <h2>Skills upgrade (plan 6d, one part done)</h2>
+  <p>The skills upgrade is section 6d of the v0.2 plan (<code>~/.claude/plans/parsed-sparking-simon.md</code>). It comes after the pipeline and the docs rewrite. One part is done: the wiki audit script moved to <code>scripts/evalkit/wiki_audit.py</code>. The helper <code>audit_wiki_docs.py</code> of the <code>audit-wiki-docs</code> skill only runs it now.</p>
+
+  <h3>The problems it fixes</h3>
+  <div class="grid g2">
+    <div class="card"><b>Long files</b><p class="kv"><code>add-dataset</code> has 900 lines, <code>use-radharmony</code> 368, <code>use-datathon26</code> 325, <code>add-backbone</code> 311 and <code>update-docs</code> 291. Only <code>evaluate</code> has a <code>references/</code> folder. In <code>add-dataset</code>, lessons are free text in skill step 13.</p></div>
+    <div class="card"><b>Two copies</b><p class="kv">The user-level folder <code>~/.claude/skills/</code> has copies of 6 repo skills, with the same names. 2 files are different from the repo: the old <code>add-dataset</code> (836 lines, 900 in the repo) and the old 861-line <code>audit_wiki_docs.py</code>. An agent can read the old text.</p></div>
+    <div class="card"><b>Overlap</b><p class="kv"><code>audit-wiki-docs</code> does the job of the <code>wiki</code> check. <code>update-docs</code> does the job of <code>/fix</code> on doc findings.</p></div>
+    <div class="card"><b>Wrong repo</b><p class="kv"><code>use-datathon26</code> needs <code>radharmony.datathon26</code>. That module is only in the public RadHarmony repo, not in RadHarmony-dev.</p></div>
+  </div>
+
+  <h3>Rules for every skill</h3>
+  <ol>
+    <li><code>SKILL.md</code> has only the steps, about 250 lines or fewer. Templates and long notes go to <code>references/</code>. Steps that give the same result each time go into scripts.</li>
+    <li>Data paths come from <code>configs/data_paths.json</code>, and checks come from <code>scripts/evalkit/</code>. No skill keeps its own copy.</li>
+    <li>Each skill ends with <code>/evaluate</code> on its diff. The skill is done only when <code>/evaluate</code> passes.</li>
+    <li>A new lesson becomes a check or a rule in <code>eval/RULES.md</code>, not text in the skill.</li>
+    <li>Each skill points to the base-code rule in <code>CLAUDE.md</code> (section "Base code needs explicit approval"), and does not repeat its steps.</li>
+    <li>Each skill that changes code points to <code>CLAUDE.md</code>, section "Design decisions and rules": read <code>docs/wiki/design.md</code> first, and ask about a behavior that no entry covers. It does not repeat these rules.</li>
+    <li>The skill text is in STE, and the STE linter checks it.</li>
+    <li>Test and edit the <code>description</code> of each skill, so that Claude Code starts it on the right requests.</li>
+  </ol>
+
+  <h3>Changes for each skill</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>Change</th></tr></thead>
+      <tbody>
+        <tr><td><code>add-dataset</code></td><td><ul style="margin:0">
+          <li>Split into <code>SKILL.md</code> and <code>references/</code>.</li>
+          <li>New steps: an entry in <code>configs/data_paths.json</code>, small fake data files for CI, the wiki page from a new template, and a catalog row. The fake data lets CI tests run without the NAS.</li>
+          <li>A config review and the dataset stats before any code (tab "Add a dataset").</li>
+        </ul></td></tr>
+        <tr><td><code>add-backbone</code></td><td>A new backbone page template, with GPU notes on the code blocks. A new check compares 4 things with the model card and the authors' code: the normalization, the input size, the crop and the pooled token (rule J-05). Example: Ark+ resizes images to 768 x 768 with no crop, but the authors resize to 896 and crop to 768 (V-B-2).</td></tr>
+        <tr><td><code>audit-wiki-docs</code></td><td>Remove it. Its script already moved to <code>scripts/evalkit/</code>.</td></tr>
+        <tr><td><code>update-docs</code></td><td>Remove it. <code>/fix</code> fixes doc findings.</td></tr>
+        <tr><td><code>use-radharmony</code></td><td>Point it to the new docs. Every snippet that it gives runs through <code>run_blocks.py</code> (tab "1. Automatic checks") first.</td></tr>
+        <tr><td><code>use-datathon26</code></td><td>Delete it from RadHarmony-dev. It stays in the public RadHarmony repo.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="kv">In <code>~/.claude/skills/</code>, delete the 6 copies. Keep <code>code-docs</code>, <code>paper-check</code> and <code>synced</code>, because they are personal skills that are not tied to this repo. Change the comment rules of <code>code-docs</code> to match the STE linter.</p>
+
+  <h3>Proof that each skill works</h3>
+  <ul>
+    <li><code>add-dataset</code>: in a separate worktree, add a small existing dataset again from its raw files, for example <code>montgomery_cxr</code>. Its <code>harmonized_df</code> must equal the <code>harmonized_df</code> of the existing harmonizer. The result must pass <code>/evaluate</code>.</li>
+    <li><code>add-backbone</code>: add an existing backbone again. The new factory must give the same features on 4 images.</li>
+    <li><code>use-radharmony</code>: ask 5 typical user questions. Every snippet must run.</li>
+    <li><code>/fix</code> (it replaces <code>update-docs</code>): on a branch with 3 seeded doc errors, <code>/fix</code> fixes all 3, each with a failing test or block first.</li>
+  </ul>
+  <p class="note">The upgrade is done when 3 things are true. Each skill passes its proof. <code>audit-wiki-docs</code> and <code>use-datathon26</code> are gone from RadHarmony-dev. <code>~/.claude/skills/</code> has only <code>code-docs</code>, <code>paper-check</code> and <code>synced</code>.</p>
+
+  <div class="card">
+    <h3 style="margin-top:0">Decisions so far</h3>
+    <ul>
+      <li>2026-10-28, Frank Li: no change to <code>add-dataset</code> before the upgrade.</li>
+      <li>2026-10-28, Frank Li: <code>add-dataset</code> gets a config review by a new agent before any code.</li>
+      <li>2026-10-28, Frank Li: each skill points to <code>CLAUDE.md</code> for the base-code rule, and does not repeat the steps.</li>
+      <li>2026-10-28, Frank Li: <code>CLAUDE.md</code> gets the section "Design decisions and rules" (read <code>design.md</code> first, ask about a behavior with no entry). Skills point to it.</li>
+      <li>2026-10-28: the plan moves the <code>update-docs</code> test to <code>/fix</code>, and the <code>add-backbone</code> check also compares the crop and the pooled token (V-B-1, V-B-2).</li>
+      <li>2026-10-28, Frank Li: <code>add-dataset</code> records the dataset stats before any code, and a NAS test checks them.</li>
+      <li>2026-10-28, Frank Li: existing datasets get <code>expected_stats</code> in the fix phase. Start with the datasets that have known gaps, for example ChestX-ray14, MIMIC-CXR and VinDr-CXR. The stats test is the failing test that <code>/fix</code> writes first.</li>
+    </ul>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <h3 style="margin-top:0">Not in the plan yet</h3>
+    <ul>
+      <li>New fields in the dataset config (official splits, age, sex) are proposed, not decided.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= Files ================= -->
+<section class="panel" id="files" role="tabpanel" aria-labelledby="tab-files">
+  <h2>File map</h2>
+  <div class="filters">
+    <input type="search" id="fsearch" placeholder="Search files" aria-label="Search files">
+    <span class="stepcount" id="fcount" aria-live="polite"></span>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>File</th><th>Part</th><th>What it does</th></tr></thead>
+      <tbody id="fileRows"></tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<div class="wrap">
+  <footer>Each pipeline change updates this page and <code>eval/PIPELINE.md</code>. If they disagree, <code>eval/PIPELINE.md</code> is correct. Source files: <code>eval/PIPELINE.md</code>, <code>eval/RULES.md</code>, <code>docs/wiki/design.md</code>, <code>reports/eval/2026-10-27-full/report.md</code>.</footer>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
+  // Text with `code` spans.
+  function md(s) { return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>"); }
+  // Text with `code` spans and **bold**.
+  function rich(s) { return md(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>"); }
+
+  /* ---------- Theme ---------- */
+  var themes = ["auto", "light", "dark"];
+  var themeIdx = 0;
+  try { var saved = localStorage.getItem("rh-theme"); if (saved && themes.indexOf(saved) >= 0) themeIdx = themes.indexOf(saved); } catch (e) {}
+  function applyTheme() {
+    var t = themes[themeIdx];
+    if (t === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", t);
+    $("#themeBtn").textContent = "Theme: " + t;
+    try { localStorage.setItem("rh-theme", t); } catch (e) {}
+  }
+  $("#themeBtn").addEventListener("click", function () { themeIdx = (themeIdx + 1) % themes.length; applyTheme(); });
+  applyTheme();
+
+  /* ---------- Tabs ---------- */
+  var TABS = [
+    ["overview", "Overview"], ["dataset", "Add a dataset"], ["flow", "The flow"], ["checks", "1. Automatic checks"], ["evaluate", "2. /evaluate"],
+    ["decisions", "Decisions"], ["fix", "3. /fix"], ["journey", "Follow a finding"], ["results", "First review"],
+    ["status", "Build and status"], ["skills", "Skills upgrade"], ["files", "Files"]
+  ];
+  var IDS = TABS.map(function (t) { return t[0]; });
+  var tablist = $("#tablist");
+  // Scroll back to the tab bar when the page is below it.
+  function toTop() { var top = $("header.top").offsetHeight + 8; if (window.scrollY > top) window.scrollTo(0, top); }
+  TABS.forEach(function (t) {
+    var b = document.createElement("button");
+    b.className = "tab"; b.type = "button"; b.setAttribute("role", "tab");
+    b.id = "tab-" + t[0]; b.setAttribute("aria-controls", t[0]); b.textContent = t[1];
+    b.addEventListener("click", function () { show(t[0], true); toTop(); });
+    tablist.appendChild(b);
+  });
+  tablist.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    var sel = $(".tab[aria-selected='true']");
+    var cur = sel ? IDS.indexOf(sel.id.slice(4)) : 0;
+    var n = (cur + (e.key === "ArrowRight" ? 1 : -1) + IDS.length) % IDS.length;
+    show(IDS[n], true); $("#tab-" + IDS[n]).focus(); e.preventDefault();
+  });
+  function show(id, push) {
+    if (IDS.indexOf(id) < 0) id = "overview";
+    $$(".panel").forEach(function (p) { p.classList.toggle("active", p.id === id); });
+    $$(".tab").forEach(function (b) {
+      var on = b.id === "tab-" + id;
+      b.setAttribute("aria-selected", on ? "true" : "false");
+      b.tabIndex = on ? 0 : -1;
+    });
+    if (push && location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
+    var btn = $("#tab-" + id);
+    if (btn && btn.scrollIntoView) btn.scrollIntoView({block: "nearest", inline: "nearest"});
+  }
+  $$("[data-go]").forEach(function (el) {
+    el.addEventListener("click", function (e) {
+      var id = el.getAttribute("data-go");
+      e.preventDefault(); show(id, true); window.scrollTo(0, 0); $("#tab-" + id).focus();
+    });
+  });
+  window.addEventListener("hashchange", function () { show(location.hash.slice(1), false); });
+
+  /* ---------- Words ---------- */
+  var WORDS = [
+    ["automatic checks", "checks that the computer runs with no agent: `lint`, `docs`, `test`"],
+    ["quick run, full run", "Quick run: no NAS data and no GPU (CI). The commit hook runs a quick run on the staged files only (`--fast`). Full run (`--full`): also runs the doc code blocks and the NAS claims."],
+    ["known-problems list", "old problems that we accept for now. Only a new problem fails."],
+    ["branch review, whole-repo review", "what `/evaluate` looks at. Branch review: the changes on this branch. Whole-repo review (`--full`): every repo part."],
+    ["main agent", "your Claude Code session. It starts the other agents, writes the report and asks you questions."],
+    ["bug hunter", "an agent that tries to prove, with a command, that the code does not do what its intent file says"],
+    ["checker", "an agent that runs each proof of the bug hunters again and drops what does not repeat. In a branch review, it keeps a real bug in a line that the branch did not change in a separate list."],
+    ["brief", "the instructions file of an agent, in `.claude/skills/evaluate/references/`"],
+    ["intent file", "the design decisions that apply to one repo part, and the test steps that `design.md` does not list (`references/intents/`)"],
+    ["repo part", "a group of files that one set of agents reviews, for example H1 (harmonizers 1)"],
+    ["finding", "a problem with proof. `V-H1-23`: a Correct? finding that the checker kept (repo part H1, number 23). `R-code-5`: a Follows our rules? finding. `A-1`: a Does what was asked? finding."],
+    ["old findings", "open findings from the last whole-repo review"],
+    ["design decision", "a D- entry in `docs/wiki/design.md`, for example D-07 (box format)"],
+    ["known gap", "a place where the code breaks a design decision today. It is a bug to fix."],
+    ["open question", "a behavior that no design decision covers. A report gives it a Q- ID. In `design.md` it becomes a D- entry with the status \"Open\" until a maintainer decides it."],
+    ["lesson", "a change to the repo, so that the same mistake cannot happen again"],
+    ["draft rule", "a new rule that a lesson proposes. It waits for a maintainer's yes."],
+    ["BLOCKED", "an item that an agent could not test, because the data cannot be read or is not on the NAS"],
+    ["STE", "ASD-STE100 Simplified Technical English: the style rules for docs, docstrings and comments"]
+  ];
+  $("#words").innerHTML = WORDS.map(function (w) {
+    return '<tr><td class="term">' + esc(w[0]) + "</td><td>" + md(w[1]) + "</td></tr>";
+  }).join("");
+
+  /* ---------- Overview tiles ---------- */
+  var TILES = [
+    [54, "Correct? findings (0 high, 27 medium, 27 low)"],
+    [31, "Follows our rules? findings"],
+    [12, "promises not kept (of 30)"],
+    [22, "doc code blocks that failed or timed out"],
+    [126, "old findings run again, all still open"]
+  ];
+  $("#tiles").innerHTML = TILES.map(function (t) {
+    return '<div class="card tile"><div class="num">' + t[0] + '</div><div class="lbl">' + esc(t[1]) + "</div></div>";
+  }).join("");
+
+  /* ---------- Flow diagram ---------- */
+  var W = 130, H = 56;
+  var REF = ".claude/skills/evaluate/references/";
+  var NODES = [
+    {id: "code", lane: 1, x: 20, y: 40, lines: ["/add-dataset", "writes code"],
+     title: "/add-dataset writes the code", when: "Each change starts here. `add-dataset` writes the code for a new dataset. For other changes, you or an agent write it.",
+     what: ["The agent writes the dataset config, confirms `base_image_dir`, then writes the harmonizer, the dataset class, the exports and the `app.py` entry.",
+            "It runs a checklist of 24 items and `scripts/check_datasets.py`, then writes the wiki page.",
+            "The agent follows `CLAUDE.md`: no base-code edit without the user's clear yes.",
+            "The tab \"Add a dataset\" has all steps and the 5 gaps of the skill today."],
+     example: "Today the skill has no step for `configs/data_paths.json`, so the new registry key fails `tests/test_data_paths.py` in CI.",
+     files: [".claude/skills/add-dataset/SKILL.md", "configs/datasets/<key>.json", "CLAUDE.md"]},
+    {id: "hooks", lane: 1, x: 175, y: 40, lines: ["Commit hooks"],
+     title: "Commit hooks", when: "Each git commit. Turn on once for each clone: `git config core.hooksPath .githooks`.",
+     what: ["`pre-commit` runs a quick run on the staged files only (`run_all.py --fast`): the checks `ruff`, `ste`, `wiki`, `blocks`, `claims`, `lessons` and `base`. No pytest.",
+            "`commit-msg` runs `base_guard.py`. A commit that changes a base file needs a `BASE CODE CHANGE:` line in the message.",
+            "A new problem stops the commit. An old problem on the known-problems list does not."],
+     example: "An em dash in a new docstring breaks rule STE-02, and the commit stops.",
+     files: [".githooks/pre-commit", ".githooks/commit-msg", "scripts/evalkit/run_all.py", "scripts/evalkit/base_guard.py"]},
+    {id: "ci", lane: 1, x: 330, y: 40, lines: ["CI on the PR"],
+     title: "CI on the PR", when: "Each push to main and each PR.",
+     what: ["`checks.yml` runs a quick run of the lint and docs groups: `run_all.py --group lint,docs`. No NAS, no GPU.",
+            "On a PR, it also runs `--check-shrink origin/<base>`: no known-problems list may grow. A `New rule: <ID>` line in the PR description lets that new rule add its old problems (D-45).",
+            "On a PR that changes base code, `base_guard.py --pr-body` checks that the PR description starts with `## ⚠️ Base code change` and has an `Approved by: <name> on <YYYY-MM-DD>` line.",
+            "`tests.yml` runs pytest."],
+     example: "A PR adds back one STE problem that was fixed before. The shrink check fails.",
+     files: [".github/workflows/checks.yml", ".github/workflows/tests.yml"]},
+    {id: "scope", lane: 2, x: 20, y: 200, lines: ["1. Scope"],
+     title: "/evaluate step 1: scope", when: "The start of each /evaluate run.",
+     what: ["Make the run folder `reports/eval/<date>-<branch|full>/`. It is not in git.",
+            "Branch review: list the changed files (`git diff --name-only <base>...HEAD` and `git status`). `<base>` is `main`, or the `--base` branch. An empty list stops the run.",
+            "Whole-repo review (`--full`): the 8 repo parts in `references/parts.md`. Load the old findings, so that the agents do not report them again."],
+     example: "`/evaluate --full` on 2026-10-27 loaded the 126 open findings of the audit.",
+     files: [".claude/skills/evaluate/SKILL.md", REF + "parts.md"]},
+    {id: "asked", lane: 2, x: 175, y: 200, lines: ["2. What was", "asked"],
+     title: "/evaluate step 2: what was asked", when: "Before the review.",
+     what: ["Branch review: look in the issue numbers in the commits, the PR text, a plan file, or the user's request.",
+            "Whole-repo review: the promises in the README and the main wiki pages.",
+            "If nothing is found, the Does what was asked? part says so. The agent does not guess a request."],
+     example: "The first whole-repo review checked 30 promises. 12 were not kept.",
+     files: [REF + "asked_reviewer.md"]},
+    {id: "full", lane: 2, x: 330, y: 200, lines: ["3. Automatic", "checks, full run"],
+     title: "/evaluate step 3: automatic checks, full run", when: "Each /evaluate run. It needs the NAS.",
+     what: ["`run_all.py --full --out <run folder>/checks`.",
+            "A full run also runs every doc code block that is not `skip`, and the NAS claims.",
+            "A crash is a finding of the run. The review goes on in any case."],
+     example: "In the first whole-repo review, 22 doc blocks failed or timed out. Example: `shenzhen_cxr.md:154` indexes the dataset with `[...]`, which it does not support.",
+     files: ["scripts/evalkit/run_all.py", "scripts/evalkit/run_blocks.py", "scripts/evalkit/claims.py"]},
+    {id: "review", lane: 2, x: 485, y: 200, lines: ["4. 3-part review", "(in parallel)"],
+     title: "/evaluate step 4: the 3-part review", when: "In parallel. At most 10 agents at the same time.",
+     what: ["**Correct?** 2 bug hunters (opus and sonnet) try to prove, with a command, that the code does not do what its intent file says. A checker (haiku) runs each command again.",
+            "**Follows our rules?** A rules reviewer (sonnet) checks the judgement rules J-01 to J-12.",
+            "**Does what was asked?** An asked reviewer (opus) looks for work that is missing, wrong or extra.",
+            "A behavior that no design decision covers becomes an open question, not a finding."],
+     example: "The first whole-repo review used 27 agents: 16 bug hunters, 8 checkers, 2 rules reviewers and 1 asked reviewer.",
+     files: [REF + " (hunter.md, checker.md, rules_reviewer.md, asked_reviewer.md, intents/)"]},
+    {id: "merge", lane: 2, x: 640, y: 200, lines: ["5. Merge"],
+     title: "/evaluate step 5: merge", when: "After all agents are done.",
+     what: ["`merge.py` reads all agent files and writes `findings.json` and `report_draft.md`.",
+            "It adds each finding ID to `reports/eval/index.json`. An ID always names the same finding, in every run. If an earlier run already used the ID of a new finding, the new finding gets the next free number.",
+            "It merges open questions with the same text and gives each one an ID (Q-1, Q-2).",
+            "The main agent runs the command of each high finding again. It drops a finding whose output does not show the failure."],
+     example: "`.venv/bin/python .claude/skills/evaluate/scripts/merge.py <run folder> --previous <old findings.json>`",
+     files: [".claude/skills/evaluate/scripts/merge.py"]},
+    {id: "report", lane: 2, x: 795, y: 200, lines: ["6. Report and", "lessons"],
+     title: "/evaluate step 6: report and lessons", when: "The end of the run.",
+     what: ["The main agent writes `report.md`. The 3 review parts stay separate.",
+            "Lessons are changes to the repo, so that the same mistake cannot happen again. There are 7 groups, for example \"automatic checks to add\" and \"tool cost\".",
+            "Each lesson points to findings. A lesson that a computer can check becomes a draft rule."],
+     example: "Rule L-008 (approved on 2026-10-28): a test for every harmonizer that checks that save and load keep the same number of rows (V-H1-23, V-H2-22).",
+     files: [REF + "lessons.md"]},
+    {id: "decide", lane: 3, x: 795, y: 370, lines: ["Decisions, one", "item at a time"],
+     title: "Decisions, one item at a time", when: "/evaluate step 6, and /fix before a base-code edit or a new rule.",
+     what: ["Order: open questions, then severity changes, then draft rules.",
+            "1. Check the facts. 2. Say what the code does today, with an example. 3. Give a recommendation and its cost.",
+            "4. Ask one question. 5. Read the whole answer. 6. Record it before the next item.",
+            "A decision becomes a D- entry in `docs/wiki/design.md`. \"Leave open\" becomes a D- entry with the status \"Open\"."],
+     example: "Open question O-1 became D-24: `h.harmonized_df` equals the result of `h.harmonize()`.",
+     files: [REF + "decisions.md", "docs/wiki/design.md"]},
+    {id: "fix", lane: 3, x: 640, y: 370, lines: ["/fix", "<finding ids>"],
+     title: "/fix <finding ids>", when: "After a maintainer picks the findings to fix.",
+     what: ["Run the finding's command again. If the failure does not show, skip it.",
+            "The proof script becomes a failing test. The expected value comes from the source data or the spec (rule J-08).",
+            "The smallest fix makes the test pass. A doc edit never hides a code bug (rule J-09).",
+            "`run_all.py` must pass. The known-problems lists must not grow.",
+            "It stops and asks before any base-code edit.",
+            "When a fix closes a known gap, it removes the gap line from `docs/wiki/design.md`."],
+     example: "For V-H1-23: a test that checks D-24, and a test that compares the image count with `expected_stats` from `test_list.txt` (25,596).",
+     files: [".claude/skills/fix/SKILL.md"]},
+    {id: "rule", lane: 3, x: 485, y: 370, lines: ["New check", "or rule"],
+     title: "Lessons become checks", when: "When a maintainer approves a draft rule.",
+     what: ["A mistake that happens 2 times, or 1 time with a large effect, becomes a rule.",
+            "If a computer can check it: write the check, prove it with `prove_rule.py` (fail on the mistake, pass on the fix), and add a row to `eval/RULES.md`.",
+            "A check in `scripts/evalkit/lessons.py` or a linter runs at each commit. A test in `tests/test_lessons.py` runs in CI and in a full run.",
+            "If a computer cannot check it: add a judgement rule. The rules reviewer reads it in each /evaluate run."],
+     example: "L-001: a declared age source fills `age_years`. The test fails on 95bb587^ and passes on 95bb587.",
+     files: ["eval/RULES.md", "tests/test_lessons.py", "scripts/evalkit/lessons.py", "scripts/evalkit/prove_rule.py"]},
+    {id: "know", lane: 0, x: 20, y: 370, lines: ["RULES.md and", "design.md"],
+     title: "What the agents compare the code with", when: "Read in each /evaluate run.",
+     what: ["`CLAUDE.md`: rules for every task.",
+            "`eval/RULES.md`: rules with a check, and judgement rules J-01 to J-12.",
+            "`docs/wiki/design.md`: 33 design decisions, each with a status and known gaps.",
+            "`references/intents/*.md`: the decisions that apply to each repo part, and its test steps.",
+            "`references/parts.md`: the repo parts, data paths, model venv and GPU.",
+            "`configs/data_paths.json`: the data paths for every registry key."],
+     example: "D-07: a box is `[y_min, y_max, x_min, x_max]` fractions. A bug hunter reports a box in another order.",
+     files: ["CLAUDE.md", "eval/RULES.md", "docs/wiki/design.md", REF + "intents/"]}
+  ];
+  var ORDER = ["code", "hooks", "ci", "scope", "asked", "full", "review", "merge", "report", "decide", "fix", "rule", "know"];
+  var EDGES = [
+    {d: "M150,68 H173"}, {d: "M305,68 H328"},
+    {d: "M395,96 V140 H85 V198"},
+    {d: "M150,228 H173"}, {d: "M305,228 H328"}, {d: "M460,228 H483"}, {d: "M615,228 H638"}, {d: "M770,228 H793"},
+    {d: "M860,256 V368"},
+    {d: "M795,398 H772"},
+    {d: "M640,398 H617"},
+    {d: "M520,370 V290 H12 V124 H240 V98", dash: true, label: "new check", lx: 300, ly: 285},
+    {d: "M860,426 V452 H85 V428", dash: true, label: "D- entry", lx: 440, ly: 446},
+    {d: "M85,370 V312 H550 V258", dash: true, label: "read by the review agents", lx: 200, ly: 327}
+  ];
+  var svgNS = "http://www.w3.org/2000/svg";
+  var gE = $("#edges"), gN = $("#nodes");
+  EDGES.forEach(function (e) {
+    var p = document.createElementNS(svgNS, "path");
+    p.setAttribute("d", e.d); p.setAttribute("class", "edge" + (e.dash ? " dash" : ""));
+    p.setAttribute("marker-end", "url(#arr)");
+    gE.appendChild(p);
+    if (e.label) {
+      var t = document.createElementNS(svgNS, "text");
+      t.setAttribute("x", e.lx); t.setAttribute("y", e.ly); t.setAttribute("class", "edge-label");
+      t.textContent = e.label; gE.appendChild(t);
+    }
+  });
+  NODES.forEach(function (n) {
+    var g = document.createElementNS(svgNS, "g");
+    g.setAttribute("class", "node " + (n.lane ? "l" + n.lane : "kn"));
+    g.setAttribute("tabindex", "0"); g.setAttribute("role", "button");
+    g.setAttribute("aria-label", n.title); g.setAttribute("data-id", n.id);
+    var r = document.createElementNS(svgNS, "rect");
+    r.setAttribute("x", n.x); r.setAttribute("y", n.y); r.setAttribute("width", W); r.setAttribute("height", H); r.setAttribute("rx", 9);
+    g.appendChild(r);
+    n.lines.forEach(function (line, i) {
+      var t = document.createElementNS(svgNS, "text");
+      var off = n.lines.length === 1 ? 4 : (i === 0 ? -5 : 12);
+      t.setAttribute("x", n.x + W / 2); t.setAttribute("y", n.y + H / 2 + off);
+      t.textContent = line; g.appendChild(t);
+    });
+    g.addEventListener("click", function () { stopPlay(); select(n.id); });
+    g.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { stopPlay(); select(n.id); e.preventDefault(); } });
+    gN.appendChild(g);
+  });
+  var current = "code";
+  function select(id) {
+    current = id;
+    var n = NODES.filter(function (x) { return x.id === id; })[0];
+    $$(".node").forEach(function (g) {
+      var on = g.getAttribute("data-id") === id;
+      g.classList.toggle("sel", on);
+      if (on) g.setAttribute("aria-current", "step"); else g.removeAttribute("aria-current");
+    });
+    var h = "<h3>" + md(n.title) + "</h3>";
+    h += '<div class="when">' + md(n.when) + "</div>";
+    h += "<ul>" + n.what.map(function (w) { return "<li>" + rich(w) + "</li>"; }).join("") + "</ul>";
+    if (n.warn) h += '<p class="note">' + md(n.warn) + "</p>";
+    h += "<p><b>Example:</b> " + md(n.example) + "</p>";
+    h += '<div class="files kv"><b>Files:</b> ' + n.files.map(function (f) { return "<code>" + esc(f) + "</code>"; }).join(" ") + "</div>";
+    $("#detail").innerHTML = h;
+    $("#stepCount").textContent = "Step " + (ORDER.indexOf(id) + 1) + " of " + ORDER.length;
+  }
+  function step(d) { var i = ORDER.indexOf(current); select(ORDER[(i + d + ORDER.length) % ORDER.length]); }
+  var timer = null;
+  function stopPlay() { if (timer) { clearInterval(timer); timer = null; } $("#playStep").textContent = "Play"; }
+  $("#prevStep").addEventListener("click", function () { stopPlay(); step(-1); });
+  $("#nextStep").addEventListener("click", function () { stopPlay(); step(1); });
+  $("#playStep").addEventListener("click", function () {
+    if (timer) { stopPlay(); return; }
+    // Start again from step 1 at the last step. Move at once, then every 3.5 s.
+    if (ORDER.indexOf(current) === ORDER.length - 1) select(ORDER[0]); else step(1);
+    $("#playStep").textContent = "Stop";
+    timer = setInterval(function () {
+      if (ORDER.indexOf(current) === ORDER.length - 1) { stopPlay(); return; }
+      step(1);
+    }, 3500);
+  });
+  select("code");
+
+  /* ---------- Journey of V-H1-23 ---------- */
+  var JOURNEY = [
+    {t: "A bug hunter finds it", who: "Correct?, repo part H1, opus bug hunter",
+     b: "The opus bug hunter wrote `repro_cxr14_split_state.py` in its own folder and ran it on the real data. The output: `harmonize()` returned 24,716 test rows, but `h.harmonized_df` held 111,240 rows. It reported the finding H1-opus-1 as high. The sonnet bug hunter did not find it."},
+    {t: "The checker runs it again", who: "Correct?, haiku checker",
+     b: "The checker ran the same command again. The output showed the same failure, so it kept the finding and gave it the ID V-H1-23 (`found_by: [\"opus\"]`)."},
+    {t: "merge.py puts it in the report", who: "main agent",
+     b: "`merge.py` wrote it to `findings.json` and `report_draft.md`. Because it was high, the main agent ran the command once more. `save` and `load_from_saved` gave 111,240 rows, and `ChestXray14TestDataset(harmonizer=h)` held 86,524 training images."},
+    {t: "The severity changes to medium", who: "main agent, with the severity rule",
+     b: "High means \"it changes a benchmark number\". No current benchmark uses this path, so it became medium. The change is in `severity_changed`: \"high -> medium on 2026-10-28\"."},
+    {t: "A design question", who: "decisions, one item at a time",
+     b: "Is this a bug? No decision said what `h.harmonized_df` must hold after `h.harmonize()`. This became open question O-1 in `docs/wiki/design.md`. Frank Li chose \"the same rows as `harmonize()`\"."},
+    {t: "It becomes decision D-24", who: "docs/wiki/design.md",
+     b: "D-24: after `df = h.harmonize()`, `assert_frame_equal(df, h.harmonized_df)` passes, for every harmonizer. Status: Decided (Frank Li, 2026-10-28). Known gap: V-H1-23. Now every review agent compares the code with D-24."},
+    {t: "/fix makes the tests pass", who: "done on 2026-10-28",
+     b: "The fix started with 2 failing tests in `tests/test_dataset_stats.py`: one for D-24, and one that compares the image count with `expected_stats` from `test_list.txt`. The fix filters `self.df`, not only the returned table, so `h.harmonized_df` has the 25,596 test rows. The same fix closed V-H1-2. Rule L-008 (approved, a test for every harmonizer) can catch the same kind of bug in other datasets."}
+  ];
+  var jl = $("#journeyList");
+  jl.innerHTML = JOURNEY.map(function (s, i) {
+    return '<li><button class="jbtn" type="button" aria-expanded="false"><span class="n">' + (i + 1) +
+      '</span><span><span class="t">' + esc(s.t) + '</span><br><span class="who">' + esc(s.who) + '</span></span></button>' +
+      '<div class="jbody">' + md(s.b) + "</div></li>";
+  }).join("");
+  function openJourney(i) {
+    $$("li", jl).forEach(function (li, k) {
+      li.classList.toggle("open", k === i);
+      li.classList.toggle("done", k < i);
+      $(".jbtn", li).setAttribute("aria-expanded", k === i ? "true" : "false");
+    });
+  }
+  $$(".jbtn", jl).forEach(function (b, i) { b.addEventListener("click", function () { openJourney(i); }); });
+  openJourney(0);
+
+  /* ---------- Checks table ---------- */
+  var CHECKS = [
+    {g: "lint", c: "ruff", what: "Python bug patterns (rules E9, F, B, PLE, PLW0177 and PLR0124)", ex: "a function call in an argument default in `app.py` (B008)", today: "90 old problems", runs: {fast: 1, quick: 1, full: 1}},
+    {g: "lint", c: "ste", what: "prose, docstrings and comments that break an STE rule", ex: "a sentence with more than 25 words (STE-01)", today: "2,861 old problems", runs: {fast: 1, quick: 1, full: 1}},
+    {g: "docs", c: "wiki", what: "doc code blocks and argument tables that disagree with the code", ex: "`api.md` passes `output_mask` to a class that does not accept it", today: "277 old problems", runs: {fast: 1, quick: 1, full: 1}},
+    {g: "docs", c: "blocks", what: "a doc code block that does not compile", ex: "", today: "0", runs: {fast: 1, quick: 1, full: 1}},
+    {g: "docs", c: "blocks_run", what: "a doc code block that fails when it runs", ex: "`shenzhen_cxr.md:154` indexes the dataset with `[...]`", today: "22 old problems (full run only)", runs: {fast: 0, quick: "only blocks with run=ci (none today)", full: "every block that is not skip"}},
+    {g: "docs", c: "claims", what: "a number in the docs that does not match its command", ex: "no claim notes in the docs yet", today: "0", runs: {fast: "ci claims only", quick: "ci claims only", full: "ci and NAS claims"}},
+    {g: "docs", c: "lessons", what: "rules L-002 and L-006: a NAS path in the docs or the code", ex: "a `/mnt/NAS` path in a wiki page", today: "37 old problems", runs: {fast: 1, quick: 1, full: 1}},
+    {g: "test", c: "base", what: "a changed base file", ex: "", today: "no change", runs: {fast: 1, quick: "not from run_all.py. On a PR: base_guard.py --pr-body", full: 1}},
+    {g: "test", c: "pytest", what: "all tests", ex: "", today: "473 passed, 24 skipped", runs: {fast: 0, quick: "in tests.yml", full: 1}}
+  ];
+  var RUNDESC = {
+    fast: "<b>Commit hook:</b> a quick run on the staged files only (<code>run_all.py --fast</code>). No pytest, and no doc block runs.",
+    quick: "<b>CI:</b> a quick run of all files, with no NAS data and no GPU. <code>checks.yml</code> runs <code>run_all.py --group lint,docs</code>, and <code>tests.yml</code> runs pytest.",
+    full: "<b>/evaluate:</b> a full run (<code>run_all.py --full</code>). It also runs every doc code block that is not <code>skip</code>, and the NAS claims. It needs the NAS."
+  };
+  function renderChecks(run) {
+    $$("[data-run]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.run === run ? "true" : "false"); });
+    $("#runDesc").innerHTML = RUNDESC[run];
+    $("#checkRows").innerHTML = CHECKS.map(function (c) {
+      var r = c.runs[run];
+      var cell = r === 1 ? '<span class="yes">runs</span>' : r ? '<span class="yes">runs:</span> ' + esc(r) : '<span class="no">not in this run</span>';
+      return '<tr class="' + (r ? "" : "off") + '"><td>' + c.g + "</td><td><code>" + c.c + "</code></td><td>" + md(c.what) +
+        "</td><td>" + md(c.ex) + "</td><td>" + esc(c.today) + '</td><td class="runcell">' + cell + "</td></tr>";
+    }).join("");
+  }
+  $$("[data-run]").forEach(function (b) { b.addEventListener("click", function () { renderChecks(b.dataset.run); }); });
+  renderChecks("quick");
+
+  /* ---------- Known-problems simulator ---------- */
+  var SIM = [
+    {t: "old: `harmonizer/x.py` has a sentence with 31 words (STE-01)", known: true, on: true},
+    {t: "old: `datasets/y.md` uses \"utilize\" (STE-06)", known: true, on: true},
+    {t: "old: `evaluator/z.py` has a semicolon in a comment (STE-03)", known: true, on: true},
+    {t: "new: your new docstring has an em dash (STE-02)", known: false, on: false}
+  ];
+  $("#simBoxes").innerHTML = SIM.map(function (s, i) {
+    return '<label><input type="checkbox" data-sim="' + i + '"' + (s.on ? " checked" : "") + "><span>" + md(s.t) + "</span></label>";
+  }).join("");
+  function renderSim() {
+    var on = $$("[data-sim]").map(function (cb) { return cb.checked; });
+    var newOnes = SIM.filter(function (s, i) { return !s.known && on[i]; }).length;
+    var fixed = SIM.filter(function (s, i) { return s.known && !on[i]; }).length;
+    var res = $("#simResult");
+    if (newOnes) {
+      res.textContent = "FAIL: " + newOnes + " new problem";
+      res.className = "result fail";
+      $("#simText").innerHTML = "The em dash is not on the list, so the commit stops. Fix it, then commit again.";
+    } else {
+      res.textContent = "PASS";
+      res.className = "result pass";
+      $("#simText").innerHTML = fixed
+        ? "You fixed " + fixed + " old problem" + (fixed > 1 ? "s" : "") + ". Write the lists again (<code>run_all.py --update-known --full</code>). The list then holds " + (3 - fixed) + ", and a later change that adds one back fails."
+        : "All 3 problems are on the list, so they pass for now.";
+    }
+  }
+  $$("[data-sim]").forEach(function (cb) { cb.addEventListener("change", renderSim); });
+  renderSim();
+
+  /* ---------- /evaluate steps ---------- */
+  var EVAL = [
+    ["Scope", "Make the run folder `reports/eval/<date>-<branch|full>/`. A branch review with no changes stops here. A whole-repo review also loads the old findings."],
+    ["Find what was asked", "Look in the issue, the PR text, a plan file or the user's request. A whole-repo review uses the promises in the README and the main wiki pages."],
+    ["Automatic checks", "`run_all.py --full --out <run folder>/checks`. A crash is a finding of the run."],
+    ["3-part review, in parallel", "Each agent works on one review part only, so the review parts do not mix. At most 10 agents run at the same time."],
+    ["Merge", "`merge.py` writes `findings.json` and `report_draft.md`. The main agent runs the command of each high finding again."],
+    ["Lessons and report", "The main agent writes `report.md`. Then it asks the user about each item that needs a choice, one at a time. Then it asks which findings to fix, as a short list grouped by repo part."]
+  ];
+  $("#evalSteps").innerHTML = EVAL.map(function (s, i) {
+    return '<details class="acc"' + (i === 0 ? " open" : "") + '><summary><span class="sn">' + (i + 1) + "</span>" + esc(s[0]) + '</summary><div class="body">' + md(s[1]) + "</div></details>";
+  }).join("");
+
+  /* ---------- /fix steps ---------- */
+  var FIX = [
+    ["Read the finding", "Run its command again. If the failure does not show, skip the finding and tell the user."],
+    ["A choice for the user?", "Stop and ask in 2 cases. (1) The fix needs base code: first look for a way without base code, and each base-code change needs its own yes. (2) There is more than one correct behavior, and `design.md` does not choose one."],
+    ["Write the failing test first", "The proof script becomes a test. The expected value comes from the source data or the spec, not from the code (rule J-08). A test that needs NAS data skips when the NAS is not mounted. The test must fail for the reason in the finding."],
+    ["Fix", "Make the smallest change that makes the test pass. A doc edit never hides a code bug (rule J-09)."],
+    ["Check", "The new test passes, and `run_all.py` passes. If a known problem is gone, write the lists again. The lists must not grow. If the fix closes a known gap in `docs/wiki/design.md`, remove that gap line. If `eval/TODO.md` has an item for the gap, tick it."],
+    ["Show the user", "The diff and the reason. A large change also gets a review by 2 or 3 critic agents."]
+  ];
+  $("#fixSteps").innerHTML = FIX.map(function (s, i) {
+    return '<details class="acc"' + (i === 0 ? " open" : "") + '><summary><span class="sn">' + (i + 1) + "</span>" + esc(s[0]) + '</summary><div class="body">' + md(s[1]) + "</div></details>";
+  }).join("");
+
+  /* ---------- Decisions list ---------- */
+  var D = [
+    ["D-01", "One table is the contract", "code", "Table"], ["D-02", "Harmonize first, then filter", "code", "Table"],
+    ["D-03", "One row per image", "code", "Table"], ["D-04", "Image paths are relative to `base_image_dir`", "code", "Table"],
+    ["D-05", "Labels", "code", "Table"], ["D-06", "Age in years", "code", "Table"],
+    ["D-07", "Box format", "code", "Table"], ["D-08", "Save and load give the same table", "code", "Table"],
+    ["D-09", "Official splits are separate classes", "decided", "Splits"], ["D-10", "Our own splits group by patient", "code", "Splits"],
+    ["D-11", "Output flags", "code", "Dataset classes and transforms"], ["D-12", "3-D orientation", "decided", "Dataset classes and transforms"],
+    ["D-13", "CXR pixel values", "code", "Dataset classes and transforms"], ["D-14", "Pixel value range", "code", "Dataset classes and transforms"],
+    ["D-15", "Cache before augmentation", "code", "Dataset classes and transforms"], ["D-16", "Backbones match their authors", "code", "Backbones and evaluators"],
+    ["D-17", "Frozen-feature probes L2-normalize features", "decided", "Backbones and evaluators"], ["D-18", "Test data stays out of training", "code", "Backbones and evaluators"],
+    ["D-19", "Variance of a result", "code", "Backbones and evaluators"], ["D-20", "Base code needs approval", "decided", "Repo rules"],
+    ["D-21", "One file for data paths", "decided", "Repo rules"], ["D-22", "Docs do not hide code bugs", "decided", "Repo rules"],
+    ["D-23", "Tests get their expected values from the source", "decided", "Repo rules"], ["D-24", "`harmonized_df` equals the last `harmonize()` result", "decided", "Table"],
+    ["D-25", "Images with no labels go in a separate test class", "decided", "Splits"], ["D-26", "One `sex` column", "decided", "Table"],
+    ["D-27", "A reader never clips pixel values", "decided", "Dataset classes and transforms"], ["D-28", "The box in a sample matches the image in that sample", "decided", "Dataset classes and transforms"],
+    ["D-29", "The threshold comes from validation data", "decided", "Backbones and evaluators"], ["D-30", "A harmonizer changes steps, not `harmonize()`", "decided", "Table"],
+    ["D-31", "Study and patient tables come from the image table", "planned", "Table"], ["D-32", "The bootstrap draws patients", "decided", "Backbones and evaluators"],
+    ["D-33", "An empty `mask_path` means \"not annotated\"", "decided", "Dataset classes and transforms"]
+  ];
+  var STLABEL = {decided: "Decided", planned: "Decided, planned", code: "From the code"};
+  var dFilter = "all";
+  function renderD() {
+    var q = ($("#dsearch").value || "").toLowerCase().trim();
+    var rows = D.filter(function (d) {
+      return (dFilter === "all" || d[2] === dFilter) && (!q || (d[0] + " " + d[1] + " " + d[3]).toLowerCase().indexOf(q) >= 0);
+    });
+    $("#dlist").innerHTML = rows.map(function (d) {
+      return '<div class="ditem"><span class="id">' + d[0] + "</span>" + md(d[1]) +
+        '<div class="meta"><span class="chip st-' + d[2] + '"><span class="dot"></span>' + STLABEL[d[2]] + '</span><span class="chip">' + esc(d[3]) + "</span></div></div>";
+    }).join("") || '<p class="muted">No decision matches.</p>';
+    $("#dcount").textContent = rows.length + " of " + D.length;
+  }
+  $$("[data-st]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      dFilter = b.dataset.st;
+      $$("[data-st]").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+      renderD();
+    });
+  });
+  $("#dsearch").addEventListener("input", renderD);
+  renderD();
+
+  /* ---------- Chart: Correct? findings by repo part ---------- */
+  var PARTS = [
+    ["H1 harmonizers 1", 1, 5], ["H2 harmonizers 2 and base", 7, 2], ["H3 harmonizers 3", 4, 1],
+    ["D datasets, transforms", 3, 5], ["P preprocessors, utils", 2, 3], ["A app, scripts", 4, 6],
+    ["B backbones", 2, 1], ["E evaluators", 4, 4]
+  ];
+  var MAX = 10;
+  $("#legend").innerHTML = '<span><span class="sw" style="background:var(--sev-medium)"></span>medium</span>' +
+    '<span><span class="sw" style="background:var(--sev-low)"></span>low</span>';
+  $("#bars").innerHTML = PARTS.map(function (p) {
+    // Round only the right end of the last segment.
+    var seg = function (cls, n, last) {
+      if (!n) return "";
+      var label = esc(p[0] + ": " + n + " " + cls);
+      return '<span class="seg ' + cls + (last ? " end" : "") + '" role="img" tabindex="0" style="width:calc(' + (n / MAX * 85) +
+        '% - 2px)" data-tip="' + label + '" aria-label="' + label + '"></span>';
+    };
+    return '<div class="brow"><div class="bl">' + esc(p[0]) + '</div><div class="track">' + seg("medium", p[1], !p[2]) + seg("low", p[2], true) +
+      '<span class="tot">' + (p[1] + p[2]) + "</span></div></div>";
+  }).join("");
+  $("#barTable").innerHTML = "<table><thead><tr><th>Repo part</th><th class='num'>Medium</th><th class='num'>Low</th><th class='num'>Total</th></tr></thead><tbody>" +
+    PARTS.map(function (p) { return "<tr><td>" + esc(p[0]) + "</td><td class='num'>" + p[1] + "</td><td class='num'>" + p[2] + "</td><td class='num'>" + (p[1] + p[2]) + "</td></tr>"; }).join("") +
+    "<tr><td><b>Total</b></td><td class='num'><b>27</b></td><td class='num'><b>27</b></td><td class='num'><b>54</b></td></tr></tbody></table>";
+  $("#tableToggle").addEventListener("click", function () {
+    var showTable = $("#barTable").hidden;
+    $("#barTable").hidden = !showTable; $("#bars").hidden = showTable; tip.style.display = "none";
+    this.textContent = showTable ? "Show as chart" : "Show as table";
+  });
+  var tip = $("#tip");
+  function showTip(el, x, y) {
+    tip.textContent = el.getAttribute("data-tip"); tip.style.display = "block";
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x + 12)) + "px";
+    tip.style.top = Math.max(8, y - h - 10) + "px";
+  }
+  $$(".seg").forEach(function (s) {
+    s.addEventListener("mousemove", function (e) { showTip(s, e.clientX, e.clientY); });
+    s.addEventListener("mouseleave", function () { tip.style.display = "none"; });
+    s.addEventListener("focus", function () { var r = s.getBoundingClientRect(); showTip(s, r.left + r.width / 2, r.top); });
+    s.addEventListener("blur", function () { tip.style.display = "none"; });
+  });
+  window.addEventListener("scroll", function () { tip.style.display = "none"; }, {passive: true});
+
+  /* ---------- Files ---------- */
+  var FILES = [
+    ["scripts/evalkit/run_all.py", "1", "runs all checks, and compares the result with the known-problems lists"],
+    ["scripts/evalkit/problems.py", "1", "problem records, keys, the known-problems lists and the shrink check"],
+    ["scripts/evalkit/ste_lint.py", "1", "the STE linter"],
+    ["scripts/evalkit/ste_words.toml", "1", "the STE word lists (avoid list, British spelling)"],
+    ["scripts/evalkit/wiki_audit.py", "1", "checks doc code blocks and argument tables against the code"],
+    ["scripts/evalkit/blocks.py", "1", "reads the doc code blocks and their run notes"],
+    ["scripts/evalkit/run_blocks.py", "1", "compiles and runs the doc code blocks"],
+    ["scripts/evalkit/claims.py", "1", "checks numbers in the docs against their commands"],
+    ["scripts/evalkit/lessons.py", "1", "lesson checks L-002 and L-006"],
+    ["scripts/evalkit/base_guard.py", "1", "finds base-code changes and checks the approval text"],
+    ["scripts/evalkit/prove_rule.py", "1", "proves that a check fails on the mistake and passes on the fix"],
+    ["eval/known_problems/*.json", "1", "the known-problems lists, one for each check"],
+    [".githooks/pre-commit", "1", "commit hook: run_all.py --fast on the staged files"],
+    [".githooks/commit-msg", "1", "commit hook: base-code approval text"],
+    [".github/workflows/checks.yml", "1", "CI: lint, docs, shrink check, base-code PR text"],
+    [".github/workflows/tests.yml", "1", "CI: pytest"],
+    [".claude/skills/evaluate/SKILL.md", "2", "the /evaluate steps"],
+    [".claude/skills/evaluate/references/hunter.md", "2", "bug hunter brief"],
+    [".claude/skills/evaluate/references/checker.md", "2", "checker brief"],
+    [".claude/skills/evaluate/references/rules_reviewer.md", "2", "rules reviewer brief"],
+    [".claude/skills/evaluate/references/asked_reviewer.md", "2", "asked reviewer brief"],
+    [".claude/skills/evaluate/references/parts.md", "2", "the 8 repo parts, data paths, model venv and GPU"],
+    [".claude/skills/evaluate/references/intents/", "2", "the decisions and test steps for each repo part (6 files)"],
+    [".claude/skills/evaluate/references/lessons.md", "2", "the 7 lesson groups"],
+    [".claude/skills/evaluate/references/decisions.md", "2, 3", "the one-item-at-a-time checklist"],
+    [".claude/skills/evaluate/scripts/merge.py", "2", "merges the agent files into findings.json and report_draft.md"],
+    [".claude/skills/fix/SKILL.md", "3", "the /fix steps"],
+    [".claude/skills/add-dataset/SKILL.md", "code", "the /add-dataset steps: writes the code for a new dataset"],
+    ["configs/datasets/<key>.json", "code", "the dataset config that /add-dataset writes first"],
+    ["eval/RULES.md", "all", "the rules: with a check, and judgement rules"],
+    ["eval/PIPELINE.md", "all", "the chart and the word list"],
+    ["eval/summary.html", "all", "this page: the whole pipeline with examples. Kept up to date with PIPELINE.md."],
+    ["eval/TODO.md", "all", "the to-do list for the next steps"],
+    ["docs/wiki/design.md", "all", "the 33 design decisions"],
+    ["configs/data_paths.json", "all", "the data paths for every registry key"],
+    ["tests/test_evalkit.py", "1", "tests for the checks: 19 test functions (26 tests)"],
+    ["tests/test_lessons.py", "1", "lesson rule L-001"],
+    ["tests/test_data_paths.py", "1", "rule L-007 and the data-paths config: 8 test functions (245 tests)"]
+  ];
+  function renderFiles() {
+    var q = ($("#fsearch").value || "").toLowerCase().trim();
+    var rows = FILES.filter(function (f) { return !q || (f[0] + " " + f[2]).toLowerCase().indexOf(q) >= 0; });
+    $("#fileRows").innerHTML = rows.map(function (f) {
+      return "<tr><td><code>" + esc(f[0]) + "</code></td><td>" + esc(f[1]) + "</td><td>" + esc(f[2]) + "</td></tr>";
+    }).join("");
+    $("#fcount").textContent = rows.length + " of " + FILES.length;
+  }
+  $("#fsearch").addEventListener("input", renderFiles);
+  renderFiles();
+
+  show(location.hash ? location.hash.slice(1) : "overview", false);
+})();
+</script>
+</body>
+</html>

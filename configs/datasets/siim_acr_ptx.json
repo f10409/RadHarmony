@@ -1,0 +1,40 @@
+{
+  "_comment": "SIIM-ACR Pneumothorax Segmentation (Kaggle, stage 1 files). Only the required keys and expected_stats are written here. The other config fields are not written yet.",
+
+  "dataset_name": "SIIM-ACR Pneumothorax",
+  "registry_key": "siim_acr_ptx",
+  "modality": "2D",
+  "image_format": "DICOM",
+
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. Sources: the Kaggle data page (stage 1: 10,675 train images in train-rle.csv, 1,377 test images), and the raw files read with pandas and pydicom (train-rle.csv, the DICOM headers). train-rle.csv has one line per pneumothorax region (11,582 lines). 2,379 images have 3,286 regions, and 8,296 images have -1 (no pneumothorax). No image has both. 37 train DICOM files have no line in train-rle.csv, so they are not in the table. Every image has a mask_path: an RLE string or -1 (D-33). The DICOM PatientID is unique for each image, so patients = images. Sex and age are only in the DICOM headers. 2 train ages are over 100, probably data errors. The age rule of radharmony/harmonizer/_age.py gives NaN for an age above 130, so age_years has no such value (D-06). The test images have no labels (D-25).",
+    "patients_in_two_splits": 0,
+    "siim_acr_ptx_train": {
+      "harmonizer": "SIIMACRPTXTrainHarmonizer",
+      "harmonizer_args": {"dicom_dir": "base_image_dir"},
+      "images": 10675,
+      "studies": 10675,
+      "patients": 10675,
+      "positives": {"pneumothorax": 2379},
+      "uncertain": {},
+      "rows_with_bbox": 0,
+      "boxes": 0,
+      "rows_with_mask": 10675,
+      "rows_with_report": 0,
+      "sex": {"F": 4795, "M": 5880},
+      "age_years": [1, 94]
+    },
+    "siim_acr_ptx_test": {
+      "harmonizer": "SIIMACRPTXTestHarmonizer",
+      "harmonizer_args": {"dicom_dir": "base_image_dir"},
+      "images": 1377,
+      "studies": 1377,
+      "patients": 1377,
+      "rows_with_bbox": 0,
+      "rows_with_mask": 0,
+      "rows_with_report": 0,
+      "sex": {"F": 630, "M": 747},
+      "age_years": [2, 89]
+    }
+  }
+}

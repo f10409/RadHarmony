@@ -1,0 +1,58 @@
+"""RadHarmony datathon26 submodule.
+
+Event-specific datasets and evaluators for the datathon26 CXR benchmark, where
+model inference runs on an external *reportbench* service rather than locally.
+The service returns per-study results (``embedding.npy`` for classification,
+``report.txt`` for report generation). The datasets here serve those results in
+place of image tensors. The evaluators score them with the standard RadHarmony
+probe / generative code and a pass-through encoder/generator.
+
+Importing this package registers all datathon26 datasets and evaluators in the
+shared registries (keys prefixed ``datathon26_``).
+"""
+
+from .dataset import (
+    DatathonEmbeddingDataset,
+    DatathonPatchEmbeddingDataset,
+    DatathonReportDataset,
+    EmbeddingResultsDataset,
+    PatchSegResultsDataset,
+    ReportResultsDataset,
+    ReportBenchClient,
+    perstudy_report_path,
+    viewwise_embedding_path,
+)
+from .evaluator import (
+    DatathonConvProbeSegEvaluator,
+    DatathonKNNProbeEvaluator,
+    DatathonLinearProbeEvaluator,
+    DatathonLinearProbeSegEvaluator,
+    DatathonPrototypeProbeEvaluator,
+    DatathonReportGenerationEvaluator,
+    DatathonSVMProbeEvaluator,
+    DatathonUPerNetSegEvaluator,
+    IdentityEncoder,
+    identity_generator,
+)
+
+__all__ = [
+    "DatathonEmbeddingDataset",
+    "EmbeddingResultsDataset",
+    "DatathonPatchEmbeddingDataset",
+    "DatathonReportDataset",
+    "ReportResultsDataset",
+    "PatchSegResultsDataset",
+    "ReportBenchClient",
+    "viewwise_embedding_path",
+    "perstudy_report_path",
+    "DatathonLinearProbeEvaluator",
+    "DatathonKNNProbeEvaluator",
+    "DatathonSVMProbeEvaluator",
+    "DatathonPrototypeProbeEvaluator",
+    "DatathonReportGenerationEvaluator",
+    "DatathonLinearProbeSegEvaluator",
+    "DatathonConvProbeSegEvaluator",
+    "DatathonUPerNetSegEvaluator",
+    "IdentityEncoder",
+    "identity_generator",
+]

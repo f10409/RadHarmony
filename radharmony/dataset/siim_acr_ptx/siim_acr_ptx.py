@@ -15,7 +15,7 @@ class SIIMACRPTXDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Root directory of the DICOM tree (used for both globbing
-            and prepending to relative image paths, e.g. ``…/dicom-images-train/``).
+            and prepending to relative image paths, for example ``…/dicom-images-train/``).
             ``csv_path`` is inferred from the parent directory when not provided
             and the expected file exists.
         csv_path: Path to ``train-rle.csv``.  Defaults to ``<parent>/train-rle.csv``.
@@ -26,6 +26,10 @@ class SIIMACRPTXDataset(BaseRadiologicalDataset):
     SUPPORTED_OUTPUTS: frozenset = frozenset({"cls", "mask"})
     LABEL_COLS = ["pneumothorax"]
     _HARMONIZER_CLS = SIIMACRPTXHarmonizer
+
+    #: The train source files must exist (D-35). A test-split subclass that reads
+    #: only its test files sets False.
+    _TRAIN_FILES_REQUIRED: bool = True
 
     def __init__(
         self,
@@ -38,6 +42,7 @@ class SIIMACRPTXDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -45,7 +50,7 @@ class SIIMACRPTXDataset(BaseRadiologicalDataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = SIIMACRPTXHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = _h.dicom_dir
 
         if base_image_dir is None and harmonizer_path is None and harmonized_df is None and harmonizer is None:
@@ -57,6 +62,8 @@ class SIIMACRPTXDataset(BaseRadiologicalDataset):
             csv_path = infer_path(
                 base_image_dir, "train-rle.csv",
                 user_path=csv_path or "",
+                required=self._TRAIN_FILES_REQUIRED,
+                arg="csv_path",
             ) or csv_path
 
         if output_mask and mask_output_dir is None and harmonizer_path is None and harmonized_df is None and harmonizer is None:
@@ -67,11 +74,11 @@ class SIIMACRPTXDataset(BaseRadiologicalDataset):
                 "    SIIMACRPTXDataset(..., output_mask=True, mask_output_dir='/path/to/masks')"
             )
 
+        # Only cls and mask are supported. The base class warns for the other flags.
+        # A key that no sample has must not be in the transform: it raises KeyError (D-11).
         output_keys = {"img"}
         if output_cls:    output_keys.add("cls")
         if output_mask:   output_keys.add("mask")
-        if output_report: output_keys.add("report")
-        if output_bbox:   output_keys.add("bbox")
         if transform is None:
             transform = RadiologyTransform2D(
                 output_keys=output_keys,
@@ -84,6 +91,7 @@ class SIIMACRPTXDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,

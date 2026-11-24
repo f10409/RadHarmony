@@ -1,9 +1,12 @@
 """CheXFound backbone recipe (ViT-Large/16, iBOT-style self-supervised pre-training).
 
 Accepts any format supported by MONAI's ``LoadImage`` (PNG, JPEG, DICOM,
-NIfTI, …). The loader applies min-max normalization to uint8 before the
-torchvision preprocessing pipeline:
-Resize(512, BICUBIC) → CenterCrop(512) → Normalize(ImageNet).
+NIfTI, …). The loader gives the image as the dataset load shows it, in 0 to 255
+(D-13, D-27). A DICOM file gets its VOI window, and an 8-bit image keeps
+its values. Any other image is scaled with its minimum and maximum. Then the
+torchvision steps run:
+Resize(512, BICUBIC) → CenterCrop(512) → RescaleImage → Normalize(ImageNet).
+These are the steps of the authors' eval transform (V-B-14).
 
 CheXFound weights must be manually downloaded from Google Drive and the
 repository cloned locally:
@@ -29,17 +32,20 @@ Requires the ``chexfound`` extra::
 # where GROUP is the FSDP shard (0–3) and IDX is the absolute block index
 # (0–23). The official CheXFound loading code drops the GROUP dimension to
 # produce flat blocks.ABS_IDX.* keys, which match block_chunks=0 (flat
-# nn.ModuleList). See:
-#   chexfound/scripts/chexfound_with_glori.py → load_pretrained_weights
+# nn.ModuleList). See the key rename in notebooks/chexfound_example.ipynb of the
+# authors' repo. Their load_pretrained_weights (chexfound/utils/utils.py) only
+# strips the module. and backbone. prefixes.
 #
 # Key stripping logic:
 #   backbone.blocks.GROUP.IDX.xxx  →  blocks.IDX.xxx  (keep ls[1], skip ls[2])
 #   backbone.<other>               →  <other>          (strip backbone. prefix)
-#   <non-backbone>                 →  unchanged        (dino_head / ibot_head — loaded strict=False)
+#   <non-backbone>                 →  unchanged        (dino_head / ibot_head, loaded strict=False)
 #
-# model(x) returns the CLS token [B, 1024] directly (DINOv2-style forward).
-# get_intermediate_layers strips CLS + register tokens from output;
-# use return_class_token=True to retrieve patch tokens and CLS separately.
+# The classification feature joins the CLS tokens of the last 4 blocks [B, 4096].
+# The authors' frozen-feature eval does this (eval/classification/linear_glori.py,
+# n_last_blocks=[4], avgpools=[False]). The plain forward gives only the last CLS
+# token [B, 1024] (DINOv2 style). The get_intermediate_layers method strips the CLS
+# and register tokens. With return_class_token=True, it gives them separately.
 # ──────────────────────────────────────────────────────────────────────────────
 
 from __future__ import annotations
@@ -58,6 +64,47 @@ _INPUT_SIZE = 512
 _IMAGENET_MEAN = [0.485, 0.456, 0.406]
 _IMAGENET_STD = [0.229, 0.224, 0.225]
 
+
+def _cls_of_last_4_blocks(m, x: torch.Tensor) -> torch.Tensor:
+    """Return the normed CLS tokens of the last 4 blocks, joined in block order (D-16, V-B-13).
+
+    This is the feature of the authors' linear probe: ``create_linear_input`` with
+    ``n_last_blocks=4`` and no average pool. Input ``[B, 3, H, W]``, output ``[B, 4096]``.
+    """
+    return torch.cat([cls for _, cls in m.get_intermediate_layers(x, n=4, return_class_token=True)], dim=-1)
+
+
+def _rescale_image(img: torch.Tensor) -> torch.Tensor:
+    """Clip ``[C, H, W]`` to [0, 1], then scale each channel with its minimum and maximum (V-B-14).
+
+    The authors resize a uint8 PIL image, so the overshoot of the bicubic resize is
+    clipped to 0 to 255. Then ``RescaleImage`` (``chexfound/data/transforms.py``)
+    scales each channel to [0, 1]. A channel with one value gives 0, not NaN.
+    """
+    img = img.clamp(0.0, 1.0)
+    flat = img.reshape(img.shape[0], -1)
+    lo = flat.min(dim=1)[0].reshape(-1, 1, 1)
+    hi = flat.max(dim=1)[0].reshape(-1, 1, 1)
+    return (img - lo) / (hi - lo).clamp_min(1e-8)
+
+
+def _image_transform():
+    """Return the authors' eval steps for a ``[3, H, W]`` float image in [0, 1] (D-16).
+
+    ``make_classification_eval_transform`` of the authors: Resize(512, BICUBIC),
+    CenterCrop(512), RescaleImage, Normalize(ImageNet). Output ``[3, 512, 512]``.
+    """
+    from torchvision import transforms as tv_transforms  # type: ignore[import-untyped]
+    from torchvision.transforms.functional import InterpolationMode  # type: ignore[import-untyped]
+
+    return tv_transforms.Compose([
+        tv_transforms.Resize(_INPUT_SIZE, interpolation=InterpolationMode.BICUBIC),
+        tv_transforms.CenterCrop(_INPUT_SIZE),
+        _rescale_image,
+        tv_transforms.Normalize(mean=_IMAGENET_MEAN, std=_IMAGENET_STD),
+    ])
+
+
 # Default: <repo_root>/third_party_models/CheXFound
 _DEFAULT_CHEXFOUND_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "third_party_models", "CheXFound")
@@ -65,7 +112,7 @@ _DEFAULT_CHEXFOUND_DIR = os.path.normpath(
 
 
 def make_chexfound(
-    chexfound_dir: str = _DEFAULT_CHEXFOUND_DIR,
+    chexfound_dir: str | None = None,
     checkpoint_path: str | None = None,
     device: str = "cuda",
     output_keys: set[str] | None = None,
@@ -75,24 +122,24 @@ def make_chexfound(
 
     A single ``vit_large`` instance is created and its weights loaded once.
     The same model object is captured in both the transform's preprocess closure
-    (CPU; runs in DataLoader workers) and the ``ImageEncoderWrapper`` (on
+    (CPU. Runs in DataLoader workers) and the ``ImageEncoderWrapper`` (on
     *device*). No weights are loaded twice.
 
     Parameters
     ----------
     chexfound_dir :
-        Path to the cloned CheXFound repository. Defaults to
+        Path to the cloned CheXFound repository. ``None`` gives
         ``<repo_root>/third_party_models/CheXFound``.
     checkpoint_path :
         Path to ``teacher_checkpoint.pth``. Defaults to
         ``<chexfound_dir>/weights/teacher_checkpoint.pth``.
     device :
-        Target device for the encoder (e.g. ``"cuda"``, ``"cuda:2"``,
+        Target device for the encoder (for example ``"cuda"``, ``"cuda:2"``,
         ``"cpu"``). The transform's preprocess step always runs on CPU.
     output_keys :
         Keys to keep in each sample dict. Defaults to ``{"img", "cls"}``.
         Pass ``{"img", "mask"}`` or ``{"img", "cls", "mask"}`` for
-        segmentation — the mask is spatially aligned to the image
+        segmentation. The mask is spatially aligned to the image
         (NEAREST resize + center-crop to 512 × 512) without normalization.
 
     dtype :
@@ -108,11 +155,12 @@ def make_chexfound(
         MONAI transform suitable for passing to a RadHarmony dataset via
         the ``transform=`` kwarg.
     encoder : ImageEncoderWrapper
-        Classification mode (default): ``forward(x) -> Tensor[B, 1024]``
-        — the CLS-token embedding from the ViT-L/16 backbone.
+        Classification mode (default): ``forward(x) -> Tensor[B, 4096]``.
+        These are the CLS tokens of the last 4 blocks of the ViT-L/16 backbone,
+        as in the authors' linear probe.
 
         Segmentation mode (``"mask"`` in *output_keys*):
-        ``forward(x) -> Tensor[B, 1024, 32, 32]`` — spatial patch feature
+        ``forward(x) -> Tensor[B, 1024, 32, 32]``, spatial patch feature
         map (512 px / 16 px patches = 32 × 32 grid).
 
     Example
@@ -135,7 +183,7 @@ def make_chexfound(
     from torchvision import transforms as tv_transforms  # type: ignore[import-untyped]
     from torchvision.transforms.functional import InterpolationMode  # type: ignore[import-untyped]
 
-    chexfound_dir = os.path.abspath(chexfound_dir)
+    chexfound_dir = os.path.abspath(chexfound_dir or _DEFAULT_CHEXFOUND_DIR)
     if not os.path.isdir(chexfound_dir):
         raise FileNotFoundError(
             f"CheXFound directory not found: {chexfound_dir}\n"
@@ -156,12 +204,13 @@ def make_chexfound(
     from chexfound.models.vision_transformer import vit_large  # type: ignore[import-untyped]
 
     # ── Build and load model ──────────────────────────────────────────────────
-    # block_chunks=0 → flat nn.ModuleList (keys: blocks.0.* … blocks.23.*)
+    # block_chunks=0 → flat nn.ModuleList (keys: blocks.0.* … blocks.23.*).
     # This matches the output of the official FSDP key stripping below.
-    # init_values=1e-5 → enables LayerScale; without it the trained `ls1.gamma`/
-    # `ls2.gamma` weights (48 tensors in the teacher checkpoint, magnitudes up
-    # to ~0.16) load into nn.Identity placeholders and are silently dropped,
-    # so every block's residual contribution is left unscaled. Matches the
+    # init_values=1e-5 → enables LayerScale. Without it the trained `ls1.gamma`/
+    # `ls2.gamma` weights load into nn.Identity placeholders and are silently
+    # dropped. There are 48 such tensors in the teacher checkpoint, with
+    # magnitudes up to ~0.16. Then every block's residual contribution is
+    # left unscaled. This matches the
     # `layerscale: 1.0e-05` field in chexfound/configs/ssl_default_config.yaml.
     model = vit_large(
         patch_size=16,
@@ -172,7 +221,7 @@ def make_chexfound(
         init_values=1.0e-05,
     )
 
-    # Official CheXFound key stripping (from chexfound_with_glori.py):
+    # The key rename of the authors' notebooks/chexfound_example.ipynb:
     # backbone.blocks.GROUP.ABS_IDX.xxx → blocks.ABS_IDX.xxx
     # backbone.<other>                  → <other>
     # dino_head.* / ibot_head.*         → unchanged (ignored via strict=False)
@@ -192,14 +241,15 @@ def make_chexfound(
     model.eval()
 
     # ── MONAI loader (handles PNG, JPEG, DICOM, NIfTI, …) ────────────────────
-    from ._utils import squeeze_frame_dim, to_3channel, normalize_to_uint8
+    from ._utils import display_255, load_image, squeeze_frame_dim, to_3channel, to_uint8
 
     _loader = mt.Compose([
-        mt.LoadImage(image_only=True, ensure_channel_first=True),
+        load_image(),
         mt.Lambda(squeeze_frame_dim),
         mt.Transpose(indices=[0, 2, 1]),
+        mt.Lambda(display_255),
         mt.Lambda(to_3channel),
-        mt.Lambda(normalize_to_uint8),
+        mt.Lambda(to_uint8),
     ])
     _loader_mask = mt.Compose([
         mt.LoadImage(image_only=True, ensure_channel_first=True),
@@ -207,14 +257,10 @@ def make_chexfound(
         mt.Transpose(indices=[0, 2, 1]),
     ])
 
-    # ── Image transform (ImageNet norm, BICUBIC resize) ───────────────────────
-    # ToTensor() is omitted — _loader already produces a torch.Tensor.
-    # Divide by 255 to bring uint8 → float [0, 1] before Normalize.
-    _tv_transform = tv_transforms.Compose([
-        tv_transforms.Resize(_INPUT_SIZE, interpolation=InterpolationMode.BICUBIC),
-        tv_transforms.CenterCrop(_INPUT_SIZE),
-        tv_transforms.Normalize(mean=_IMAGENET_MEAN, std=_IMAGENET_STD),
-    ])
+    # ── Image transform (BICUBIC resize, min-max, ImageNet norm) ──────────────
+    # No ToTensor(): _loader already gives a torch.Tensor.
+    # Divide by 255 to bring uint8 to float [0, 1] before the resize.
+    _tv_transform = _image_transform()
 
     def _preprocess(path) -> torch.Tensor:
         img = _loader(str(path)).float() / 255.0  # [3, H, W] float in [0, 1]
@@ -240,8 +286,7 @@ def make_chexfound(
             patches, _ = m.get_intermediate_layers(x, n=1, return_class_token=True)[0]
             return patches_to_spatial(patches)  # [B, 1024, 32, 32]
     else:
-        def _model_call(m, x: torch.Tensor) -> torch.Tensor:
-            return m(x)  # [B, 1024] — CLS token
+        _model_call = _cls_of_last_4_blocks  # [B, 4096]
 
     # ── Assemble transform + encoder ──────────────────────────────────────────
     pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess)

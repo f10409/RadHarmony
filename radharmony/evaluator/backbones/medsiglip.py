@@ -1,9 +1,11 @@
 """MedSigLIP backbone recipe.
 
 Uses ``google/medsiglip-448`` from HuggingFace. Accepts any format supported
-by MONAI's ``LoadImage`` (PNG, JPEG, DICOM, NIfTI, …). Images are min-max
-normalized to uint8 and passed through ``AutoProcessor`` (resize to 448 × 448
-and [-1, 1] normalization handled by the processor).
+by MONAI's ``LoadImage`` (PNG, JPEG, DICOM, NIfTI, …). 
+The loader gives the image as the dataset load shows it, in 0 to 255
+(D-13, D-27). A DICOM file gets its VOI window, and an 8-bit image keeps
+its values. Any other image is scaled with its minimum and maximum. Then
+``AutoProcessor`` resizes it to 448 × 448 and normalizes it to [-1, 1].
 
 Requires the ``medsiglip`` extra::
 
@@ -19,7 +21,7 @@ import monai.transforms as mt
 
 from radharmony.evaluator.transforms import EncoderPreprocessTransform, RadiologyEncoderTransform
 from radharmony.evaluator.wrappers import ImageEncoderWrapper
-from ._utils import squeeze_frame_dim, to_3channel, normalize_to_uint8, patches_to_spatial
+from ._utils import display_255, load_image, squeeze_frame_dim, to_3channel, to_uint8, patches_to_spatial
 
 _MEDSIGLIP_HUB = "google/medsiglip-448"
 
@@ -32,15 +34,15 @@ def make_medsiglip(
 ) -> tuple[mt.Compose, ImageEncoderWrapper, Callable[[torch.Tensor], torch.Tensor], Any]:
     """Return ``(transform, image_encoder, text_encoder, processor)`` for MedSigLIP.
 
-    A single ``SiglipModel`` instance is created and shared: the processor is
-    captured in the transform's preprocess closure and the backbone is
+    A single ``SiglipModel`` instance is created and shared. The processor is
+    captured in the transform's preprocess closure. The backbone is
     registered in the returned ``ImageEncoderWrapper``. No weights are loaded
     twice.
 
     Parameters
     ----------
     device :
-        Target device for the encoder (e.g. ``"cuda"``, ``"cuda:7"``,
+        Target device for the encoder (for example ``"cuda"``, ``"cuda:7"``,
         ``"cpu"``). The transform's preprocess step runs on CPU in
         DataLoader workers regardless of this setting.
     hub :
@@ -48,9 +50,9 @@ def make_medsiglip(
     output_keys :
         Keys to keep in each sample dict. Defaults to ``{"img", "cls"}``.
         Pass ``{"img", "mask"}`` or ``{"img", "cls", "mask"}`` for
-        segmentation — the mask is processed through the same spatial
+        segmentation. The mask is processed through the same spatial
         pipeline as the image (processor resize + crop to 448 × 448)
-        using nearest-neighbour interpolation.
+        using nearest-neighbor interpolation.
 
     dtype :
         Output tensor dtype set by the final ``ToTensorD``. Defaults to
@@ -66,13 +68,13 @@ def make_medsiglip(
         the ``transform=`` kwarg.
     image_encoder : ImageEncoderWrapper
         Classification mode (default): ``forward(x) -> Tensor[B, 1152]``
-        — the pooled CLS embedding.
+        Returns the pooled CLS embedding.
 
         Segmentation mode (``"mask"`` in *output_keys*):
-        ``forward(x) -> Tensor[B, 1152, H, W]`` — spatial patch feature
+        ``forward(x) -> Tensor[B, 1152, H, W]``, spatial patch feature
         map, where ``H = W = 32`` for 448 px input (14-px patches).
     text_encoder : callable
-        ``(token_dict) -> Tensor[T, 512]`` — encodes tokenized text on
+        ``(token_dict) -> Tensor[T, 1152]``, encodes tokenized text on
         ``device`` and returns float32 on CPU. Pass to
         ``ZeroShotEvaluator(text_encoder=...)``.
     processor : SiglipProcessor
@@ -101,11 +103,12 @@ def make_medsiglip(
     _processor = AutoProcessor.from_pretrained(hub)
 
     _loader = mt.Compose([
-        mt.LoadImage(image_only=True, ensure_channel_first=True),
+        load_image(),
         mt.Lambda(squeeze_frame_dim),
         mt.Transpose(indices=[0, 2, 1]),
+        mt.Lambda(display_255),
         mt.Lambda(to_3channel),
-        mt.Lambda(normalize_to_uint8),
+        mt.Lambda(to_uint8),
     ])
     _loader_mask = mt.Compose([
         mt.LoadImage(image_only=True, ensure_channel_first=True),
@@ -130,8 +133,8 @@ def make_medsiglip(
 
     if _seg_mode:
         def _model_call(m, x: torch.Tensor) -> torch.Tensor:
-            # SigLIP has no CLS token (uses attention-pool head); last_hidden_state
-            # is already pure patch tokens — do NOT slice [:, 1:].
+            # SigLIP has no CLS token (uses attention-pool head). Last_hidden_state
+            # is already pure patch tokens, do NOT slice [:, 1:].
             patches = m.vision_model(pixel_values=x).last_hidden_state
             return patches_to_spatial(patches)  # [B, 1152, H, W]
     else:
@@ -144,7 +147,7 @@ def make_medsiglip(
                 **{k: v.to(device) for k, v in token_dict.items()}
             ).pooler_output.float().cpu()
 
-    pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess)
+    pp = EncoderPreprocessTransform.from_custom(keys=["img"], preprocess=_preprocess, processor=_processor)
     transform = (
         RadiologyEncoderTransform(
             preprocess=pp,

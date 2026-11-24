@@ -9,7 +9,7 @@ from .rsna_2024_lumbar_spine import RSNA2024LumbarSpineDataset
 class RSNA2024LumbarSpineTrainDataset(RSNA2024LumbarSpineDataset):
     """Train split of :class:`RSNA2024LumbarSpineDataset`.
 
-    Identical to the base class; uses :class:`RSNA2024LumbarSpineTrainHarmonizer`
+    Identical to the base class. Uses :class:`RSNA2024LumbarSpineTrainHarmonizer`
     for correct save/load round-trips via ``load_from_saved()``.
     All constructor arguments are the same as :class:`RSNA2024LumbarSpineDataset`.
     """

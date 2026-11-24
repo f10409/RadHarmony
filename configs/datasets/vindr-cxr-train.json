@@ -109,5 +109,17 @@
     "_comment": "Any additional constructor parameters not covered above."
   },
   "hu_window": null,
-  "custom_preprocessing": null
+  "custom_preprocessing": null,
+  "expected_stats": {
+    "_comment": "Checked by tests/test_dataset_stats.py. VinDr-CXR train: image_labels_train.csv has 3 lines per image (one per radiologist), 15,000 images. Read with pandas and pydicom. There is no patient id, so patients = studies = images. sex and age_years come from the DICOM tags PatientSex and PatientAge (D-06, D-26). PatientSex: O 5,145, empty 2,501. PatientAge: no tag 9,519, 'Y' 701, empty 109, and 4,671 DICOM age strings. One of them is 238Y, above 130, so it gives NaN. So 4,670 images have an age tag. 905 ages are 0 ('000Y' 839, '000D' 66), and 0 means unknown in VinDr-CXR, so they give NaN (D-06). 3,765 images have an age, from 2 to 124. Boxes (D-36): annotations_train.csv has 37,367 boxes with coordinates. Per image and class, a box joins the first group whose mean box has IoU > 0.5 with it. A group of 2 or more readers is one box. That gives 8,328 boxes on 4,167 images.",
+    "vindr_cxr_train": {
+      "images": 15000,
+      "studies": 15000,
+      "patients": 15000,
+      "sex": {"F": 3514, "M": 3840},
+      "age_years": [2, 124],
+      "rows_with_bbox": 4167,
+      "boxes": 8328
+    }
+  }
 }

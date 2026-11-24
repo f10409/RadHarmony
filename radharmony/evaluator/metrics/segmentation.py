@@ -3,16 +3,28 @@
 Per-class panel computed by binarizing both ``y_true`` and ``y_pred``
 against each class index:
 
-- ``dice``        — 2 * |A ∩ B| / (|A| + |B|)
-- ``iou``         — |A ∩ B| / |A ∪ B|  (Jaccard)
-- ``pixel_acc``   — (TP + TN) / N
-- ``tpr``         — sensitivity / recall
-- ``tnr``         — specificity
-- ``ppv``         — precision
-- ``npv``         — negative predictive value
+- ``dice``: 2 * |A ∩ B| / (|A| + |B|)
+- ``iou``: |A ∩ B| / |A ∪ B|  (Jaccard)
+- ``pixel_acc``: (TP + TN) / N
+- ``tpr``: sensitivity / recall
+- ``tnr``: specificity
+- ``ppv``: precision
+- ``npv``: negative predictive value
 
 The macro-average row excludes ``class_0`` (background) by default, matching
 standard segmentation reporting where background is uninformative.
+
+Rule for an image with an empty ground truth for a class (V-E-12):
+
+- Empty prediction: ``dice`` and ``iou`` are NaN. The probes take the mean
+  over images with ``np.nanmean``, so the image does not count for that class.
+- Any predicted pixel: ``dice`` and ``iou`` are 0.
+
+A non-empty ground truth gives the same values as MONAI ``DiceMetric``. For an
+empty ground truth, MONAI gives NaN in both cases (``ignore_empty=True``), or 1
+and 0 (``ignore_empty=False``). So this rule matches neither MONAI option. On a
+dataset with many empty images (for example SIIM-ACR), compare Dice only with
+results that use the same rule.
 """
 
 from __future__ import annotations
@@ -98,7 +110,7 @@ def macro_average(df: pd.DataFrame, exclude_background: bool = True) -> pd.DataF
         if not isinstance(key, tuple):
             key = (key,)
         row: dict = {"label": "macro_average"}
-        row.update(dict(zip(group_cols, key)))
+        row.update(dict(zip(group_cols, key, strict=False)))
         for m in metric_cols:
             row[m] = float(np.nanmean(sub[m].to_numpy()))
         macro_rows.append(row)

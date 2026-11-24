@@ -18,7 +18,7 @@ class VinDrCXRTrainDataset(BaseRadiologicalDataset):
 
     All images are PA-view DICOM chest X-rays stored as
     ``<image_id>.dicom`` under ``base_image_dir``
-    (e.g. ``.../vindr-cxr/1.0.0/train/``).
+    (for example ``.../vindr-cxr/1.0.0/train/``).
 
     Labels are aggregated from three independent radiologist annotations
     via majority vote.  Bounding boxes (multiple per image) come from
@@ -26,7 +26,7 @@ class VinDrCXRTrainDataset(BaseRadiologicalDataset):
 
     Args:
         base_image_dir: Root directory containing ``.dicom`` files
-            (e.g. ``.../vindr-cxr/1.0.0/train/``).
+            (for example ``.../vindr-cxr/1.0.0/train/``).
         csv_path: Path to ``image_labels_train.csv``.  Auto-inferred
             near ``base_image_dir`` when ``None``.
         bbox_csv_path: Path to ``annotations_train.csv``.  Auto-inferred
@@ -80,6 +80,7 @@ class VinDrCXRTrainDataset(BaseRadiologicalDataset):
         output_cls: bool = False,
         output_mask: bool = False,
         output_report: bool = False,
+        output_reg: bool = False,
         output_bbox: bool = False,
         harmonized_df=None,
         harmonizer=None,
@@ -87,7 +88,7 @@ class VinDrCXRTrainDataset(BaseRadiologicalDataset):
         dtype=torch.bfloat16,
     ):
         if harmonizer_path is not None and base_image_dir is None:
-            _h = VinDrCXRTrainHarmonizer.load_from_saved(harmonizer_path)
+            _h = self._HARMONIZER_CLS.load_from_saved(harmonizer_path)
             base_image_dir = getattr(_h, "base_image_dir", None)
 
         if (
@@ -121,11 +122,15 @@ class VinDrCXRTrainDataset(BaseRadiologicalDataset):
             self._csv_path = infer_path(
                 base_image_dir,
                 "image_labels_train.csv",
+                "annotations/image_labels_train.csv",  # in the folder above (D-35)
                 user_path=csv_path or "",
+                required=True,
+                arg="csv_path",
             ) or csv_path
             self._bbox_csv_path = infer_path(
                 base_image_dir,
                 "annotations_train.csv",
+                "annotations/annotations_train.csv",
                 user_path=bbox_csv_path or "",
             ) or bbox_csv_path
         else:
@@ -151,6 +156,7 @@ class VinDrCXRTrainDataset(BaseRadiologicalDataset):
             output_cls=output_cls,
             output_mask=output_mask,
             output_report=output_report,
+            output_reg=output_reg,
             output_bbox=output_bbox,
             harmonized_df=harmonized_df,
             harmonizer=harmonizer,

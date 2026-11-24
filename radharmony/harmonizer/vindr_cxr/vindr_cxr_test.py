@@ -1,36 +1,42 @@
 """Harmonizer for the VinDr-CXR test dataset."""
 
-import os
-
 import pandas as pd
 
+from .._bbox import box_label, clip_boxes
+from .._dicom_tags import add_patient_tags
 from ..base import BaseHarmonizer
+from ._age import _AgeZeroIsUnknownMixin
+from ._sizes import image_sizes
 
 
-class VinDrCXRTestHarmonizer(BaseHarmonizer):
+class VinDrCXRTestHarmonizer(_AgeZeroIsUnknownMixin, BaseHarmonizer):
     """Harmonize VinDr-CXR test set into the standard RadHarmony format.
 
-    Unlike the training set (3 radiologists, majority vote), the test set
-    was verified by 5 radiologists and labels/bboxes are already aggregated
-    — no ``rad_id`` column, no majority-vote step needed.
+    The train set has 3 radiologists and a majority vote. In the test set, 5 radiologists
+    checked the data, and the labels and boxes are already joined. There is no ``rad_id``
+    column and no vote.
 
-    Bounding boxes come from a separate annotations CSV
-    (``annotations_test.csv`` at
-    ``.../vindr-cxr/1.0.0/annotations/annotations_test.csv``).
-    Each image may have multiple boxes (one per finding).  They are
-    normalized to ``[0, 1]`` using the original DICOM dimensions and
-    stored as a list of ``[y_min, y_max, x_min, x_max]`` per image.
+    The boxes are in a separate CSV, ``annotations_test.csv``
+    (``.../vindr-cxr/1.0.0/annotations/annotations_test.csv``). An image can have several boxes
+    (one for each finding). They are fractions from 0 to 1 (with the DICOM image size), stored
+    as a list of ``[y_min, y_max, x_min, x_max]`` for each image.
 
-    All images are PA view, so no ``view_position`` column is produced.
+    All images are PA view, so there is no ``view_position`` column.
 
-    Note: the test CSV uses ``"Other disease"`` (singular); the harmonizer
-    renames it to ``"Other diseases"`` to match the train set convention.
+    ``sex`` and ``age_years`` come from the DICOM tags ``PatientSex`` and ``PatientAge``. The
+    CSV of the release has neither (D-06, D-26). Many headers have an empty tag, the sex ``O``
+    or a bad age (for example ``Y``). These give NaN. An age of 0 (``000Y`` or ``000D``) means
+    unknown here and gives NaN too. The harmonizer reads the headers only if ``base_image_dir``
+    is set.
+
+    The test CSV has ``"Other disease"`` (singular). The harmonizer renames it to
+    ``"Other diseases"``, as in the train set.
 
     Args:
-        csv_path: Path to ``image_labels_test.csv``
-            (e.g. ``.../vindr-cxr/1.0.0/annotations/image_labels_test.csv``).
+        csv_path: Path to ``image_labels_test.csv``, for example
+            ``.../vindr-cxr/1.0.0/annotations/image_labels_test.csv``.
         bbox_csv_path: Path to ``annotations_test.csv`` (optional).
-        base_image_dir: Root directory of DICOM files for bbox normalization.
+        base_image_dir: Root folder of the DICOM files, for the box fractions.
     """
 
     LABEL_COLS = [
@@ -74,26 +80,36 @@ class VinDrCXRTestHarmonizer(BaseHarmonizer):
     REPORT_JOIN_COLS = None
     REPORT_PATH_COL = None
 
+    # DICOM tags, read by _build_patient_tags() (D-06, D-26).
+    AGE_SOURCE_COL = "PatientAge"
+    AGE_SOURCE_UNIT = "dicom_as"
+    SEX_SOURCE_COL = "PatientSex"
+
     def __init__(self, csv_path: str, bbox_csv_path: str = None, base_image_dir: str = None):
         super().__init__(csv_path=csv_path, bbox_csv_path=bbox_csv_path)
         self.base_image_dir = base_image_dir
 
     def _build_patient_id(self) -> None:
-        # VinDr-CXR has no patient concept; use image_id as patient_id
+        # The release has no patient. The image ID is the patient ID.
         self.df["patient_id"] = self.df["image_id"].astype(str)
 
     def _build_study_id(self) -> None:
-        # One image per study; use image_id as study_id
+        # One image for each study.
         self.df["study_id"] = self.df["image_id"].astype(str)
 
     def _build_image_path(self) -> None:
-        # DICOM files named <image_id>.dicom under base_image_dir
+        # The files are <image_id>.dicom in base_image_dir.
         self.df["image_path"] = self.df["image_id"] + ".dicom"
+        self._build_patient_tags()
+
+    def _build_patient_tags(self) -> None:
+        """Read ``PatientSex`` and ``PatientAge`` from the DICOM headers (D-06)."""
+        if self.base_image_dir:
+            self.df = add_patient_tags(self.df, self.base_image_dir)
 
     def _build_labels(self) -> None:
-        # Labels already aggregated in the CSV; just rename to snake_case.
-        # Convention: lower + spaces→underscores (keep "/" as-is).
-        # CSV has "Other disease" (singular); rename to match train's "Other diseases"
+        # The CSV labels are already joined. Rename to snake_case (lower case, "_" for spaces,
+        # "/" stays). The CSV has "Other disease" (singular). Rename it as in train.
         if "Other disease" in self.df.columns:
             self.df.rename(columns={"Other disease": "Other diseases"}, inplace=True)
         for col in self.LABEL_COLS:
@@ -102,38 +118,32 @@ class VinDrCXRTestHarmonizer(BaseHarmonizer):
                 self.df.rename(columns={col: snake}, inplace=True)
 
     def _build_bbox(self) -> None:
-        """Normalize bounding boxes from the annotations CSV.
+        """Convert the boxes of the annotations CSV to fractions.
 
-        Unlike the train set, test bboxes are already aggregated (no
-        ``rad_id``).  Each row is one finding per image.  Coordinates are
-        normalized to ``[0, 1]`` using DICOM header dimensions and stored
-        as ``[y_min, y_max, x_min, x_max]``.
+        The test boxes are already joined (no ``rad_id``). A row is one finding of an image. The
+        coordinates are fractions from 0 to 1 (with the DICOM header size), stored as
+        ``[y_min, y_max, x_min, x_max]``.
 
-        Two columns are produced:
+        It makes 2 columns:
 
-        * ``bbox`` — list of normalized 4-element coordinate lists per image.
-        * ``bbox_labels`` — parallel list of class-name strings (snake_case).
+        * ``bbox``: a list of 4-value fraction lists for each image.
+        * ``bbox_labels``: the class names (snake_case), in the same order.
+
+        A box is clipped to the image. A box with no area left is dropped, with a warning (D-07).
         """
         if self.bbox_csv_path is None:
             return
         bbox_df = pd.read_csv(self.bbox_csv_path)
-        # "No finding" rows have NaN coordinates — drop them
+        # A "No finding" row has NaN coordinates.
         bbox_df = bbox_df.dropna(subset=["x_min", "y_min", "x_max", "y_max"])
         if bbox_df.empty:
             return
 
-        # Read DICOM headers for normalization
+        # The DICOM headers give the image size.
         image_ids_with_bbox = bbox_df["image_id"].unique()
-        img_sizes = {}
-        if self.base_image_dir:
-            import pydicom
-            for iid in image_ids_with_bbox:
-                path = os.path.join(self.base_image_dir, iid + ".dicom")
-                if os.path.exists(path):
-                    dcm = pydicom.dcmread(path, stop_before_pixels=True)
-                    img_sizes[iid] = (int(dcm.Rows), int(dcm.Columns))
+        img_sizes = image_sizes(self.base_image_dir, image_ids_with_bbox, "VinDr-CXR test")  # warns about lost boxes
 
-        # Normalize to [y_min/H, y_max/H, x_min/W, x_max/W] + collect labels
+        # Fractions [y_min/H, y_max/H, x_min/W, x_max/W] and the labels.
         def _normalize_group(g):
             iid = g.name
             if iid not in img_sizes:
@@ -147,7 +157,7 @@ class VinDrCXRTestHarmonizer(BaseHarmonizer):
                     row["x_min"] / W,
                     row["x_max"] / W,
                 ])
-                labels.append(row["class_name"].lower().replace(" ", "_"))
+                labels.append(box_label(row["class_name"]))
             return pd.Series({"bbox": boxes, "bbox_labels": labels})
 
         bbox_agg = (
@@ -156,33 +166,11 @@ class VinDrCXRTestHarmonizer(BaseHarmonizer):
             .reset_index()
         )
         self.df = self.df.merge(bbox_agg, on="image_id", how="left")
-        # Images without annotations get empty lists
+        # An image with no box gets empty lists.
         self.df["bbox"] = self.df["bbox"].apply(
             lambda x: x if isinstance(x, list) else []
         )
         self.df["bbox_labels"] = self.df["bbox_labels"].apply(
             lambda x: x if isinstance(x, list) else []
         )
-
-    def harmonize(self, **kwargs) -> pd.DataFrame:
-        """Read labels CSV and build standard columns.
-
-        Labels are already aggregated (verified by 5 radiologists), so no
-        majority-vote step is needed — unlike the train harmonizer.
-        """
-        self._harmonized_df_override = None
-        self.df = pd.read_csv(self.csv_path)
-
-        self._build_patient_id()
-        self._build_study_id()
-        self._build_image_path()
-        self._build_labels()
-        self._build_view_position()
-        self._build_mask_path()
-        self._build_bbox()
-        self._build_report()
-
-        self.df.dropna(subset=["image_path"], inplace=True)
-        self.df.reset_index(drop=True, inplace=True)
-
-        return self._select_harmonized_columns(self.df)
+        clip_boxes(self.df, "VinDr-CXR test")  # D-07
